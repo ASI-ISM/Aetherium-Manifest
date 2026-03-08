@@ -55,9 +55,10 @@ def test_websocket_stream_with_query_key(client: TestClient) -> None:
 
 
 def test_websocket_stream_with_header_key(client: TestClient) -> None:
-    # Note: TestClient doesn't directly support setting headers for websockets.
-    # This is a known limitation. We test the query param route as the primary path.
-    pass
+    with client.websocket_connect("/ws/cognitive-stream", headers={"x-api-key": "test-key"}) as websocket:
+        websocket.send_json({"type": "dsl_submission", "payload": "..."})
+        response = websocket.receive_json()
+        assert response["status"] == "accepted"
 
 
 def test_proxy_fetch_supports_cors_preflight(client: TestClient) -> None:

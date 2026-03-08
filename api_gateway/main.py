@@ -176,6 +176,18 @@ class StateSyncRoom:
             "user_state": self.user_states.get(user_id or "", {}),
         }
 
+    async def broadcast_json(self, message: dict[str, Any]) -> None:
+        if not self.clients:
+            return
+        disconnected_clients: list[WebSocket] = []
+        for client in self.clients:
+            try:
+                await client.send_json(message)
+            except RuntimeError:
+                disconnected_clients.append(client)
+        if disconnected_clients:
+            self.clients = [client for client in self.clients if client not in disconnected_clients]
+
 # --- DSL Validation ---
 
 class FirmaValidator:
@@ -271,7 +283,7 @@ def _is_blocked_proxy_target(hostname: str) -> bool:
                 or address.is_multicast
             ):
                 return True
-    except socket.gaierror:
+    except (socket.gaierror, OSError, ValueError):
         return True
     return False
 
@@ -455,7 +467,7 @@ async def state_sync(websocket: WebSocket, room_id: str, user_id: str | None = Q
             async with room.lock:
                 snapshot = room.apply_delta(payload.get("delta", {}), user_id, payload.get("user_delta", {}))
                 message = {"type": "state_updated", **snapshot}
-                await asyncio.gather(*[client.send_json(message) for client in room.clients])
+                await room.broadcast_json(message)
     except WebSocketDisconnect:
         async with room.lock:
             if websocket in room.clients:

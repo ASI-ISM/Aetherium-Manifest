@@ -212,5 +212,36 @@ class GatewayExtensionTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(snapshot["user_state"]["theme"], "dark")
 
 
+    def test_proxy_guard_rejects_invalid_hostname(self) -> None:
+        from api_gateway.main import _is_blocked_proxy_target
+
+        self.assertTrue(_is_blocked_proxy_target("bad host name"))
+
+    async def test_state_sync_room_broadcast_prunes_disconnected_clients(self) -> None:
+        from api_gateway.main import StateSyncRoom
+
+        class FailingSocket:
+            async def send_json(self, _message: dict[str, object]) -> None:
+                raise RuntimeError("cannot send")
+
+        class GoodSocket:
+            def __init__(self) -> None:
+                self.messages: list[dict[str, object]] = []
+
+            async def send_json(self, message: dict[str, object]) -> None:
+                self.messages.append(message)
+
+        room = StateSyncRoom()
+        failing = FailingSocket()
+        good = GoodSocket()
+        room.clients = [failing, good]  # type: ignore[list-item]
+
+        message = {"type": "state_updated", "version": 1}
+        await room.broadcast_json(message)
+
+        self.assertEqual(room.clients, [good])
+        self.assertEqual(good.messages, [message])
+
+
 if __name__ == "__main__":
     unittest.main()
