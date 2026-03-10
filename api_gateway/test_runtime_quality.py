@@ -296,5 +296,63 @@ class LightCognitionPipelineTests(unittest.TestCase):
         self.assertEqual(fallback_visual.model_dump(), visual.model_dump())
 
 
+class EnvelopeCompatibilityTests(unittest.TestCase):
+    def test_adapter_supports_embodiment_v1_and_v2(self) -> None:
+        from tools.contracts.protocol_adapter import to_legacy_visual_parameters
+
+        v1_payload = {
+            "contract_type": "EMBODIMENT_V1",
+            "visual_manifestation": {
+                "core_shape": "ring",
+                "particle_velocity": 0.4,
+                "turbulence": 0.11,
+                "chromatic_aberration": 0.02,
+                "cadence": {"bpm": 60, "phase": 0.0, "jitter": 0.02},
+            },
+        }
+        v2_payload = {
+            "contract_type": "EMBODIMENT_V2",
+            "semantic_field": {"semantic_tensors": {"energy": 0.7}, "polarity": 0.2, "ambiguity": 0.1},
+            "morphogenesis_plan": {
+                "topology_seeds": ["helix"],
+                "attractors": ["coherence"],
+                "constraints": [],
+                "temporal_operators": ["phase_lock"],
+            },
+            "light_program": {
+                "shader_uniforms": {"chromatic_aberration": 0.03},
+                "particle_targets": {"count": 5500},
+                "force_field_descriptors": [],
+            },
+            "runtime_tick_policy": {"tick_rate_hz": 20, "mode": "deterministic"},
+        }
+
+        legacy_v1 = to_legacy_visual_parameters(v1_payload)
+        legacy_v2 = to_legacy_visual_parameters(v2_payload)
+
+        self.assertEqual(legacy_v1["base_shape"], "ring")
+        self.assertEqual(legacy_v2["base_shape"], "helix")
+        self.assertGreater(legacy_v1["tick_rate_hz"], 0)
+        self.assertGreater(legacy_v2["tick_rate_hz"], 0)
+
+    def test_contract_checker_enforces_field_evolution_sections(self) -> None:
+        from tools.contracts.contract_checker import _check_schema_field_evolution
+
+        broken_schema = {
+            "title": "Broken",
+            "type": "object",
+            "properties": {
+                "semantic_field": {"type": "object"}
+            },
+            "x-field-evolution": {
+                "introduced_in": "1.0.0"
+            },
+        }
+        audits: list[str] = []
+        errors = _check_schema_field_evolution("broken", broken_schema, audits)
+        self.assertTrue(errors)
+        self.assertFalse(audits)
+
+
 if __name__ == "__main__":
     unittest.main()

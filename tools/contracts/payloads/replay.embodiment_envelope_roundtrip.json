@@ -1,0 +1,59 @@
+[
+  {
+    "payload": {
+      "contract_type": "EMBODIMENT_V1",
+      "visual_manifestation": {
+        "core_shape": "ring",
+        "particle_velocity": 0.4,
+        "turbulence": 0.1,
+        "chromatic_aberration": 0.02,
+        "cadence": {"bpm": 60, "phase": 0.0, "jitter": 0.03}
+      }
+    },
+    "expected": {
+      "contract_type": "EMBODIMENT_V1",
+      "visual_parameters": {
+        "base_shape": "ring",
+        "particle_density": 0.4,
+        "turbulence": 0.1,
+        "chromatic_aberration": 0.02,
+        "tick_rate_hz": 1.0
+      }
+    }
+  },
+  {
+    "payload": {
+      "contract_type": "EMBODIMENT_V2",
+      "semantic_field": {
+        "semantic_tensors": {"energy": 0.7},
+        "polarity": 0.4,
+        "ambiguity": 0.2
+      },
+      "morphogenesis_plan": {
+        "topology_seeds": ["helix"],
+        "attractors": ["coherence"],
+        "constraints": ["turbulence<=0.2"],
+        "temporal_operators": ["phase_lock"]
+      },
+      "light_program": {
+        "shader_uniforms": {"chromatic_aberration": 0.08},
+        "particle_targets": {"count": 5000},
+        "force_field_descriptors": []
+      },
+      "runtime_tick_policy": {
+        "tick_rate_hz": 25,
+        "mode": "deterministic"
+      }
+    },
+    "expected": {
+      "contract_type": "EMBODIMENT_V1",
+      "visual_parameters": {
+        "base_shape": "helix",
+        "particle_density": 0.5,
+        "turbulence": 0.2,
+        "chromatic_aberration": 0.08,
+        "tick_rate_hz": 25.0
+      }
+    }
+  }
+]

@@ -3,12 +3,18 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any, Literal
 
 from jsonschema import Draft202012Validator
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from tools.contracts.protocol_adapter import roundtrip_envelope, to_legacy_visual_parameters
+
 SCHEMA_DIR = REPO_ROOT / "docs" / "schemas"
 PAYLOAD_DIR = Path(__file__).resolve().parent / "payloads"
 
@@ -21,6 +27,10 @@ CHECKS = {
         "schema": SCHEMA_DIR / "embodiment_v1.json",
         "payload": PAYLOAD_DIR / "embodiment_v1.payload.json",
     },
+    "embodiment_v2": {
+        "schema": SCHEMA_DIR / "embodiment_v2.json",
+        "payload": PAYLOAD_DIR / "embodiment_v2.payload.json",
+    },
     "ipw_v1": {
         "schema": SCHEMA_DIR / "ipw_v1.json",
         "payload": PAYLOAD_DIR / "ipw_v1.payload.json",
@@ -29,6 +39,13 @@ CHECKS = {
         "schema": SCHEMA_DIR / "light_cognition_pipeline_v1.json",
         "payload": PAYLOAD_DIR / "light_cognition_pipeline_v1.payload.json",
     },
+}
+
+FIELD_EVOLUTION_REQUIRED_KEYS = {
+    "introduced_in",
+    "supersedes",
+    "compatibility_adapter",
+    "required_evolution_sections",
 }
 
 DEFAULT_CADENCE_BY_PHASE = {
@@ -53,6 +70,87 @@ def _legacy_embodiment_audits(payload: dict[str, Any], audits: list[str]) -> Non
     phase = str(payload.get("temporal_state", {}).get("phase", "awakened")).strip().lower()
     cadence = DEFAULT_CADENCE_BY_PHASE.get(phase, DEFAULT_CADENCE_BY_PHASE["awakened"])
     audits.append(f"embodiment_v1: cadence is absent; recommended deterministic default for phase={phase!r}: {cadence}")
+
+
+def _check_schema_field_evolution(contract_name: str, schema: dict[str, Any], audits: list[str]) -> list[str]:
+    evolution = schema.get("x-field-evolution")
+    if not isinstance(evolution, dict):
+        return [f"<schema>.x-field-evolution: missing required field-evolution section for {contract_name}"]
+
+    missing = sorted(FIELD_EVOLUTION_REQUIRED_KEYS - set(evolution.keys()))
+    if missing:
+        return [f"<schema>.x-field-evolution: missing required keys {missing} for {contract_name}"]
+
+    required_sections = evolution.get("required_evolution_sections", [])
+    if not isinstance(required_sections, list) or not required_sections:
+        return [f"<schema>.x-field-evolution.required_evolution_sections: must contain at least one section for {contract_name}"]
+
+    missing_sections = [section for section in required_sections if section not in schema.get("properties", {})]
+    if missing_sections:
+        return [f"<schema>.properties: missing required field-evolution sections {missing_sections} for {contract_name}"]
+
+    audits.append(f"{contract_name}: field-evolution metadata present")
+    return []
+
+
+def _check_embodiment_compatibility(audits: list[str]) -> list[str]:
+    fixture_paths = [
+        PAYLOAD_DIR / "compatibility.embodiment_v1.payload.json",
+        PAYLOAD_DIR / "compatibility.embodiment_v2.payload.json",
+    ]
+    errors: list[str] = []
+
+    for path in fixture_paths:
+        payload = _load_json(path)
+        try:
+            legacy = to_legacy_visual_parameters(payload)
+        except ValueError as exc:
+            errors.append(f"{path.name}: adapter failure: {exc}")
+            continue
+
+        required_keys = {"base_shape", "particle_density", "turbulence", "chromatic_aberration", "tick_rate_hz"}
+        missing = sorted(required_keys - set(legacy.keys()))
+        if missing:
+            errors.append(f"{path.name}: adapted visual_parameters missing keys {missing}")
+            continue
+
+        if legacy["tick_rate_hz"] <= 0:
+            errors.append(f"{path.name}: tick_rate_hz must be > 0")
+
+    if not errors:
+        audits.append("compatibility_fixtures: pass_rate=100.00%")
+    return errors
+
+
+def _check_envelope_roundtrip_integrity(audits: list[str]) -> list[str]:
+    fixtures = _load_json(PAYLOAD_DIR / "replay.embodiment_envelope_roundtrip.json")
+    if not isinstance(fixtures, list) or not fixtures:
+        return ["replay.embodiment_envelope_roundtrip.json: fixtures must be a non-empty array"]
+
+    success = 0
+    failures: list[str] = []
+    for idx, row in enumerate(fixtures):
+        payload = row.get("payload", {})
+        expected = row.get("expected", {})
+
+        try:
+            actual = roundtrip_envelope(payload)
+        except Exception as exc:  # defensive for fixture evaluation
+            failures.append(f"fixture[{idx}]: roundtrip error: {exc}")
+            continue
+
+        if actual == expected:
+            success += 1
+        else:
+            failures.append(f"fixture[{idx}]: roundtrip mismatch")
+
+    integrity = success / len(fixtures)
+    audits.append(f"envelope_roundtrip_integrity={integrity * 100:.5f}%")
+    if integrity < 0.9999:
+        failures.append(
+            f"envelope round-trip integrity {integrity * 100:.5f}% below required 99.99%"
+        )
+    return failures
 
 
 def _check_ipw_probability_policy(payload: dict[str, Any], audits: list[str]) -> list[str]:
@@ -109,12 +207,16 @@ def _apply_contract_policy(contract_name: str, payload: dict[str, Any], audits: 
 
 def run_contract_checks(mode: Mode = "strict") -> int:
     failures = 0
+    global_errors: list[str] = []
+    global_audits: list[str] = []
+
     for contract_name, pair in CHECKS.items():
         schema = _load_json(pair["schema"])
         payload = _load_json(pair["payload"])
         audits: list[str] = []
 
-        errors = _apply_contract_policy(contract_name, payload, audits, mode=mode)
+        errors = _check_schema_field_evolution(contract_name, schema, audits)
+        errors.extend(_apply_contract_policy(contract_name, payload, audits, mode=mode))
         validator = Draft202012Validator(schema)
         errors.extend(f"{'.'.join(str(p) for p in err.path) or '<root>'}: {err.message}" for err in validator.iter_errors(payload))
 
@@ -128,6 +230,20 @@ def run_contract_checks(mode: Mode = "strict") -> int:
 
         for audit in audits:
             print(f"  [AUDIT] {audit}")
+
+    global_errors.extend(_check_embodiment_compatibility(global_audits))
+    global_errors.extend(_check_envelope_roundtrip_integrity(global_audits))
+
+    if global_errors:
+        failures += 1
+        print("[FAIL] compatibility_and_roundtrip")
+        for error in global_errors:
+            print(f"  - {error}")
+    else:
+        print("[PASS] compatibility_and_roundtrip")
+
+    for audit in global_audits:
+        print(f"  [AUDIT] {audit}")
 
     return failures
 

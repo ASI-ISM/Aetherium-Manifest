@@ -2,7 +2,13 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "IntentProbabilityWaveV1",
   "type": "object",
-  "required": ["ipw_type", "predictions", "collapse_threshold", "evidence", "probability_policy"],
+  "required": [
+    "ipw_type",
+    "predictions",
+    "collapse_threshold",
+    "evidence",
+    "probability_policy"
+  ],
   "properties": {
     "ipw_type": {
       "type": "string",
@@ -13,10 +19,19 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["action_id", "p"],
+        "required": [
+          "action_id",
+          "p"
+        ],
         "properties": {
-          "action_id": { "type": "string" },
-          "p": { "type": "number", "minimum": 0, "maximum": 1 }
+          "action_id": {
+            "type": "string"
+          },
+          "p": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
         },
         "additionalProperties": false
       }
@@ -28,22 +43,50 @@
     },
     "probability_policy": {
       "type": "object",
-      "required": ["requires_normalization", "epsilon", "on_violation"],
+      "required": [
+        "requires_normalization",
+        "epsilon",
+        "on_violation"
+      ],
       "properties": {
-        "requires_normalization": { "type": "boolean" },
-        "epsilon": { "type": "number", "minimum": 0, "maximum": 0.01 },
-        "on_violation": { "type": "string", "enum": ["error", "normalize"] }
+        "requires_normalization": {
+          "type": "boolean"
+        },
+        "epsilon": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.01
+        },
+        "on_violation": {
+          "type": "string",
+          "enum": [
+            "error",
+            "normalize"
+          ]
+        }
       },
       "additionalProperties": false
     },
     "evidence": {
       "type": "object",
       "properties": {
-        "interaction_velocity": { "type": "number" },
-        "context_signature": { "type": "string" }
+        "interaction_velocity": {
+          "type": "number"
+        },
+        "context_signature": {
+          "type": "string"
+        }
       },
       "additionalProperties": true
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "x-field-evolution": {
+    "introduced_in": "1.0.0",
+    "supersedes": "none",
+    "compatibility_adapter": "native",
+    "required_evolution_sections": [
+      "probability_policy"
+    ]
+  }
 }

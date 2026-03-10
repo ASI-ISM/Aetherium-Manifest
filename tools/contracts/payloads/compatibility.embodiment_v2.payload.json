@@ -1,0 +1,23 @@
+{
+  "contract_type": "EMBODIMENT_V2",
+  "semantic_field": {
+    "semantic_tensors": {"valence": 0.4},
+    "polarity": 0.4,
+    "ambiguity": 0.21
+  },
+  "morphogenesis_plan": {
+    "topology_seeds": ["orb"],
+    "attractors": ["coherence"],
+    "constraints": ["turbulence<=0.21"],
+    "temporal_operators": ["phase_lock"]
+  },
+  "light_program": {
+    "shader_uniforms": {"chromatic_aberration": 0.07},
+    "particle_targets": {"count": 6400},
+    "force_field_descriptors": ["turbulence<=0.21"]
+  },
+  "runtime_tick_policy": {
+    "tick_rate_hz": 30,
+    "mode": "adaptive"
+  }
+}

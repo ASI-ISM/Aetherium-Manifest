@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EmbodimentContractV2",
+  "x-field-evolution": {
+    "introduced_in": "2.0.0",
+    "supersedes": "EMBODIMENT_V1",
+    "compatibility_adapter": "tools.contracts.protocol_adapter.to_legacy_visual_parameters",
+    "required_evolution_sections": [
+      "semantic_field",
+      "morphogenesis_plan",
+      "light_program",
+      "runtime_tick_policy"
+    ]
+  },
+  "type": "object",
+  "required": [
+    "contract_type",
+    "semantic_field",
+    "morphogenesis_plan",
+    "light_program",
+    "runtime_tick_policy"
+  ],
+  "properties": {
+    "contract_type": {
+      "type": "string",
+      "const": "EMBODIMENT_V2"
+    },
+    "semantic_field": {
+      "type": "object",
+      "required": ["semantic_tensors", "polarity", "ambiguity"],
+      "properties": {
+        "semantic_tensors": {
+          "type": "object",
+          "additionalProperties": {"type": "number"}
+        },
+        "polarity": {"type": "number", "minimum": -1, "maximum": 1},
+        "ambiguity": {"type": "number", "minimum": 0, "maximum": 1}
+      },
+      "additionalProperties": true
+    },
+    "morphogenesis_plan": {
+      "type": "object",
+      "required": ["topology_seeds", "attractors", "constraints", "temporal_operators"],
+      "properties": {
+        "topology_seeds": {"type": "array", "items": {"type": "string"}},
+        "attractors": {"type": "array", "items": {"type": "string"}},
+        "constraints": {"type": "array", "items": {"type": "string"}},
+        "temporal_operators": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": true
+    },
+    "light_program": {
+      "type": "object",
+      "required": ["shader_uniforms", "particle_targets", "force_field_descriptors"],
+      "properties": {
+        "shader_uniforms": {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [{"type": "number"}, {"type": "string"}]
+          }
+        },
+        "particle_targets": {
+          "type": "object",
+          "additionalProperties": {"type": "number"}
+        },
+        "force_field_descriptors": {"type": "array", "items": {"type": "string"}
+        }
+      },
+      "additionalProperties": true
+    },
+    "runtime_tick_policy": {
+      "type": "object",
+      "required": ["tick_rate_hz", "mode"],
+      "properties": {
+        "tick_rate_hz": {"type": "number", "exclusiveMinimum": 0},
+        "mode": {"type": "string", "enum": ["deterministic", "adaptive"]},
+        "jitter_budget_ms": {"type": "number", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "visual_parameters": {
+      "type": "object",
+      "description": "Optional pre-adapted output for legacy consumers.",
+      "properties": {
+        "base_shape": {"type": "string"},
+        "particle_density": {"type": "number"},
+        "turbulence": {"type": "number"},
+        "chromatic_aberration": {"type": "number"},
+        "tick_rate_hz": {"type": "number", "exclusiveMinimum": 0}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

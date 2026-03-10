@@ -17,67 +17,147 @@
     },
     "intent": {
       "type": "object",
-      "required": ["category", "emotional_valence", "energy_level"],
+      "required": [
+        "category",
+        "emotional_valence",
+        "energy_level"
+      ],
       "properties": {
-        "category": {"type": "string"},
-        "emotional_valence": {"type": "number", "minimum": -1, "maximum": 1},
-        "energy_level": {"type": "number", "minimum": 0, "maximum": 1}
+        "category": {
+          "type": "string"
+        },
+        "emotional_valence": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        },
+        "energy_level": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
       },
       "additionalProperties": false
     },
     "semantic_field": {
       "type": "object",
-      "required": ["semantic_tensors", "confidence_gradients", "polarity", "ambiguity"],
+      "required": [
+        "semantic_tensors",
+        "confidence_gradients",
+        "polarity",
+        "ambiguity"
+      ],
       "properties": {
         "semantic_tensors": {
           "type": "object",
-          "additionalProperties": {"type": "number"}
+          "additionalProperties": {
+            "type": "number"
+          }
         },
         "confidence_gradients": {
           "type": "array",
-          "items": {"type": "number", "minimum": 0, "maximum": 1}
+          "items": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
         },
-        "polarity": {"type": "number", "minimum": -1, "maximum": 1},
-        "ambiguity": {"type": "number", "minimum": 0, "maximum": 1}
+        "polarity": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        },
+        "ambiguity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
       },
       "additionalProperties": false
     },
     "morphogenesis_plan": {
       "type": "object",
-      "required": ["topology_seeds", "attractors", "constraints", "temporal_operators"],
+      "required": [
+        "topology_seeds",
+        "attractors",
+        "constraints",
+        "temporal_operators"
+      ],
       "properties": {
-        "topology_seeds": {"type": "array", "items": {"type": "string"}},
-        "attractors": {"type": "array", "items": {"type": "string"}},
-        "constraints": {"type": "array", "items": {"type": "string"}},
-        "temporal_operators": {"type": "array", "items": {"type": "string"}}
+        "topology_seeds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "attractors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "temporal_operators": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       },
       "additionalProperties": false
     },
     "compiled_light_program": {
       "type": "object",
-      "required": ["shader_uniforms", "particle_targets", "force_field_descriptors", "update_cadence_hz"],
+      "required": [
+        "shader_uniforms",
+        "particle_targets",
+        "force_field_descriptors",
+        "update_cadence_hz"
+      ],
       "properties": {
         "shader_uniforms": {
           "type": "object",
           "additionalProperties": {
             "oneOf": [
-              {"type": "number"},
-              {"type": "string"}
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
             ]
           }
         },
         "particle_targets": {
           "type": "object",
-          "additionalProperties": {"type": "number"}
+          "additionalProperties": {
+            "type": "number"
+          }
         },
-        "force_field_descriptors": {"type": "array", "items": {"type": "string"}},
-        "update_cadence_hz": {"type": "number", "exclusiveMinimum": 0}
+        "force_field_descriptors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "update_cadence_hz": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
       },
       "additionalProperties": false
     },
     "cognitive_field_runtime": {
       "type": "object",
-      "required": ["visual_manifestation", "renderer_ingestion_contract"],
+      "required": [
+        "visual_manifestation",
+        "renderer_ingestion_contract"
+      ],
       "properties": {
         "visual_manifestation": {
           "type": "object"
@@ -90,5 +170,15 @@
       "additionalProperties": false
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "x-field-evolution": {
+    "introduced_in": "1.0.0",
+    "supersedes": "none",
+    "compatibility_adapter": "runtime_renderer_abi",
+    "required_evolution_sections": [
+      "semantic_field",
+      "morphogenesis_plan",
+      "compiled_light_program"
+    ]
+  }
 }

@@ -163,5 +163,13 @@
       "additionalProperties": true
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "x-field-evolution": {
+    "introduced_in": "1.0.0",
+    "supersedes": "none",
+    "compatibility_adapter": "native",
+    "required_evolution_sections": [
+      "visual_manifestation"
+    ]
+  }
 }

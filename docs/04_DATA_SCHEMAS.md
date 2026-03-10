@@ -52,3 +52,16 @@ Internal stage data models:
 Backwards compatibility:
 - Runtime output still targets `EMBODIMENT_V1` renderer ingestion shape.
 - New contracts are additive and can be gated by runtime feature flags.
+
+## Embodiment Contract V2 (Explicit Envelope)
+Canonical contract file: `docs/schemas/embodiment_v2.json`
+
+Required envelope sections:
+- `semantic_field`
+- `morphogenesis_plan`
+- `light_program`
+- `runtime_tick_policy`
+
+Compatibility policy:
+- Legacy consumers reading `visual_parameters` MUST use adapter `tools/contracts/protocol_adapter.py`.
+- Schema lint enforces `x-field-evolution` metadata + required section presence for every governed contract.
