@@ -18,6 +18,8 @@ jobs:
           pip install -r api_gateway/requirements.txt
       - name: Validate schema contracts
         run: python tools/contracts/contract_checker.py --strict
+      - name: Locale QA checks
+        run: python tools/contracts/locale_qa.py
 
   runtime-quality:
     runs-on: ubuntu-latest

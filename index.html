@@ -572,6 +572,16 @@
 
     <div class="settings-tab" data-tab-content="display">
       <div class="setting-row">
+        <label for="scenario-preset">Scenario Preset</label>
+        <select id="scenario-preset" class="btn">
+          <option value="custom">Custom</option>
+          <option value="presentation">Presentation</option>
+          <option value="meditation">Meditation</option>
+          <option value="debug">Debug</option>
+          <option value="low-power">Low-power</option>
+        </select>
+      </div>
+      <div class="setting-row">
         <span>Display Page</span>
         <div class="seg" id="display-selector">
           <button type="button" data-page="1" class="active">Page 1</button>
@@ -607,6 +617,7 @@
           <option value="en">English</option>
           <option value="ja">日本語</option>
           <option value="es">Español</option>
+          <option value="en-XA">Pseudo (en-XA)</option>
         </select>
       </div>
       <div class="setting-row">
@@ -797,6 +808,7 @@
       externalUrl: document.getElementById('external-url'),
       urlStatus: document.getElementById('url-status'),
       displayLanguage: document.getElementById('display-language'),
+      scenarioPreset: document.getElementById('scenario-preset'),
       understandingLanguage: document.getElementById('understanding-language'),
       voiceMode: document.getElementById('voice-mode'),
       voiceRegion: document.getElementById('voice-region'),
@@ -845,9 +857,25 @@
       understandingLanguage: 'auto',
       voiceMode: 'standard',
       voiceRegion: 'apac',
+      scenarioPreset: 'custom',
       gatewayBaseUrl: 'http://localhost:8000',
       deltaStateEnabled: true
     };
+
+    const scenarioPresets = Object.freeze({
+      presentation: {
+        page: '2', qualityTier: 'high', voiceMode: 'enhanced', miniBoxes: [true, true, false]
+      },
+      meditation: {
+        page: '1', qualityTier: 'medium', voiceMode: 'thai-fallback', miniBoxes: [false, false, false]
+      },
+      debug: {
+        page: '1', qualityTier: 'high', voiceMode: 'regional', miniBoxes: [true, true, true]
+      },
+      'low-power': {
+        page: '1', qualityTier: 'low', voiceMode: 'standard', miniBoxes: [false, true, false]
+      }
+    });
 
     function applyDeltaState(target, delta) {
       if (!runtimeConfig.deltaStateEnabled) return;
@@ -1017,6 +1045,22 @@
 
     function toggleMiniBox(index) {
       document.body.classList.toggle(`show-box-${index}`);
+    }
+
+    function applyScenarioPreset(presetKey) {
+      const preset = scenarioPresets[presetKey];
+      if (!preset) return;
+      runtimeConfig.scenarioPreset = presetKey;
+      setDisplayPage(preset.page);
+      applyQualityTier(preset.qualityTier);
+      runtimeConfig.voiceMode = preset.voiceMode;
+      refs.voiceMode.value = preset.voiceMode;
+      preset.miniBoxes.forEach((isVisible, index) => {
+        document.body.classList.toggle(`show-box-${index + 1}`, isVisible);
+      });
+      commandBus.emit('display:preset', { preset: presetKey, quality: preset.qualityTier });
+      syncStatePatch({ scenarioPreset: presetKey, qualityTier: preset.qualityTier, voiceMode: preset.voiceMode });
+      addBubble('system', `preset applied: ${presetKey}`);
     }
 
     const mouse = { x: -9999, y: -9999, active: false };
@@ -2256,6 +2300,15 @@
     refs.displayLanguage.addEventListener('change', async event => {
       await translateUi(event.target.value);
       await refreshVoiceModel();
+    });
+
+    refs.scenarioPreset.addEventListener('change', event => {
+      const presetKey = event.target.value;
+      if (presetKey === 'custom') {
+        runtimeConfig.scenarioPreset = 'custom';
+        return;
+      }
+      applyScenarioPreset(presetKey);
     });
 
     refs.understandingLanguage.addEventListener('change', async event => {

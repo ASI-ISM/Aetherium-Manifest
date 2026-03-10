@@ -497,9 +497,6 @@ Future directions:
 - **CRDT Collaboration**  
   Add Yjs/Automerge support for conflict-free collaborative state editing.
 
-- **Scenario Presets**  
-  Add `Presentation`, `Meditation`, `Debug`, `Low-power` multi-setting profiles.
-
 - **Plugin Renderer API**  
   Enable custom visual modules without modifying core runtime. Plugin renderers SHOULD respect AM-UI contracts for state-to-color mapping and reserved palette slots (`ERROR`, `WARNING`, `NIRODHA`). They MAY add extension palettes, but MUST preserve core semantics (e.g., failure remains in the Plasma Red spectrum).
 
@@ -555,6 +552,7 @@ Aetherium Manifest คือเลเยอร์แสดงผลฝั่ง 
 - Controls ที่เป็นมิตรต่อการเข้าถึง (Accessibility)
 - HUD ทุกหน้าต่างมีปุ่มปิด, เปิดคืนจาก Settings > Panels, ลากย้าย และย่อ/ขยายได้
 - Settings 5 แท็บ: `Display`, `Panels`, `Links`, `Language`, `Voice`
+- Display tab supports scenario presets (`Presentation`, `Meditation`, `Debug`, `Low-power`) to apply multi-setting profiles
 - มีช่องวิเคราะห์ URL ภายนอก
 - มีโครง telemetry + event bus + delta-state helper
 - รองรับ PWA (installable + service worker + asset caching)
@@ -582,11 +580,11 @@ Gateway: `http://localhost:8000` (เอกสาร API ที่ `/docs`)
 - `index.html`, `service-worker.js`, `app.webmanifest`: ส่วน frontend และ PWA
 - `api_gateway/`: บริการ FastAPI + websocket สำหรับ cognitive stream
 - `tools/contracts/`: เครื่องมือตรวจสอบ schema/payload
+- `tools/contracts/locale_qa.py`: ตรวจสอบ locale ครบ key และ pseudolocale (`en-XA`) สำหรับ CI
 - `tools/benchmarks/`: สคริปต์ benchmark สำหรับ latency/stress
 - `docs/`: เอกสารสถาปัตยกรรม อินเทอร์เฟซ ความปลอดภัย และ roadmap
 
 ### แนวทางต่อยอด
-- เพิ่ม Preset การใช้งาน (Presentation / Meditation / Debug / Low-power)
 - เพิ่ม Plugin Renderer API
 - เพิ่ม Session Replay (timeline + bookmarks)
 - เพิ่ม policy-driven link analysis พร้อม risk score/audit export
@@ -603,6 +601,5 @@ Gateway: `http://localhost:8000` (เอกสาร API ที่ `/docs`)
 - Build contract-fuzz pipeline: property-based payload generators + mutation corpus for schema regression stress tests.
 - Add persisted TSDB backend (InfluxDB/TimescaleDB) with retention + downsampling policies.
 - Add proxy allowlist/denylist + content-type and size guardrails for stronger SSRF safety.
-- Add locale QA checks (missing key scanner + pseudolocale) in CI.
 - Add voice A/B routing and collect WER / latency metrics by language-region cohort.
 - Add CRDT merge (Yjs/Automerge) for conflict-free collaborative editing beyond simple delta updates.
