@@ -1,241 +1,234 @@
-# Platform Work Plan: Aetherium-Genesis Evolution Program (2026)
+# Platform Work Plan: Aetherium Cognitive Lightfield Platform (2026)
 
 ## Context
-- **Initiative:** Aetherium-Genesis Evolution Program ("Light is Language" execution track)
-- **Scope:** Semantic orchestration services, embodiment protocol contracts, GunUI runtime, rendering infrastructure, reliability/ops controls, and migration tooling
-- **Drivers:** latency, reliability, trustworthiness, privacy-by-design, visual-state fidelity, developer velocity
-- **Current state:** Deterministic intent→visual mapping is operational (Intent Vector, LifeState, MAE-RI, AM-UI color semantics) with WebGL-first rendering and rule-based manifestation controls
-- **Target state:** Multimodal, adaptive, privacy-preserving, WebGPU-capable cognition visualization platform with explainable semantics and measurable production gates
+- **Initiative:** Aetherium Cognitive Lightfield Platform ("Light as Reflection → Reasoning Surface → Native Intelligence")
+- **Scope:** orchestration services, protocol contracts, reliability controls, benchmark framework, operations, and migration workflow
+- **Drivers:** reliability, latency, semantic fidelity, security/privacy, and developer experience
+- **Current state:** Reactive Generative UI is operational; user intent is mapped into color, shape, density, and flow as a visual response layer
+- **Target state:** Lightfield becomes a native cognitive substrate where uncertainty, synthesis, and decision states are first-class machine states before language output
 - **Constraints:**
-  - **SLO:** P95 render frame pipeline < 16.7 ms on Tier-1 devices, < 33 ms on Tier-2
-  - **Budget:** reuse existing Three.js/GunUI stack where possible before introducing new infra
-  - **Timeline:** 3-phase rollout over 2 quarters
-  - **Compliance:** zero-knowledge posture for raw voice/gesture/biometric data (RAM-only transient processing)
-- **Dependencies:** Genesis reasoning team, Manifest/GunUI team, AetherBus maintainers, Security & Privacy team, MLOps platform team
+  - **SLO:** P95 render pipeline < 16.7 ms (Tier-1), < 33 ms (Tier-2)
+  - **Budget:** prioritize existing runtime stack reuse before new infrastructure expansion
+  - **Timeline:** 3 maturity stages over 2 quarters
+  - **Compliance:** no persistent storage for raw biometric streams; policy-auditable reasoning traces
+- **Dependencies:** Genesis cognition team, Manifest runtime team, AetherBus maintainers, SRE, Security/Privacy, ML platform
 
 ---
 
 ## 1) Workstreams
 
-### A. Architecture
-Evolve the subsystem from deterministic-only mappings to a hybrid orchestrator (deterministic baseline + generative augmentation + adaptive tuning).
-
-### B. Protocol
-Extend embodiment contracts for richer VisualParameters, multimodal gesture constraints, explainability metadata, and per-agent overlays while preserving compatibility.
-
-### C. Reliability
-Add safety guards around adaptive visual evolution, fallback behavior for unsupported hardware, and deterministic replay for incident debugging.
-
-### D. Benchmark
-Introduce WebGPU vs WebGL benchmark matrix, particle/mesh throughput tests, and KPI correlation tests for alignment/trust outcomes.
-
-### E. Ops
-Ship runbooks for rollout/rollback, live observability panels, security posture checks, and model/version governance.
-
-### F. Migration
-Deliver phased migration from v1 mappings to v2 hybrid pipeline with feature flags, canaries, and progressive schema adoption.
+1. **Architecture** — model the 3-stage cognition ladder and convert it into runtime components.
+2. **Protocol** — evolve embodiment contracts to encode reasoning-surface states and native cognition fields.
+3. **Reliability** — enforce semantic honesty, failure containment, and deterministic replay.
+4. **Benchmark** — validate performance and semantic quality at each maturity stage.
+5. **Ops** — production readiness through observability, runbooks, incident drills, and governance.
+6. **Migration** — phased rollout from reflection-only mode to native-intelligence mode with safe rollback.
 
 ---
 
-## 2) Backlog (Epic → Story → Task + measurable acceptance)
+## 2) Backlog (Epic → Story → Task + Measurable Acceptance Criteria)
 
-## Epic A1: Semantic Orchestrator Layer
+## Epic A1: Cognitive Lightfield Architecture
 
-### Story A1.1: Hybrid shape generation pipeline
-- **Task A1.1.1:** Build `shape_descriptor` service endpoint for deterministic and generative paths.
-- **Task A1.1.2:** Add confidence-aware arbitration (deterministic fallback if generative confidence < threshold).
+### Story A1.1: Reflection layer hardening
+- **Task A1.1.1:** Standardize intent/emotion/semantics ingestion into a single `lightfield_input` contract.
+- **Task A1.1.2:** Add deterministic rendering profile packs for shape/color/density/flow.
 - **Acceptance criteria:**
-  - 99.9% request success over 24h soak test.
-  - Fallback path activates in < 50 ms when confidence gate fails.
+  - 99.95% successful ingest-to-render transactions over a 24-hour soak test.
+  - Mean semantic mapping consistency score >= 0.95 on replay corpus.
 
-### Story A1.2: Expanded visual parameter semantics
-- **Task A1.2.1:** Add `fractal_dimension`, `orientation_vector`, `symmetry_type`, `attractor_complexity` to v2 schema.
-- **Task A1.2.2:** Add semantic constraints validation in contract tests.
+### Story A1.2: Reasoning-surface primitives
+- **Task A1.2.1:** Add uncertainty primitives (`oscillation`, `branching_attractor_count`, `phase_interference`).
+- **Task A1.2.2:** Add decision-collapse primitive (`chaos_to_order_ratio`) and synthesis merge primitive (`mass_convergence_index`).
 - **Acceptance criteria:**
-  - 100% backward compatibility for v1 consumers.
-  - Contract test suite detects invalid parameter ranges with > 95% rule coverage.
+  - 100% schema validation pass for new fields.
+  - Reasoning-state classifier F1 score >= 0.90 on annotated test dataset.
 
-## Epic P1: Embodiment Protocol v2
-
-### Story P1.1: Multimodal intent envelope
-- **Task P1.1.1:** Introduce `gesture_trace_ref`, `pose_confidence`, and modality provenance metadata.
-- **Task P1.1.2:** Add privacy tags to prohibit persistence of raw biometric payloads.
+### Story A1.3: Native cognition state engine
+- **Task A1.3.1:** Introduce latent lightfield state graph (`latent_state_id`, `state_energy`, `semantic_topology`).
+- **Task A1.3.2:** Emit language as a secondary projection from latent state.
 - **Acceptance criteria:**
-  - Raw biometric fields are blocked at ingestion and never persisted.
-  - Protocol linter passes for all sample payloads.
+  - At least 85% of sampled sessions produce explainable latent-state transitions.
+  - Language output remains semantically aligned >= 0.92 with latent-state summaries.
 
-### Story P1.2: Explainability layer
-- **Task P1.2.1:** Add `shape_explanation` metadata map (human-readable short labels).
-- **Task P1.2.2:** Expose explainability in UI API contract for hover/modal interactions.
+## Epic P1: Protocol v3 (Cognition-Native)
+
+### Story P1.1: Unified cognition envelope
+- **Task P1.1.1:** Define protocol envelope for `reflection_state`, `reasoning_surface_state`, and `native_state`.
+- **Task P1.1.2:** Version contract with strict backward compatibility adapters for v1/v2 consumers.
 - **Acceptance criteria:**
-  - 95% of rendered shapes contain non-empty semantic explanation strings.
-  - UX test participants identify current AI state intent with > 80% accuracy.
+  - Backward compatibility success = 100% across existing consumer test fixtures.
+  - Contract lint and schema evolution checks pass in CI for every commit.
 
-## Epic R1: Reliability & Adaptive Evolution
-
-### Story R1.1: Reinforcement learning safety wrapper
-- **Task R1.1.1:** Introduce RL policy sandbox with bounded action space per LifeState.
-- **Task R1.1.2:** Add hard constraints preventing visual-state dishonesty.
+### Story P1.2: Explainability and policy metadata
+- **Task P1.2.1:** Add `reason_trace_summary` and `policy_guardrail_hits` metadata.
+- **Task P1.2.2:** Expose machine-readable reasoning markers to UI inspection APIs.
 - **Acceptance criteria:**
-  - Zero policy actions violate state-fidelity constraints in 1M simulation steps.
-  - Emotional Alignment Rate improves by >= 8% against baseline.
+  - 95%+ sessions include non-empty reasoning trace summary.
+  - Policy guardrail metadata is present for 100% blocked/adjusted actions.
 
-### Story R1.2: Dynamic fidelity and overload handling
-- **Task R1.2.1:** Implement GPU tier detection and automatic quality LUT switching (20k–1M particles).
-- **Task R1.2.2:** Reduce particle density under overload index thresholds.
+## Epic R1: Reliability and Safety
+
+### Story R1.1: Semantic integrity guardrails
+- **Task R1.1.1:** Implement runtime semantic drift detector between latent state and rendered state.
+- **Task R1.1.2:** Force deterministic fallback on drift threshold breach.
 - **Acceptance criteria:**
-  - P95 frame drops reduced by >= 30% on Tier-2 hardware.
-  - Overload recovery stabilizes under 3 seconds after stress burst.
+  - Drift detector catches >= 98% seeded divergence scenarios.
+  - Fallback activation time < 75 ms at P95.
 
-## Epic B1: Performance & Rendering Benchmark
-
-### Story B1.1: WebGPU enablement benchmark
-- **Task B1.1.1:** Implement WebGPU renderer path with compute shader particle update.
-- **Task B1.1.2:** Maintain WebGL2 fallback parity.
+### Story R1.2: Failure-mode containment
+- **Task R1.2.1:** Add isolated execution lanes for generative reasoning modules.
+- **Task R1.2.2:** Add deterministic replay packages for incident reconstruction.
 - **Acceptance criteria:**
-  - WebGPU path shows >= 2x throughput uplift at 500k particles vs WebGL2 baseline.
-  - Visual parity score >= 0.95 (palette/state consistency metric).
+  - 100% Sev-1 incidents reproduce in replay harness.
+  - Blast radius constrained to single tenant/session in chaos drills.
 
-### Story B1.2: Generative model latency budgets
-- **Task B1.2.1:** Benchmark diffusion/NeRF inference warm and cold paths.
-- **Task B1.2.2:** Add deadline-aware cache and approximate fallback.
+## Epic B1: Benchmark and Quality Gates
+
+### Story B1.1: Stage-wise performance benchmark
+- **Task B1.1.1:** Publish benchmark suites for Reflection, Reasoning Surface, Native Intelligence modes.
+- **Task B1.1.2:** Track GPU/CPU/memory cost envelope per mode.
 - **Acceptance criteria:**
-  - P95 shape generation latency < 250 ms for cached path.
-  - P99 end-to-end manifestation update < 800 ms.
+  - Benchmark suite executes in CI nightly with 100% completion.
+  - Native mode stays within +25% memory budget over reflection baseline.
 
-## Epic O1: Ops & Governance Readiness
+### Story B1.2: Semantic quality benchmark
+- **Task B1.2.1:** Create human+model evaluation harness for "visible reasoning quality".
+- **Task B1.2.2:** Define and gate on Reasoning Legibility Score (RLS).
+- **Acceptance criteria:**
+  - RLS >= 0.80 before canary promotion.
+  - Inter-rater agreement (Krippendorff alpha) >= 0.70.
+
+## Epic O1: Operations and Governance
 
 ### Story O1.1: Observability and runbooks
-- **Task O1.1.1:** Add dashboards for SLO, alignment KPIs, fallback rates, trust retention.
-- **Task O1.1.2:** Publish incident runbooks for protocol mismatch, model drift, and GPU fallback storms.
+- **Task O1.1.1:** Deploy dashboards for latency, drift, fallback rate, RLS, and policy-hit metrics.
+- **Task O1.1.2:** Author runbooks for drift storms, protocol mismatch, and model rollback.
 - **Acceptance criteria:**
-  - Alert-to-diagnosis mean time < 10 minutes in incident drills.
-  - 100% Sev-1 scenarios covered by runbook steps.
+  - MTTD <= 10 minutes and MTTR <= 30 minutes in incident simulations.
+  - 100% Sev-1 playbooks validated quarterly.
 
-### Story O1.2: Security and privacy controls
-- **Task O1.2.1:** Add CI checks for privacy tag conformance and sensitive field denial.
-- **Task O1.2.2:** Validate RAM-only processing lifecycle for raw modalities.
+### Story O1.2: Security and privacy enforcement
+- **Task O1.2.1:** Enforce deny-by-default storage policies for raw biometric signals.
+- **Task O1.2.2:** Add continuous compliance checks for reasoning-trace retention policy.
 - **Acceptance criteria:**
-  - Security gate blocks non-compliant payloads in CI at 100% detection for test corpus.
-  - Privacy audit confirms no raw biometric persistence.
+  - 0 critical findings in privacy audits.
+  - 100% compliance checks passing in protected branch CI.
 
-## Epic M1: Migration & Multi-Agent Visualization
+## Epic M1: Migration and Release
 
-### Story M1.1: Progressive migration and canarying
-- **Task M1.1.1:** Add feature flags (`orchestrator_v2`, `webgpu_enabled`, `adaptive_rl`).
-- **Task M1.1.2:** Run staged canaries (5% → 25% → 50% → 100%).
+### Story M1.1: Progressive rollout ladder
+- **Task M1.1.1:** Implement flags: `mode_reflection`, `mode_reasoning_surface`, `mode_native_intelligence`.
+- **Task M1.1.2:** Execute canary progression 5% → 20% → 50% → 100% with hard promotion gates.
 - **Acceptance criteria:**
-  - Each stage meets SLO and error budget gates before promotion.
-  - Rollback completes < 15 minutes with no data loss.
+  - Every promotion stage passes SLO + RLS + error-budget gates.
+  - Rollback to previous stable mode in <= 15 minutes.
 
-### Story M1.2: Multi-agent field overlays
-- **Task M1.2.1:** Define agent-scoped palette/overlay schema.
-- **Task M1.2.2:** Implement merge semantics for "resolved" state convergence.
+### Story M1.2: Data and protocol migration
+- **Task M1.2.1:** Build dual-write adapters for protocol v2 and v3.
+- **Task M1.2.2:** Remove redundant legacy mapping paths after GA validation.
 - **Acceptance criteria:**
-  - Users can distinguish up to 4 agent fields with >= 90% success in usability tests.
-  - Overlay convergence event integrity = 100% in replay tests.
+  - Zero data loss in migration rehearsal runs.
+  - Legacy path removal does not reduce compatibility test pass rate.
 
 ---
 
 ## 3) Options, Tradeoffs, and Recommendation
 
-### Option A: Deterministic+Generative Hybrid (Chosen)
-- **What it is:** Keep deterministic mapping as truth anchor; augment with generative shape synthesis under strict confidence/safety gates.
-- **Pros:** preserves state honesty, enables richer expression, lowers migration risk, clear fallback path.
-- **Cons:** dual-path complexity and higher test surface area.
+### Option A: Layered Maturity (Reflection → Reasoning Surface → Native) **[Chosen]**
+- **Pros:** lowest migration risk, clear observability at each stage, compatible with existing contracts.
+- **Cons:** requires temporary coexistence of multiple execution modes.
 
-### Option B: Generative-First Rewrite
-- **What it is:** Replace rule tables with diffusion/NeRF-first rendering semantics.
-- **Pros:** highest visual novelty and expressiveness.
-- **Cons:** weak explainability baseline, higher latency variance, higher trust/safety risk.
+### Option B: Big-Bang Native Intelligence Rewrite
+- **Pros:** fastest path to full cognitive-native architecture.
+- **Cons:** highest delivery and reliability risk, weak rollback surface, expensive retraining and validation.
 
-### Option C: Deterministic-Only Optimization
-- **What it is:** stay purely rule-based and improve WebGPU/physics performance only.
-- **Pros:** low risk, predictable behavior, simpler operations.
-- **Cons:** limited evolution toward expressive/novel cognitive forms.
+### Option C: Reflection-Only Optimization
+- **Pros:** highly predictable operations and near-term latency wins.
+- **Cons:** cannot expose reasoning visibility or native cognition interaction goals.
 
-**Recommendation:** Choose **Option A** because it best aligns with core canon constraints (state-first honesty) while still unlocking adaptive and generative capability.
+**Recommendation:** Select **Option A** because it maximizes production safety while still delivering the strategic shift to cognition-native interaction.
 
 ---
 
 ## 4) Risks, Failure Modes, and Mitigation Plan
 
-- **Risk:** Generative outputs drift from true cognitive state.
-  - **Failure mode:** visually compelling but semantically incorrect light forms.
-  - **Mitigation:** deterministic truth anchor + policy constraints + explainability conformance checks.
+- **Risk:** Reasoning visuals are persuasive but semantically incorrect.
+  - **Failure mode:** users trust wrong internal state representation.
+  - **Mitigation:** semantic drift detector + mandatory deterministic anchor + explainability audits.
 
-- **Risk:** WebGPU fragmentation across devices.
-  - **Failure mode:** inconsistent performance or rendering artifacts.
-  - **Mitigation:** runtime capability probing, tiered fallback to WebGL2, parity regression tests.
+- **Risk:** Native cognition mode breaches latency envelope.
+  - **Failure mode:** interaction lag and degraded experience.
+  - **Mitigation:** staged performance budgets, adaptive quality scaling, and strict rollout gates.
 
-- **Risk:** RL adaptation optimizes for engagement over honesty.
-  - **Failure mode:** KPI improvement but semantic distortion.
-  - **Mitigation:** hard state-fidelity reward penalties and human-in-the-loop policy review.
+- **Risk:** Protocol fragmentation across clients.
+  - **Failure mode:** incompatible consumers or missing reasoning fields.
+  - **Mitigation:** versioned envelope, compatibility adapters, schema lint in CI.
 
-- **Risk:** Privacy leakage from multimodal/biometric inputs.
-  - **Failure mode:** accidental persistence of raw sensor streams.
-  - **Mitigation:** ingestion filter, memory-lifetime enforcement, automated privacy audits.
-
-- **Risk:** Multi-agent overlays create visual ambiguity.
-  - **Failure mode:** users misinterpret simultaneous agent intentions.
-  - **Mitigation:** constrained palette assignment, legend/explainability UI, convergence markers.
+- **Risk:** Privacy/control leakage from richer cognitive traces.
+  - **Failure mode:** over-retention or sensitive trace misuse.
+  - **Mitigation:** retention TTL, policy scanning, security approvals, and audit logs.
 
 ---
 
 ## 5) Rollout / Rollback Plan (Owner + Timeline)
 
 ## Owners
-- **Architecture + Protocol:** Genesis Platform Architect
-- **Rendering + Benchmarks:** Manifest Graphics Lead
-- **Reliability + RL Safety:** Applied ML Reliability Lead
-- **Ops + Security:** SRE Lead + Security Engineering
-- **Migration Enablement:** Release Manager
+- Architecture: Platform Architect
+- Protocol: AetherBus Contracts Lead
+- Reliability: ML Reliability Lead
+- Benchmark: Graphics Performance Lead
+- Ops/Security: SRE Lead + Security Lead
+- Migration: Release Manager
 
-## Timeline (2 quarters)
-- **Phase 0 (Weeks 1–3):** Protocol v2 schema, feature flags, benchmark baselines.
-- **Phase 1 (Weeks 4–8):** WebGPU path, deterministic+generative orchestrator in shadow mode.
-- **Phase 2 (Weeks 9–14):** RL sandbox + multimodal gesture integration + explainability metadata.
-- **Phase 3 (Weeks 15–20):** Canary rollout progression to 100% with ops hardening.
+## Timeline
+- **Stage 0 (Weeks 1–3):** Protocol v3 foundation, schema validators, feature flags.
+- **Stage 1 (Weeks 4–8):** Reflection hardening + Reasoning Surface primitives in shadow mode.
+- **Stage 2 (Weeks 9–14):** Native cognition state engine, semantic drift controls, benchmark hardening.
+- **Stage 3 (Weeks 15–20):** Canary to GA and deprecation of redundant legacy mapping paths.
 
-## Rollback strategy
-- Immediate feature-flag rollback to deterministic path.
-- Renderer rollback to WebGL2 if WebGPU instability exceeds error budget.
-- Freeze adaptive policy updates and pin last known-safe RL model version.
-- Recover from protocol v2 issues via dual-read/dual-write compatibility bridge.
+## Rollback
+- Immediate mode rollback via feature flags to last stable stage.
+- Protocol fallback through compatibility adapters (v3 → v2).
+- Freeze native-state emission and revert to reasoning-surface mode on SLO breach.
+- Restore known-good release artifact through automated deployment rollback.
 
 ---
 
 ## 6) Production Definition of Done
 
-- **Tests**
-  - Contract tests for Embodiment v2 fields and compatibility.
-  - Deterministic replay tests for state→visual fidelity.
-  - Privacy tests proving raw biometric non-persistence.
-  - Multi-agent overlay and explainability UX tests.
-
-- **SLO gates**
-  - P95 render pipeline latency and frame stability meet tier targets.
-  - E2E manifestation update latency remains within budget at canary and GA.
-
-- **Benchmarking gates**
-  - WebGPU uplift and fallback parity metrics met.
-  - Generative inference budgets met under warm/cold scenarios.
-
-- **Observability**
-  - Dashboards for latency, fallback rates, policy decisions, trust/alignment KPIs.
-  - Alerting and traceability across orchestrator → renderer → UI events.
-
-- **Runbooks**
-  - Incident runbooks for drift, fallback storms, protocol mismatch, and privacy events.
-  - On-call playbooks include rollback matrices and escalation paths.
-
-- **Security checks**
-  - CI policy checks for contract/privacy compliance.
-  - Zero-knowledge constraints validated in deployment and audit.
+- **Tests:** contract tests, deterministic replay tests, semantic alignment tests, migration rehearsals.
+- **SLO gates:** render pipeline latency and update latency pass at each rollout stage.
+- **Benchmark gates:** performance budgets + Reasoning Legibility Score gates satisfied.
+- **Observability:** dashboards, traces, and alerts for all key cognitive/operational metrics.
+- **Runbooks:** validated runbooks for drift, protocol failure, privacy incidents, and rollback.
+- **Security checks:** storage policy enforcement, audit logging, compliance scan pass.
 
 ---
 
-## Redundancy Removal (single source of truth)
-- Consolidated forward platform evolution into this single canonical plan.
-- Removed repeated ad-hoc strategy fragments by normalizing into Epic/Story/Task structure.
-- Kept one measurable acceptance framework shared by architecture, protocol, reliability, ops, and migration.
+## Architecture / Protocol Update Outline
+
+1. Add cognition mode abstraction (`reflection`, `reasoning_surface`, `native`) to orchestrator boundary.
+2. Introduce protocol v3 envelope with explicit state sections and compatibility adapter.
+3. Split renderer pipeline into deterministic anchor path + reasoning expression path.
+4. Add semantic integrity service for drift detection and policy enforcement.
+5. Expose explainability APIs for UI/runtime inspection and governance tooling.
+
+---
+
+## Reliability & Ops Readiness Checklist
+
+- [ ] Contract test suite green for protocol v2/v3 compatibility.
+- [ ] Replay harness reproduces all critical failure classes.
+- [ ] SLO dashboards with actionable alerts deployed.
+- [ ] Security/privacy scans integrated into required CI checks.
+- [ ] Rollout/rollback runbooks validated in game-day exercise.
+- [ ] On-call owner roster and escalation matrix published.
+
+---
+
+## Redundancy Removal (Single Canonical Source)
+
+- Consolidated all platform execution planning into this file and the paired SQL backlog dataset.
+- Removed repeated narrative descriptions by keeping one canonical Epic→Story→Task chain with measurable criteria.
+- Defined one recommendation and one rollout ladder to avoid conflicting strategy variants.
