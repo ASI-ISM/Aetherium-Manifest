@@ -470,6 +470,9 @@ cd api_gateway && pytest -q
 
 # contract checks
 python3 tools/contracts/contract_checker.py
+
+# release benchmark gates (performance + semantics)
+python3 tools/benchmarks/runtime_semantic_benchmark.py --input tools/benchmarks/runtime_semantic_samples.sample.json
 ```
 
 ---

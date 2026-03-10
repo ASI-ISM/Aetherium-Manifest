@@ -7,7 +7,8 @@ from jsonschema import Draft202012Validator
 from api_gateway.deterministic_replay import replay_incident_package, replay_lockstep
 from tools.benchmarks.creative_stress_scenarios import run_scenarios
 from tools.benchmarks.intent_light_knowledge_graph import build_graph
-from tools.benchmarks.latency_perception_benchmark import run_benchmark
+from tools.benchmarks.latency_perception_benchmark import run_benchmark as run_latency_benchmark
+from tools.benchmarks.runtime_semantic_benchmark import run_benchmark as run_release_benchmark
 from tools.contracts.contract_checker import _apply_contract_policy
 
 
@@ -28,17 +29,69 @@ class LatencyPerceptionBenchmarkTests(unittest.TestCase):
             {"raw_rtt_ms": 50, "render_pipeline_ms": 34, "cognitive_settle_ms": 40, "prediction_mismatch": 0.1},
             {"raw_rtt_ms": 55, "render_pipeline_ms": 36, "cognitive_settle_ms": 43, "prediction_mismatch": 0.0},
         ]
-        result = run_benchmark(samples)
+        result = run_latency_benchmark(samples)
         self.assertIn("raw_rtt_ms", result)
         self.assertIn("perceived_latency_ms", result)
         self.assertNotEqual(result["raw_rtt_ms"]["mean"], result["perceived_latency_ms"]["mean"])
 
     def test_perception_benchmark_empty_samples_returns_safe_defaults(self) -> None:
-        result = run_benchmark([])
+        result = run_latency_benchmark([])
         self.assertEqual(result["sample_count"], 0)
         self.assertIsNone(result["raw_rtt_ms"]["mean"])
         self.assertIsNone(result["perceived_latency_ms"]["p95"])
         self.assertFalse(result["gunui_target_met"])
+
+
+class RuntimeSemanticBenchmarkTests(unittest.TestCase):
+    def test_release_gates_pass_when_all_acceptance_criteria_are_met(self) -> None:
+        payload = {
+            "compile_latency_ms": [62.1, 66.4, 71.0, 73.3, 68.8],
+            "tick_delta_ms": [0.8, 1.1, 1.0, 1.4, 1.2],
+            "render_pipeline_ms": [31.2, 33.4, 35.1, 37.0, 38.2],
+            "resource_samples": [
+                {"gpu_utilization": 0.61, "cpu_utilization": 0.52, "memory_mb": 1240},
+                {"gpu_utilization": 0.67, "cpu_utilization": 0.58, "memory_mb": 1310},
+                {"gpu_utilization": 0.71, "cpu_utilization": 0.62, "memory_mb": 1375},
+            ],
+            "intent_faithfulness_scores": [0.84, 0.86, 0.82, 0.88, 0.85],
+            "temporal_continuity_scores": [0.81, 0.83, 0.84, 0.8, 0.82],
+            "legibility_scores": [
+                {"human": 0.88, "model": 0.83},
+                {"human": 0.86, "model": 0.82},
+                {"human": 0.89, "model": 0.85},
+            ],
+        }
+        result = run_release_benchmark(payload)
+
+        self.assertEqual(result["nightly_completion_rate"], 1.0)
+        self.assertTrue(result["render_pipeline"]["pass"])
+        self.assertGreaterEqual(result["semantic_composite_score"], 0.8)
+        self.assertTrue(result["promotion_gates"]["canary"])
+        self.assertTrue(result["promotion_gates"]["ga"])
+
+    def test_ga_gate_blocks_when_semantic_composite_is_below_target(self) -> None:
+        payload = {
+            "compile_latency_ms": [60.0, 65.0, 70.0],
+            "tick_delta_ms": [1.0, 1.1, 1.2],
+            "render_pipeline_ms": [30.0, 35.0, 38.0],
+            "resource_samples": [
+                {"gpu_utilization": 0.6, "cpu_utilization": 0.5, "memory_mb": 1200},
+                {"gpu_utilization": 0.7, "cpu_utilization": 0.6, "memory_mb": 1300},
+            ],
+            "intent_faithfulness_scores": [0.79, 0.77, 0.78],
+            "temporal_continuity_scores": [0.78, 0.79, 0.77],
+            "legibility_scores": [
+                {"human": 0.79, "model": 0.78},
+                {"human": 0.8, "model": 0.77},
+            ],
+        }
+        result = run_release_benchmark(payload)
+
+        self.assertEqual(result["nightly_completion_rate"], 1.0)
+        self.assertTrue(result["render_pipeline"]["pass"])
+        self.assertLess(result["semantic_composite_score"], 0.8)
+        self.assertFalse(result["promotion_gates"]["canary"])
+        self.assertFalse(result["promotion_gates"]["ga"])
 
 
 class CreativeStressScenarioTests(unittest.TestCase):
