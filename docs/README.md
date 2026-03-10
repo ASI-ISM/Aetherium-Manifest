@@ -24,6 +24,8 @@
 - `08_TEST_PLAN.md` — test philosophy และ criteria
 - `09_MAERI_LIFESTATE_GENUI_TH.md` — สถาปัตยกรรม MAE-RI, Emotional LifeState, Adaptive GenUI
 - `10_AMUI_COLOR_SYSTEM.md` — Thermodynamic color subsystem, palette canon, state mapping, shader contract
+- `11_PLATFORM_WORK_PLAN.md` — platform workstreams, backlog, rollout/rollback, and production DoD
+- `ops/` — production operations package (dashboards, alerts, runbooks, security/privacy checks)
 - `schemas/` — versioned ABI JSON
 - `appendices/` — glossary, state machine, roadmap
 
