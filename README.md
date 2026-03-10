@@ -16,7 +16,6 @@
 - [Contributing](#contributing)
 - [License](#license)
 - [เอกสารภาษาไทย (Thai Documentation)](#เอกสารภาษาไทย-thai-documentation)
-- [Extension Ideas (Legacy)](#extension-ideas-legacy)
 
 ---
 
@@ -585,21 +584,6 @@ Gateway: `http://localhost:8000` (เอกสาร API ที่ `/docs`)
 - `docs/`: เอกสารสถาปัตยกรรม อินเทอร์เฟซ ความปลอดภัย และ roadmap
 
 ### แนวทางต่อยอด
-- เพิ่ม Plugin Renderer API
-- เพิ่ม Session Replay (timeline + bookmarks)
-- เพิ่ม policy-driven link analysis พร้อม risk score/audit export
-- เพิ่ม Hybrid Data Layer (Redis + TimescaleDB/ClickHouse)
-- เพิ่ม collaboration controls (role/permission/moderation)
-- เพิ่ม Voice Quality Dashboard (WER/latency แยกภาษา-ภูมิภาค)
-- เพิ่ม Offline-first Runtime Packs
+รายละเอียดแผนระยะถัดไปถูกรวมไว้เพียงจุดเดียวในส่วน **Research & Engineering Roadmap** ด้านภาษาอังกฤษ เพื่อลดข้อมูลซ้ำซ้อนและให้มีแหล่งอ้างอิงเดียวของระบบ.
 
 ---
-
-## Extension Ideas (Legacy)
-- Move mutable runtime state to Redis (metrics counters, telemetry cache, ws room membership) for multi-worker consistency.
-- Add signed outbound proxy policy (HMAC request intent + per-tenant allowlist) to harden enterprise SSRF controls.
-- Build contract-fuzz pipeline: property-based payload generators + mutation corpus for schema regression stress tests.
-- Add persisted TSDB backend (InfluxDB/TimescaleDB) with retention + downsampling policies.
-- Add proxy allowlist/denylist + content-type and size guardrails for stronger SSRF safety.
-- Add voice A/B routing and collect WER / latency metrics by language-region cohort.
-- Add CRDT merge (Yjs/Automerge) for conflict-free collaborative editing beyond simple delta updates.

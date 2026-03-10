@@ -81,3 +81,19 @@ def test_generate_rejects_unsupported_model_with_400(client: TestClient) -> None
     )
     assert response.status_code == 400
     assert "Unsupported model" in response.text
+
+
+def test_state_sync_websocket_requires_api_key(client: TestClient) -> None:
+    with pytest.raises(WebSocketDisconnect):
+        with client.websocket_connect("/ws/state-sync/demo-room"):
+            pass
+
+
+def test_proxy_fetch_rejects_urls_with_credentials(client: TestClient) -> None:
+    response = client.get(
+        "/api/v1/proxy/fetch",
+        params={"url": "https://user:pass@example.com/path"},
+        headers={"X-API-Key": "test-key"},
+    )
+    assert response.status_code == 400
+    assert "credentials" in response.text.lower()

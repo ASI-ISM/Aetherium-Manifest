@@ -385,13 +385,21 @@ async def proxy_fetch_url(url: str, x_api_key: str | None = Header(None, alias="
     parsed = urlparse(url)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
         raise HTTPException(status_code=400, detail="Invalid URL structure")
+    if parsed.username or parsed.password:
+        raise HTTPException(status_code=400, detail="URL credentials are not allowed")
     if PROXY_ALLOWED_HOSTS and parsed.hostname.lower() not in PROXY_ALLOWED_HOSTS:
         raise HTTPException(status_code=403, detail="URL host is not allowlisted")
     if _is_blocked_proxy_target(parsed.hostname):
         raise HTTPException(status_code=403, detail="URL host resolves to a blocked IP range")
     try:
-        async with httpx.AsyncClient(timeout=6.0, headers={"User-Agent": "AetheriumProxy/1.0"}) as client:
+        async with httpx.AsyncClient(
+            timeout=6.0,
+            follow_redirects=False,
+            headers={"User-Agent": "AetheriumProxy/1.0"},
+        ) as client:
             response = await client.get(url)
+            if response.is_redirect:
+                raise HTTPException(status_code=403, detail="Redirect responses are not allowed")
             response.raise_for_status()
             text = response.text[:120_000]
         return {"content_length": len(text), "snippet": " ".join(text.split())[:1200]}
@@ -454,6 +462,10 @@ async def cognitive_stream(websocket: WebSocket) -> None:
 
 @app.websocket("/ws/state-sync/{room_id}")
 async def state_sync(websocket: WebSocket, room_id: str, user_id: str | None = Query(None)) -> None:
+    api_key = _extract_ws_api_key(websocket)
+    if not api_key:
+        await websocket.close(code=1008, reason="Missing API Key")
+        return
     room = await _room(room_id)
     await websocket.accept()
     async with room.lock:
