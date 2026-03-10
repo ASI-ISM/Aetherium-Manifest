@@ -15,6 +15,14 @@ Sample gateway for receiving Cognitive DSL payloads from external model provider
 - `X-Model-Provider` (emit only)
 - `X-Model-Version` (emit only)
 
+### Optional Proxy Signing Headers (`GET /api/v1/proxy/fetch`)
+- `X-Proxy-Timestamp` (unix epoch seconds)
+- `X-Proxy-Nonce` (single-use unique value)
+- `X-Proxy-Signature` (`hex(HMAC_SHA256(method + path + url + timestamp + nonce))`)
+
+If `AETHERIUM_PROXY_SIGNING_SECRET` is configured, proxy requests must include the signing headers.
+Set `AETHERIUM_PROXY_REQUIRE_SIGNED=true` to enforce signing even in environments where the secret might be absent.
+
 ### Run (Quick Development)
 For a quick development server, you can use `uvicorn` directly. Note that this mode may not reflect all production environment requirements.
 

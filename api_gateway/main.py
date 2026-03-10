@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import ipaddress
+import logging
 import os
 import socket
 import uuid
 from datetime import datetime, timezone
 from enum import Enum
+from hashlib import sha256
 from math import sqrt
 from statistics import mean
 from time import perf_counter
@@ -21,6 +24,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, ValidationError
 
 app = FastAPI(title="AGNS Cognitive DSL Gateway", version="1.1.0")
+logger = logging.getLogger("aetherium.api_gateway")
 
 
 # --- Constants and Configuration ---
@@ -218,6 +222,8 @@ METRICS_LOCK = asyncio.Lock()
 TELEMETRY_LOCK = asyncio.Lock()
 ROOMS_LOCK = asyncio.Lock()
 RELIABILITY_LOCK = asyncio.Lock()
+PROXY_SIGNATURE_LOCK = asyncio.Lock()
+PROXY_SIGNATURE_NONCES: dict[str, float] = {}
 
 DRIFT_EVENT_TOTAL = 0
 DRIFT_EVENT_DETECTED = 0
@@ -376,6 +382,82 @@ def _env_flag(name: str, default: bool = False) -> bool:
     if value is None:
         return default
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _env_int(name: str, default: int, *, minimum: int) -> int:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        logger.warning("Invalid integer for %s=%r, using default=%d", name, raw, default)
+        return default
+    return max(minimum, value)
+
+
+def _proxy_signing_secret() -> str | None:
+    secret = os.getenv("AETHERIUM_PROXY_SIGNING_SECRET", "").strip()
+    return secret or None
+
+
+def _proxy_request_signature(method: str, route_path: str, url: str, timestamp: str, nonce: str, secret: str) -> str:
+    canonical = "\n".join([method.upper(), route_path, url, timestamp, nonce])
+    digest = hmac.new(secret.encode("utf-8"), canonical.encode("utf-8"), sha256)
+    return digest.hexdigest()
+
+
+async def _validate_proxy_signature(
+    *,
+    method: str,
+    route_path: str,
+    url: str,
+    timestamp: str | None,
+    nonce: str | None,
+    signature: str | None,
+) -> None:
+    require_signed_requests = _env_flag("AETHERIUM_PROXY_REQUIRE_SIGNED", default=False)
+    secret = _proxy_signing_secret()
+
+    if not require_signed_requests and not secret:
+        return
+    if require_signed_requests and not secret:
+        logger.error("Proxy signing is required but AETHERIUM_PROXY_SIGNING_SECRET is not configured")
+        raise HTTPException(status_code=503, detail="Proxy signing configuration is unavailable")
+
+    if not timestamp or not nonce or not signature:
+        logger.warning("Proxy signature rejected due to missing signing headers")
+        raise HTTPException(status_code=401, detail="Missing proxy signing headers")
+
+    skew_seconds = _env_int("AETHERIUM_PROXY_SIGNATURE_MAX_SKEW_SECONDS", default=300, minimum=30)
+    try:
+        request_ts = int(timestamp)
+    except ValueError as exc:
+        logger.warning("Proxy signature rejected due to non-integer timestamp")
+        raise HTTPException(status_code=401, detail="Invalid proxy signature timestamp") from exc
+
+    now_ts = int(datetime.now(timezone.utc).timestamp())
+    if abs(now_ts - request_ts) > skew_seconds:
+        logger.warning("Proxy signature rejected due to timestamp skew")
+        raise HTTPException(status_code=401, detail="Expired proxy signature timestamp")
+
+    expected = _proxy_request_signature(method, route_path, url, timestamp, nonce, secret or "")
+    if not hmac.compare_digest(expected, signature):
+        logger.warning("Proxy signature rejected due to digest mismatch")
+        raise HTTPException(status_code=401, detail="Invalid proxy signature")
+
+    nonce_ttl_seconds = _env_int("AETHERIUM_PROXY_NONCE_TTL_SECONDS", default=600, minimum=60)
+    now_monotonic = perf_counter()
+    async with PROXY_SIGNATURE_LOCK:
+        expired = [key for key, expiry in PROXY_SIGNATURE_NONCES.items() if expiry <= now_monotonic]
+        for key in expired:
+            PROXY_SIGNATURE_NONCES.pop(key, None)
+
+        if nonce in PROXY_SIGNATURE_NONCES:
+            logger.warning("Proxy signature rejected due to nonce replay")
+            raise HTTPException(status_code=409, detail="Proxy nonce replay detected")
+
+        PROXY_SIGNATURE_NONCES[nonce] = now_monotonic + nonce_ttl_seconds
 
 
 def _intent_to_semantic_field(intent: IntentVector) -> SemanticField:
@@ -686,8 +768,23 @@ def health_check() -> dict[str, Any]:
     }
 
 @app.get("/api/v1/proxy/fetch")
-async def proxy_fetch_url(url: str, x_api_key: str | None = Header(None, alias="X-API-Key")) -> dict[str, Any]:
+async def proxy_fetch_url(
+    url: str,
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
+    x_proxy_timestamp: str | None = Header(None, alias="X-Proxy-Timestamp"),
+    x_proxy_nonce: str | None = Header(None, alias="X-Proxy-Nonce"),
+    x_proxy_signature: str | None = Header(None, alias="X-Proxy-Signature"),
+) -> dict[str, Any]:
     _ensure_api_key(x_api_key)
+    await _validate_proxy_signature(
+        method="GET",
+        route_path="/api/v1/proxy/fetch",
+        url=url,
+        timestamp=x_proxy_timestamp,
+        nonce=x_proxy_nonce,
+        signature=x_proxy_signature,
+    )
+
     parsed = urlparse(url)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
         raise HTTPException(status_code=400, detail="Invalid URL structure")

@@ -1,11 +1,13 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
-from .main import app
+from .main import app, _proxy_request_signature
 
 
 @pytest.fixture
@@ -97,6 +99,45 @@ def test_proxy_fetch_rejects_urls_with_credentials(client: TestClient) -> None:
     )
     assert response.status_code == 400
     assert "credentials" in response.text.lower()
+
+
+def test_proxy_fetch_requires_signing_headers_when_secret_configured(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AETHERIUM_PROXY_SIGNING_SECRET", "prod-secret")
+    response = client.get(
+        "/api/v1/proxy/fetch",
+        params={"url": "https://example.com"},
+        headers={"X-API-Key": "test-key"},
+    )
+    assert response.status_code == 401
+    assert "signing headers" in response.text.lower()
+
+
+def test_proxy_fetch_rejects_nonce_replay_when_signature_is_reused(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AETHERIUM_PROXY_SIGNING_SECRET", "prod-secret")
+    timestamp = str(int(datetime.now(timezone.utc).timestamp()))
+    nonce = "nonce-123"
+    url = "https://user:pass@example.com/path"
+    signature = _proxy_request_signature(
+        "GET",
+        "/api/v1/proxy/fetch",
+        url,
+        timestamp,
+        nonce,
+        "prod-secret",
+    )
+    headers = {
+        "X-API-Key": "test-key",
+        "X-Proxy-Timestamp": timestamp,
+        "X-Proxy-Nonce": nonce,
+        "X-Proxy-Signature": signature,
+    }
+
+    first_response = client.get("/api/v1/proxy/fetch", params={"url": url}, headers=headers)
+    assert first_response.status_code == 400
+
+    replay_response = client.get("/api/v1/proxy/fetch", params={"url": url}, headers=headers)
+    assert replay_response.status_code == 409
+    assert "nonce replay" in replay_response.text.lower()
 
 
 def test_reliability_temporal_morphogenesis_endpoint(client: TestClient) -> None:

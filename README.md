@@ -487,8 +487,11 @@ Future directions:
 - **Persistent Telemetry Database**  
   Integrate TSDB backends (InfluxDB, TimescaleDB) with retention + downsampling.
 
-- **Signed Proxy Requests**  
-  Add HMAC-signed outbound proxy intent + per-tenant allowlists.
+- **Signed Proxy Requests** ✅  
+  Implemented HMAC request signing + timestamp skew checks + nonce replay protection for `/api/v1/proxy/fetch` (configurable via environment flags).
+
+- **Proxy Key Rotation and Tenant Scope**  
+  Add key identifiers (`kid`) with dual-key rotation windows and optional tenant-scoped signing secrets.
 
 - **Contract Fuzz Testing**  
   Build property-based payload generators + schema mutation corpus + regression suites.
