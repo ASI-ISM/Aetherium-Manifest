@@ -232,3 +232,91 @@
 - Consolidated all platform execution planning into this file and the paired SQL backlog dataset.
 - Removed repeated narrative descriptions by keeping one canonical Epic→Story→Task chain with measurable criteria.
 - Defined one recommendation and one rollout ladder to avoid conflicting strategy variants.
+
+---
+
+## Pipeline Contract & Runtime Sequence Implementation Backlog (Epic → Story → Task)
+
+### Workstream: Architecture
+- **Epic A2:** Canonical multi-stage cognition-to-light pipeline.
+  - **Story A2.1:** Define stage interfaces and compatibility boundaries.
+    - **Task A2.1.1:** Publish canonical stage sequence in architecture docs.
+      - **Acceptance:** Sequence appears exactly as `Intent -> SemanticField -> MorphogenesisEngine -> LightCompiler -> CognitiveFieldRuntime` in interfaces docs.
+    - **Task A2.1.2:** Preserve renderer ABI at runtime boundary.
+      - **Acceptance:** Runtime output contract remains `EMBODIMENT_V1` compatible at 100% compatibility tests.
+
+### Workstream: Protocol
+- **Epic P2:** Stage contracts and schema gates.
+  - **Story P2.1:** Add Light Cognition Pipeline contract.
+    - **Task P2.1.1:** Add `light_cognition_pipeline_v1` schema + payload fixture.
+      - **Acceptance:** CI contract checker validates schema/payload with 0 failures.
+  - **Story P2.2:** Introduce internal model contracts.
+    - **Task P2.2.1:** Implement `SemanticField`, `MorphogenesisPlan`, `CompiledLightProgram` in gateway runtime.
+      - **Acceptance:** Unit tests assert each model is produced by pipeline execution.
+
+### Workstream: Reliability
+- **Epic R2:** Safe fallback and parity assurance.
+  - **Story R2.1:** Keep direct visual mapping path as fallback mode.
+    - **Task R2.1.1:** Gate pipeline by `light_cognition_layer_enabled` and `morphogenesis_runtime_enabled`.
+      - **Acceptance:** Disable either flag and direct mapping path is used.
+    - **Task R2.1.2:** Add parity test for fallback output.
+      - **Acceptance:** Fallback visual payload equals direct renderer payload shape and values.
+
+### Workstream: Benchmark
+- **Epic B2:** Stage handoff performance assurance.
+  - **Story B2.1:** Measure overhead versus direct path.
+    - **Task B2.1.1:** Add automated benchmark for P95 handoff overhead.
+      - **Acceptance:** CI fails if `handoff_overhead_p95_ms > 3`.
+
+### Workstream: Ops
+- **Epic O2:** Operational readiness for staged runtime.
+  - **Story O2.1:** Feature-flag rollout controls.
+    - **Task O2.1.1:** Rollout by enabling `light_cognition_layer_enabled` then `morphogenesis_runtime_enabled`.
+      - **Acceptance:** Flags can be toggled independently without API contract breakage.
+
+### Workstream: Migration
+- **Epic M2:** Progressive migration from direct mapping.
+  - **Story M2.1:** Dual-path migration and rollback.
+    - **Task M2.1.1:** Maintain direct mapping fallback for rollback.
+      - **Acceptance:** Rollback time <= 5 minutes by environment flag switch only.
+
+## Options and Tradeoffs
+- **Option 1: Immediate hard switch to full staged runtime**
+  - **Pros:** Simplest code path post-cutover.
+  - **Cons:** Highest migration and outage risk; no instant rollback.
+- **Option 2: Dual-path runtime with feature flags (Chosen)**
+  - **Pros:** Safe progressive rollout, instant rollback, measurable parity and latency controls.
+  - **Cons:** Temporary code complexity and dual maintenance.
+- **Option 3: Adapter-only protocol layer without runtime execution**
+  - **Pros:** Lowest runtime risk and fastest schema adoption.
+  - **Cons:** Delays actual cognitive-stage benefits and benchmark truth.
+
+**Chosen rationale:** Option 2 balances reliability and delivery velocity while preserving current renderer compatibility.
+
+## Risks, Failure Modes, Mitigations
+- **Risk:** Stage schema drift.
+  - **Failure mode:** Contract checker passes legacy contracts but misses stage contract regressions.
+  - **Mitigation:** Add stage schema fixture to CI checker and keep strict validation default.
+- **Risk:** Latency overhead regression.
+  - **Failure mode:** Added stage logic increases handoff P95 above 3 ms.
+  - **Mitigation:** Add benchmark gate in CI and keep fallback path available.
+- **Risk:** Visual incompatibility at renderer ingest.
+  - **Failure mode:** New runtime payload shape breaks existing renderer parser.
+  - **Mitigation:** Runtime boundary emits unchanged `EMBODIMENT_V1` structure and parity tests enforce identity.
+
+## Rollout / Rollback Plan
+- **Owner:** Platform Runtime team.
+- **Timeline:**
+  - Week 1: Merge contracts + tests + benchmark gate.
+  - Week 2: Enable `light_cognition_layer_enabled` in staging.
+  - Week 3: Enable `morphogenesis_runtime_enabled` for 10% traffic.
+  - Week 4: Ramp to 100% after SLO/compatibility pass.
+- **Rollback:** Set either feature flag to `false` to revert to direct visual mapping path immediately.
+
+## Definition of Done (Production)
+- **Tests:** Contract, runtime, and fallback parity tests pass in CI.
+- **SLO gates:** Stage handoff overhead P95 <= 3 ms.
+- **Benchmarking gates:** Stage handoff benchmark integrated in runtime-quality workflow.
+- **Observability:** Pipeline step timing captured in runtime metrics object.
+- **Runbooks:** Rollout and rollback steps documented with feature flags.
+- **Security checks:** Existing API key/authn and schema checks remain active.

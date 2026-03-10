@@ -27,3 +27,28 @@
 ## ABI Governance
 - schema ถือเป็น ABI ระหว่าง cognition ↔ manifestation
 - การเปลี่ยน schema ต้อง version และระบุ migration impact
+
+
+## Light Cognition Pipeline V1
+Canonical contract file: `docs/schemas/light_cognition_pipeline_v1.json`
+
+Internal stage data models:
+- `SemanticField`
+  - `semantic_tensors`
+  - `confidence_gradients`
+  - `polarity`
+  - `ambiguity`
+- `MorphogenesisPlan`
+  - `topology_seeds`
+  - `attractors`
+  - `constraints`
+  - `temporal_operators`
+- `CompiledLightProgram`
+  - `shader_uniforms`
+  - `particle_targets`
+  - `force_field_descriptors`
+  - `update_cadence_hz`
+
+Backwards compatibility:
+- Runtime output still targets `EMBODIMENT_V1` renderer ingestion shape.
+- New contracts are additive and can be gated by runtime feature flags.

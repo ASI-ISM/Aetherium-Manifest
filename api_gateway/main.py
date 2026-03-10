@@ -8,6 +8,7 @@ import socket
 import uuid
 from datetime import datetime, timezone
 from statistics import mean
+from time import perf_counter
 from typing import Any, Literal
 from urllib.parse import urlparse
 
@@ -74,6 +75,27 @@ class IntentVector(BaseModel):
     emotional_valence: float = Field(ge=-1.0, le=1.0)
     energy_level: float = Field(ge=0.0, le=1.0)
 
+
+class SemanticField(BaseModel):
+    semantic_tensors: dict[str, float] = Field(default_factory=dict)
+    confidence_gradients: list[float] = Field(default_factory=list)
+    polarity: float = Field(ge=-1.0, le=1.0)
+    ambiguity: float = Field(ge=0.0, le=1.0)
+
+
+class MorphogenesisPlan(BaseModel):
+    topology_seeds: list[str] = Field(default_factory=list)
+    attractors: list[str] = Field(default_factory=list)
+    constraints: list[str] = Field(default_factory=list)
+    temporal_operators: list[str] = Field(default_factory=list)
+
+
+class CompiledLightProgram(BaseModel):
+    shader_uniforms: dict[str, float | str] = Field(default_factory=dict)
+    particle_targets: dict[str, float] = Field(default_factory=dict)
+    force_field_descriptors: list[str] = Field(default_factory=list)
+    update_cadence_hz: float = Field(gt=0.0)
+
 class ColorPalette(BaseModel):
     primary: str
     secondary: str | None = None
@@ -139,6 +161,22 @@ class TelemetryPoint(BaseModel):
 
 class TelemetryIngestRequest(BaseModel):
     points: list[TelemetryPoint]
+
+
+class PipelineExecutionMetrics(BaseModel):
+    intent_to_semantic_ms: float
+    semantic_to_morphogenesis_ms: float
+    morphogenesis_to_compiler_ms: float
+    compiler_to_runtime_ms: float
+    total_pipeline_ms: float
+
+
+class PipelineExecutionResult(BaseModel):
+    semantic_field: SemanticField
+    morphogenesis_plan: MorphogenesisPlan
+    compiled_program: CompiledLightProgram
+    visual_manifestation: "VisualManifestation"
+    metrics: PipelineExecutionMetrics
 
 
 # --- In-memory State and Concurrency --- 
@@ -293,6 +331,81 @@ def _resolve_voice_model(language: str, region: str) -> str:
     region_key = region.lower()
     return VOICE_MODEL_MAP.get((lang_key, region_key), f"whisper-general-{lang_key}")
 
+
+def _env_flag(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _intent_to_semantic_field(intent: IntentVector) -> SemanticField:
+    confidence = max(0.0, min(1.0, 0.55 + (intent.energy_level * 0.35)))
+    return SemanticField(
+        semantic_tensors={
+            "category_hash": float(abs(hash(intent.category)) % 10_000) / 10_000,
+            "valence": intent.emotional_valence,
+            "energy": intent.energy_level,
+        },
+        confidence_gradients=[confidence, max(0.0, confidence - 0.1)],
+        polarity=intent.emotional_valence,
+        ambiguity=max(0.0, 1.0 - confidence),
+    )
+
+
+def _semantic_to_morphogenesis(field: SemanticField, visual: VisualManifestation) -> MorphogenesisPlan:
+    return MorphogenesisPlan(
+        topology_seeds=[visual.base_shape, visual.transition_type],
+        attractors=["coherence" if field.ambiguity < 0.4 else "exploration"],
+        constraints=[f"turbulence<={visual.particle_physics.turbulence}", f"chroma={visual.chromatic_mode}"],
+        temporal_operators=["phase_lock", "cadence_stabilize"],
+    )
+
+
+def _morphogenesis_to_compiled(plan: MorphogenesisPlan, visual: VisualManifestation) -> CompiledLightProgram:
+    cadence_hz = 24.0 if "phase_lock" in plan.temporal_operators else 12.0
+    return CompiledLightProgram(
+        shader_uniforms={"shape": visual.base_shape, "transition": visual.transition_type},
+        particle_targets={"count": float(visual.particle_physics.particle_count), "mass": visual.particle_physics.luminance_mass},
+        force_field_descriptors=plan.constraints,
+        update_cadence_hz=cadence_hz,
+    )
+
+
+def _compiled_to_runtime_visual(program: CompiledLightProgram, visual: VisualManifestation) -> VisualManifestation:
+    # Backward-compatible renderer ABI: preserve existing contract shape.
+    _ = program
+    return visual
+
+
+def _run_light_cognition_pipeline(intent: IntentVector, visual: VisualManifestation) -> PipelineExecutionResult:
+    t0 = perf_counter()
+    semantic = _intent_to_semantic_field(intent)
+    t1 = perf_counter()
+    morphogenesis = _semantic_to_morphogenesis(semantic, visual)
+    t2 = perf_counter()
+    compiled = _morphogenesis_to_compiled(morphogenesis, visual)
+    t3 = perf_counter()
+    runtime_visual = _compiled_to_runtime_visual(compiled, visual)
+    t4 = perf_counter()
+    return PipelineExecutionResult(
+        semantic_field=semantic,
+        morphogenesis_plan=morphogenesis,
+        compiled_program=compiled,
+        visual_manifestation=runtime_visual,
+        metrics=PipelineExecutionMetrics(
+            intent_to_semantic_ms=(t1 - t0) * 1000,
+            semantic_to_morphogenesis_ms=(t2 - t1) * 1000,
+            morphogenesis_to_compiler_ms=(t3 - t2) * 1000,
+            compiler_to_runtime_ms=(t4 - t3) * 1000,
+            total_pipeline_ms=(t4 - t0) * 1000,
+        ),
+    )
+
+
+def _run_direct_visual_fallback(visual: VisualManifestation) -> VisualManifestation:
+    return visual
+
 # --- API Endpoints ---
 
 @app.post("/api/v1/cognitive/generate")
@@ -348,6 +461,19 @@ async def emit_cognitive_dsl(
 
     async with METRICS_LOCK:
         METRICS.successful_renders += 1
+
+    light_cognition_layer_enabled = _env_flag("light_cognition_layer_enabled", default=True)
+    morphogenesis_runtime_enabled = _env_flag("morphogenesis_runtime_enabled", default=True)
+
+    if light_cognition_layer_enabled and morphogenesis_runtime_enabled:
+        pipeline_result = _run_light_cognition_pipeline(
+            intent=parsed.model_response.intent_vector,
+            visual=parsed.model_response.visual_manifestation,
+        )
+        _ = pipeline_result.visual_manifestation
+    else:
+        _run_direct_visual_fallback(parsed.model_response.visual_manifestation)
+
     return {"status": "success", "trace_id": parsed.model_response.trace_id}
 
 @app.post("/api/v1/cognitive/validate")

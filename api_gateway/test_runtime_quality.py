@@ -243,5 +243,58 @@ class GatewayExtensionTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(good.messages, [message])
 
 
+class LightCognitionPipelineTests(unittest.TestCase):
+    def test_pipeline_stages_produce_required_internal_models(self) -> None:
+        from api_gateway.main import (
+            ColorPalette,
+            IntentVector,
+            ParticlePhysics,
+            VisualManifestation,
+            _run_light_cognition_pipeline,
+        )
+
+        intent = IntentVector(category="guide", emotional_valence=0.3, energy_level=0.7)
+        visual = VisualManifestation(
+            base_shape="ring",
+            transition_type="breathe",
+            color_palette=ColorPalette(primary="#88CCFF"),
+            particle_physics=ParticlePhysics(
+                turbulence=0.2,
+                flow_direction="clockwise",
+                luminance_mass=0.4,
+                particle_count=4000,
+            ),
+            chromatic_mode="adaptive",
+            emergency_override=False,
+            device_tier=2,
+        )
+
+        result = _run_light_cognition_pipeline(intent, visual)
+        self.assertIn("energy", result.semantic_field.semantic_tensors)
+        self.assertTrue(result.morphogenesis_plan.temporal_operators)
+        self.assertGreater(result.compiled_program.update_cadence_hz, 0)
+
+    def test_fallback_mode_keeps_renderer_abi_parity(self) -> None:
+        from api_gateway.main import ColorPalette, ParticlePhysics, VisualManifestation, _run_direct_visual_fallback
+
+        visual = VisualManifestation(
+            base_shape="ring",
+            transition_type="breathe",
+            color_palette=ColorPalette(primary="#88CCFF"),
+            particle_physics=ParticlePhysics(
+                turbulence=0.2,
+                flow_direction="clockwise",
+                luminance_mass=0.4,
+                particle_count=4000,
+            ),
+            chromatic_mode="adaptive",
+            emergency_override=False,
+            device_tier=2,
+        )
+
+        fallback_visual = _run_direct_visual_fallback(visual)
+        self.assertEqual(fallback_visual.model_dump(), visual.model_dump())
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -36,6 +36,8 @@ jobs:
         run: python -m api_gateway.deterministic_replay --seed 777 --event-log tools/benchmarks/replay_event_log.sample.json --nodes 3
       - name: Latency perception benchmark
         run: python tools/benchmarks/latency_perception_benchmark.py --input tools/benchmarks/latency_samples.sample.json
+      - name: Stage handoff latency benchmark
+        run: python tools/benchmarks/stage_handoff_latency_benchmark.py
       - name: Creative stress scenarios
         run: python tools/benchmarks/creative_stress_scenarios.py
       - name: Runtime unit tests

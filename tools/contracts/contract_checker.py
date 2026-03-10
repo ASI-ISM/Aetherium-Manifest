@@ -25,6 +25,10 @@ CHECKS = {
         "schema": SCHEMA_DIR / "ipw_v1.json",
         "payload": PAYLOAD_DIR / "ipw_v1.payload.json",
     },
+    "light_cognition_pipeline_v1": {
+        "schema": SCHEMA_DIR / "light_cognition_pipeline_v1.json",
+        "payload": PAYLOAD_DIR / "light_cognition_pipeline_v1.payload.json",
+    },
 }
 
 DEFAULT_CADENCE_BY_PHASE = {

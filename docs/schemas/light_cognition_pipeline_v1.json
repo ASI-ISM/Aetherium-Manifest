@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LightCognitionPipelineV1",
+  "type": "object",
+  "required": [
+    "contract_type",
+    "intent",
+    "semantic_field",
+    "morphogenesis_plan",
+    "compiled_light_program",
+    "cognitive_field_runtime"
+  ],
+  "properties": {
+    "contract_type": {
+      "type": "string",
+      "const": "LIGHT_COGNITION_PIPELINE_V1"
+    },
+    "intent": {
+      "type": "object",
+      "required": ["category", "emotional_valence", "energy_level"],
+      "properties": {
+        "category": {"type": "string"},
+        "emotional_valence": {"type": "number", "minimum": -1, "maximum": 1},
+        "energy_level": {"type": "number", "minimum": 0, "maximum": 1}
+      },
+      "additionalProperties": false
+    },
+    "semantic_field": {
+      "type": "object",
+      "required": ["semantic_tensors", "confidence_gradients", "polarity", "ambiguity"],
+      "properties": {
+        "semantic_tensors": {
+          "type": "object",
+          "additionalProperties": {"type": "number"}
+        },
+        "confidence_gradients": {
+          "type": "array",
+          "items": {"type": "number", "minimum": 0, "maximum": 1}
+        },
+        "polarity": {"type": "number", "minimum": -1, "maximum": 1},
+        "ambiguity": {"type": "number", "minimum": 0, "maximum": 1}
+      },
+      "additionalProperties": false
+    },
+    "morphogenesis_plan": {
+      "type": "object",
+      "required": ["topology_seeds", "attractors", "constraints", "temporal_operators"],
+      "properties": {
+        "topology_seeds": {"type": "array", "items": {"type": "string"}},
+        "attractors": {"type": "array", "items": {"type": "string"}},
+        "constraints": {"type": "array", "items": {"type": "string"}},
+        "temporal_operators": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "compiled_light_program": {
+      "type": "object",
+      "required": ["shader_uniforms", "particle_targets", "force_field_descriptors", "update_cadence_hz"],
+      "properties": {
+        "shader_uniforms": {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              {"type": "number"},
+              {"type": "string"}
+            ]
+          }
+        },
+        "particle_targets": {
+          "type": "object",
+          "additionalProperties": {"type": "number"}
+        },
+        "force_field_descriptors": {"type": "array", "items": {"type": "string"}},
+        "update_cadence_hz": {"type": "number", "exclusiveMinimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "cognitive_field_runtime": {
+      "type": "object",
+      "required": ["visual_manifestation", "renderer_ingestion_contract"],
+      "properties": {
+        "visual_manifestation": {
+          "type": "object"
+        },
+        "renderer_ingestion_contract": {
+          "type": "string",
+          "const": "EMBODIMENT_V1"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
