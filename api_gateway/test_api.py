@@ -97,3 +97,15 @@ def test_proxy_fetch_rejects_urls_with_credentials(client: TestClient) -> None:
     )
     assert response.status_code == 400
     assert "credentials" in response.text.lower()
+
+
+def test_reliability_temporal_morphogenesis_endpoint(client: TestClient) -> None:
+    response = client.get(
+        "/api/v1/reliability/temporal-morphogenesis",
+        headers={"X-API-Key": "test-key"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert "drift_detector_recall" in payload
+    assert "containment_activation_p95_ms" in payload
+    assert "sev1_replay_reproducibility" in payload

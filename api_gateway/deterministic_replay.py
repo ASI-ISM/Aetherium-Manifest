@@ -62,6 +62,45 @@ def replay_lockstep(seed: int, event_log: list[dict[str, Any]], node_count: int 
     }
 
 
+INCIDENT_REPLAY_PACKAGES: dict[str, dict[str, Any]] = {
+    "sev1_temporal_phase_cascade": {
+        "seed": 9042,
+        "severity": "sev1",
+        "event_log": [
+            {"tick": 1, "event_type": "emotion", "intent": "stabilize", "amplitude": 0.35},
+            {"tick": 2, "event_type": "intent_switch", "intent": "anchor", "amplitude": 0.50},
+            {"tick": 3, "event_type": "emotion", "intent": "anchor", "amplitude": 0.15},
+            {"tick": 4, "event_type": "intent_switch", "intent": "recover", "amplitude": 0.45},
+        ],
+    },
+    "sev1_topology_feedback_runaway": {
+        "seed": 777,
+        "severity": "sev1",
+        "event_log": [
+            {"tick": 1, "event_type": "emotion", "intent": "guide", "amplitude": 0.4},
+            {"tick": 2, "event_type": "intent_switch", "intent": "guide", "amplitude": 0.6},
+            {"tick": 3, "event_type": "intent_switch", "intent": "contain", "amplitude": 0.3},
+            {"tick": 4, "event_type": "emotion", "intent": "contain", "amplitude": 0.2},
+        ],
+    },
+}
+
+
+def replay_incident_package(package_name: str, node_count: int = 2) -> dict[str, Any]:
+    package = INCIDENT_REPLAY_PACKAGES.get(package_name)
+    if package is None:
+        raise KeyError(f"Unknown incident replay package: {package_name}")
+
+    replay_result = replay_lockstep(
+        seed=int(package["seed"]),
+        event_log=list(package["event_log"]),
+        node_count=node_count,
+    )
+    replay_result["package_name"] = package_name
+    replay_result["severity"] = str(package["severity"])
+    return replay_result
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Deterministic replay harness")
     parser.add_argument("--seed", type=int, required=True)

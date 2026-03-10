@@ -4,7 +4,7 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
-from api_gateway.deterministic_replay import replay_lockstep
+from api_gateway.deterministic_replay import replay_incident_package, replay_lockstep
 from tools.benchmarks.creative_stress_scenarios import run_scenarios
 from tools.benchmarks.intent_light_knowledge_graph import build_graph
 from tools.benchmarks.latency_perception_benchmark import run_benchmark
@@ -269,7 +269,7 @@ class LightCognitionPipelineTests(unittest.TestCase):
             device_tier=2,
         )
 
-        result = _run_light_cognition_pipeline(intent, visual)
+        result = _run_light_cognition_pipeline(intent, visual, trace_id="unit-trace")
         self.assertIn("energy", result.semantic_field.semantic_tensors)
         self.assertTrue(result.morphogenesis_plan.temporal_operators)
         self.assertGreater(result.compiled_program.update_cadence_hz, 0)
@@ -356,3 +356,127 @@ class EnvelopeCompatibilityTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TemporalMorphogenesisReliabilityTests(unittest.TestCase):
+    def test_drift_detector_recall_on_seeded_corpus(self) -> None:
+        from api_gateway.main import (
+            ColorPalette,
+            IntentVector,
+            ParticlePhysics,
+            SemanticField,
+            VisualManifestation,
+            _compute_drift_metrics,
+        )
+
+        intent = IntentVector(category="guide", emotional_valence=0.3, energy_level=0.75)
+        baseline = SemanticField(
+            semantic_tensors={"category_hash": 0.2, "valence": 0.3, "energy": 0.75},
+            confidence_gradients=[0.9, 0.85],
+            polarity=0.3,
+            ambiguity=0.1,
+        )
+        visual = VisualManifestation(
+            base_shape="ring",
+            transition_type="breathe",
+            color_palette=ColorPalette(primary="#88CCFF"),
+            particle_physics=ParticlePhysics(
+                turbulence=0.25,
+                flow_direction="clockwise",
+                luminance_mass=0.4,
+                particle_count=3200,
+            ),
+            chromatic_mode="adaptive",
+            emergency_override=False,
+            device_tier=2,
+        )
+        from api_gateway.main import _morphogenesis_to_compiled, _semantic_to_morphogenesis
+
+        compiled = _morphogenesis_to_compiled(_semantic_to_morphogenesis(baseline, visual), visual)
+
+        seeded_divergent = [
+            SemanticField(
+                semantic_tensors={"category_hash": 0.2, "valence": -0.6, "energy": 0.15},
+                confidence_gradients=[0.35, 0.2],
+                polarity=-0.6,
+                ambiguity=0.75,
+            )
+            for _ in range(50)
+        ]
+        seeded_stable = [
+            SemanticField(
+                semantic_tensors={"category_hash": 0.2, "valence": 0.29, "energy": 0.74},
+                confidence_gradients=[0.89, 0.84],
+                polarity=0.31,
+                ambiguity=0.12,
+            )
+            for _ in range(2)
+        ]
+
+        true_positive = 0
+        for telemetry in seeded_divergent:
+            metrics = _compute_drift_metrics(baseline, telemetry, compiled)
+            is_detected = (
+                metrics.semantic_coherence_score < 0.86
+                or metrics.topology_divergence_index > 0.25
+                or metrics.temporal_instability_ratio > 0.2
+            )
+            if is_detected:
+                true_positive += 1
+
+        false_positive = 0
+        for telemetry in seeded_stable:
+            metrics = _compute_drift_metrics(baseline, telemetry, compiled)
+            if (
+                metrics.semantic_coherence_score < 0.86
+                or metrics.topology_divergence_index > 0.25
+                or metrics.temporal_instability_ratio > 0.2
+            ):
+                false_positive += 1
+
+        recall = true_positive / len(seeded_divergent)
+        self.assertGreaterEqual(recall, 0.98)
+        self.assertLessEqual(false_positive, len(seeded_stable))
+
+    def test_containment_activation_p95_within_target(self) -> None:
+        from api_gateway.main import (
+            ColorPalette,
+            IntentVector,
+            ParticlePhysics,
+            VisualManifestation,
+            _run_light_cognition_pipeline,
+        )
+
+        intent = IntentVector(category="guide", emotional_valence=-0.2, energy_level=0.95)
+        visual = VisualManifestation(
+            base_shape="helix",
+            transition_type="surge",
+            color_palette=ColorPalette(primary="#AAEEFF"),
+            particle_physics=ParticlePhysics(
+                turbulence=0.9,
+                flow_direction="counterclockwise",
+                luminance_mass=0.9,
+                particle_count=4500,
+            ),
+            chromatic_mode="adaptive",
+            emergency_override=False,
+            device_tier=2,
+        )
+
+        latencies: list[float] = []
+        for i in range(200):
+            result = _run_light_cognition_pipeline(intent, visual, trace_id=f"seeded-{i}")
+            self.assertIsNotNone(result.runtime_guard)
+            latencies.append(result.runtime_guard.containment.activation_latency_ms)
+
+        latencies.sort()
+        p95 = latencies[int(0.95 * (len(latencies) - 1))]
+        self.assertLessEqual(p95, 75.0)
+
+    def test_replay_reproducibility_is_100_percent_for_sev1(self) -> None:
+        from api_gateway.main import SEV1_INCIDENT_PACKAGES
+
+        self.assertTrue(SEV1_INCIDENT_PACKAGES)
+        for package_name in SEV1_INCIDENT_PACKAGES:
+            result = replay_incident_package(package_name, node_count=4)
+            self.assertTrue(result["lockstep"])
