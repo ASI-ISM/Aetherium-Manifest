@@ -121,11 +121,11 @@ ON CONFLICT (id) DO UPDATE SET
   dependencies = excluded.dependencies;
 
 INSERT INTO workstreams (id, initiative_id, name, owner, status) VALUES
-  (1, 1, 'Architecture', 'platform-architect', 'in_progress'),
-  (2, 1, 'Protocol', 'aetherbus-contracts-lead', 'in_progress'),
-  (3, 1, 'Reliability', 'ml-reliability-lead', 'planned'),
+  (1, 1, 'Architecture', 'architecture-lead', 'in_progress'),
+  (2, 1, 'Protocol', 'protocol-lead', 'in_progress'),
+  (3, 1, 'Reliability', 'reliability-lead', 'planned'),
   (4, 1, 'Benchmark', 'graphics-performance-lead', 'planned'),
-  (5, 1, 'Ops', 'sre-security-joint', 'planned'),
+  (5, 1, 'Ops', 'sre-lead', 'planned'),
   (6, 1, 'Migration', 'release-manager', 'planned')
 ON CONFLICT (id) DO UPDATE SET
   owner = excluded.owner,
@@ -175,7 +175,7 @@ INSERT INTO tasks (id, story_id, code, title, measurable_outcome, owner, status)
   (9210, 3202, 'R2.2.1', 'Implement soft-clamp and deterministic anchor containment', 'Containment mode chosen and applied automatically across seeded failure scenarios', 'runtime-team', 'planned'),
   (9211, 4201, 'B2.1.1', 'Publish compile/tick/resource benchmark scenarios', 'Nightly benchmark report includes compile latency and tick stability percentiles', 'benchmark-team', 'planned'),
   (9212, 5201, 'O2.1.1', 'Deploy drift/compile/fallback/frame observability dashboards', 'Dashboards + alerts are live with on-call routing for all critical metrics', 'sre', 'planned'),
-  (9213, 6201, 'M2.1.1', 'Execute progressive canary rollout 5/20/50/100', 'All phases satisfy promotion gates with recorded gate artifacts', 'release-management', 'planned')
+  (9213, 6201, 'M2.1.1', 'Execute progressive canary rollout 5/20/50/100', 'Every phase promotion requires SLO + semantic quality + error-budget pass', 'release-manager', 'planned')
 ON CONFLICT (id) DO UPDATE SET
   title = excluded.title,
   measurable_outcome = excluded.measurable_outcome,
@@ -205,10 +205,10 @@ ON CONFLICT (id) DO UPDATE SET
   severity = excluded.severity;
 
 INSERT INTO rollout_phases (id, initiative_id, phase_name, timeline_weeks, owner, entry_gate, rollback_trigger) VALUES
-  (1, 1, 'Phase 0: Contracts and flags', '1-2', 'platform-architect', 'Schema validators and feature flags pass in CI', 'Protocol contract failure or compatibility drop >1%'),
-  (2, 1, 'Phase 1: SemanticField and Morphogenesis shadow mode', '3-6', 'runtime-lead', 'Shadow mode telemetry stable and compatibility green', 'SLO breach or drift false-negative incidents'),
-  (3, 1, 'Phase 2: Compiler and runtime canary 5%->20%', '7-10', 'ml-reliability-lead', 'Benchmark and drift gates pass for canary cohorts', 'Error budget burn or sustained latency regression'),
-  (4, 1, 'Phase 3: Canary 50%->100% and legacy cleanup', '11-14', 'release-manager', 'Promotion gates pass at each tier and replay verification complete', 'Semantic legibility drop below gate or compliance failure')
+  (1, 1, 'Phase 0: Contracts + flags + shadow wiring', '1-2', 'protocol-lead', 'SLO + semantic quality + error-budget pass', 'Immediate flag rollback to direct mapping mode'),
+  (2, 1, 'Phase 1: SemanticField and Morphogenesis shadow mode', '3-6', 'architecture-lead', 'SLO + semantic quality + error-budget pass', 'Immediate flag rollback to direct mapping mode'),
+  (3, 1, 'Phase 2: Compiler and runtime canary 5%->20%', '7-10', 'reliability-lead', 'SLO + semantic quality + error-budget pass', 'Protocol adapter fallback + compile stage freeze on error-budget breach'),
+  (4, 1, 'Phase 3: Canary 50%->100% and GA', '11-14', 'release-manager', 'SLO + semantic quality + error-budget pass', 'Compile stage freeze and immediate rollback if error budget is breached')
 ON CONFLICT (id) DO UPDATE SET
   phase_name = excluded.phase_name,
   timeline_weeks = excluded.timeline_weeks,
@@ -222,7 +222,8 @@ INSERT INTO dod_gates (id, initiative_id, gate_category, gate_rule, measurable_t
   (3, 1, 'benchmark', 'Compile/tick/resource + semantic legibility gate', 'Memory increase <=25% and legibility score >=0.80'),
   (4, 1, 'observability', 'Stage-level dashboard + alerting gate', 'MTTD <=10 minutes and MTTR <=30 minutes'),
   (5, 1, 'runbooks', 'Drift/compiler/protocol/privacy/rollback runbook gate', '100% Sev-1 scenario coverage'),
-  (6, 1, 'security', 'Privacy retention and auditability gate', '0 critical findings and 100% CI compliance pass')
+  (6, 1, 'security', 'Privacy retention and auditability gate', '0 critical findings and 100% CI compliance pass'),
+  (7, 1, 'rollback', 'Full rollback drill gate', 'Execution <=15 minutes with zero data-loss/contract-break events')
 ON CONFLICT (id) DO UPDATE SET
   gate_category = excluded.gate_category,
   gate_rule = excluded.gate_rule,
