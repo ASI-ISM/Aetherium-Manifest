@@ -1,4 +1,4 @@
--- Aetherium Cognitive Lightfield Platform backlog schema + seed data.
+-- Light Cognition Layer Program backlog schema + canonical seed data.
 -- Canonical source aligns with docs/11_PLATFORM_WORK_PLAN.md.
 
 PRAGMA foreign_keys = ON;
@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS initiatives (
   drivers TEXT NOT NULL,
   current_state TEXT NOT NULL,
   target_state TEXT NOT NULL,
-  constraints TEXT NOT NULL,
+  constraints_text TEXT NOT NULL,
   dependencies TEXT NOT NULL
 );
 
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS decision_options (
   summary TEXT NOT NULL,
   pros TEXT NOT NULL,
   cons TEXT NOT NULL,
-  chosen INTEGER NOT NULL CHECK (chosen IN (0,1))
+  chosen INTEGER NOT NULL CHECK (chosen IN (0, 1))
 );
 
 CREATE TABLE IF NOT EXISTS risks (
@@ -90,27 +90,35 @@ CREATE TABLE IF NOT EXISTS dod_gates (
 );
 
 INSERT INTO initiatives (
-  id, code, name, scope, drivers, current_state, target_state, constraints, dependencies
+  id,
+  code,
+  name,
+  scope,
+  drivers,
+  current_state,
+  target_state,
+  constraints_text,
+  dependencies
 ) VALUES (
   1,
-  'AG-2026-CLP',
-  'Aetherium Cognitive Lightfield Platform',
-  'Orchestration services, protocol contracts, reliability, benchmark, operations, migration',
+  'LC-2026-MORPHO',
+  'Light Cognition Layer Program',
+  'services/modules/protocol/reliability/benchmark/ops/migration',
   'reliability,latency,semantic-fidelity,security,devex',
-  'Reactive Generative UI maps user intent to visual response in color, shape, density, and flow',
-  'Lightfield-native cognition substrate with reflection, reasoning-surface, and native intelligence modes',
-  'P95<16.7ms Tier-1, P95<33ms Tier-2, no raw biometric persistence, 2-quarter rollout',
-  'Genesis,Manifest,AetherBus,SRE,Security,ML Platform'
+  'Intent outputs can map directly to visual_parameters with limited temporal generation semantics',
+  'Intent flows through SemanticField, MorphogenesisEngine, LightCompiler, and CognitiveFieldRuntime before rendering',
+  'P95<16.7ms Tier-1; P95<33ms Tier-2; memory +25% max; 14-week rollout; no raw biometric persistence',
+  'Genesis cognition team, Manifest runtime team, AetherBus maintainers, SRE, Security/Privacy, ML platform'
 )
 ON CONFLICT (id) DO UPDATE SET
-  code=excluded.code,
-  name=excluded.name,
-  scope=excluded.scope,
-  drivers=excluded.drivers,
-  current_state=excluded.current_state,
-  target_state=excluded.target_state,
-  constraints=excluded.constraints,
-  dependencies=excluded.dependencies;
+  code = excluded.code,
+  name = excluded.name,
+  scope = excluded.scope,
+  drivers = excluded.drivers,
+  current_state = excluded.current_state,
+  target_state = excluded.target_state,
+  constraints_text = excluded.constraints_text,
+  dependencies = excluded.dependencies;
 
 INSERT INTO workstreams (id, initiative_id, name, owner, status) VALUES
   (1, 1, 'Architecture', 'platform-architect', 'in_progress'),
@@ -120,101 +128,102 @@ INSERT INTO workstreams (id, initiative_id, name, owner, status) VALUES
   (5, 1, 'Ops', 'sre-security-joint', 'planned'),
   (6, 1, 'Migration', 'release-manager', 'planned')
 ON CONFLICT (id) DO UPDATE SET
-  owner=excluded.owner,
-  status=excluded.status;
+  owner = excluded.owner,
+  status = excluded.status;
 
 INSERT INTO epics (id, workstream_id, code, title, objective, status) VALUES
-  (101, 1, 'A1', 'Cognitive Lightfield Architecture', 'Deliver reflection, reasoning-surface, and native-state architecture', 'in_progress'),
-  (201, 2, 'P1', 'Protocol v3 Cognition-Native', 'Unify cognition envelope with compatibility adapters', 'in_progress'),
-  (301, 3, 'R1', 'Reliability and Safety', 'Guarantee semantic integrity and failure containment', 'planned'),
-  (401, 4, 'B1', 'Benchmark and Quality Gates', 'Enforce performance and semantic quality budgets', 'planned'),
-  (501, 5, 'O1', 'Operations and Governance', 'Operationalize observability, runbooks, and compliance controls', 'planned'),
-  (601, 6, 'M1', 'Migration and Release', 'Ship phased rollout and rollback-safe migration', 'planned')
+  (120, 1, 'A2', 'Light Cognition Layer Architecture', 'Implement cognition-native middle layer between intent and render outputs', 'in_progress'),
+  (220, 2, 'P2', 'Protocol Evolution for Field Cognition', 'Define versioned envelope for semantic fields, morphogenesis plans, and compiled light programs', 'in_progress'),
+  (320, 3, 'R2', 'Reliability and Failure Containment', 'Detect and contain semantic-to-form drift in runtime evolution', 'planned'),
+  (420, 4, 'B2', 'Benchmark and Quality Gates', 'Enforce latency, resource, and semantic-legibility gates', 'planned'),
+  (520, 5, 'O2', 'Operations and Security Readiness', 'Operationalize telemetry, runbooks, and privacy/security controls', 'planned'),
+  (620, 6, 'M2', 'Migration and Release Management', 'Ship phased rollout with deterministic rollback', 'planned')
 ON CONFLICT (id) DO UPDATE SET
-  title=excluded.title,
-  objective=excluded.objective,
-  status=excluded.status;
+  title = excluded.title,
+  objective = excluded.objective,
+  status = excluded.status;
 
 INSERT INTO stories (id, epic_id, code, title, acceptance_criteria, status) VALUES
-  (1001, 101, 'A1.1', 'Reflection layer hardening', '99.95% ingest-to-render success; mapping consistency >=0.95', 'in_progress'),
-  (1002, 101, 'A1.2', 'Reasoning-surface primitives', 'Schema pass 100%; classifier F1 >=0.90', 'planned'),
-  (1003, 101, 'A1.3', 'Native cognition state engine', 'Explainable transitions >=85%; language alignment >=0.92', 'planned'),
-  (2001, 201, 'P1.1', 'Unified cognition envelope', 'Backward compatibility success 100%', 'in_progress'),
-  (2002, 201, 'P1.2', 'Explainability and policy metadata', '95% sessions contain trace summary; 100% policy-hit metadata', 'planned'),
-  (3001, 301, 'R1.1', 'Semantic integrity guardrails', 'Drift detection >=98%; fallback P95 <75ms', 'planned'),
-  (3002, 301, 'R1.2', 'Failure-mode containment', 'Replay success 100% for Sev-1 incidents', 'planned'),
-  (4001, 401, 'B1.1', 'Stage-wise performance benchmark', 'Nightly benchmark completion 100%', 'planned'),
-  (4002, 401, 'B1.2', 'Semantic quality benchmark', 'RLS >=0.80; inter-rater alpha >=0.70', 'planned'),
-  (5001, 501, 'O1.1', 'Observability and runbooks', 'MTTD <=10m and MTTR <=30m', 'planned'),
-  (5002, 501, 'O1.2', 'Security and privacy enforcement', '0 critical privacy findings', 'planned'),
-  (6001, 601, 'M1.1', 'Progressive rollout ladder', 'Promotion gates pass at each canary stage', 'planned'),
-  (6002, 601, 'M1.2', 'Data and protocol migration', 'Zero data loss in rehearsal', 'planned')
+  (1201, 120, 'A2.1', 'Semantic field ingestion', 'SemanticField validation pass 100%; ingestion success >=99.95%', 'in_progress'),
+  (1202, 120, 'A2.2', 'Morphogenesis planning', 'Plan generation success >=99.9%; instability containment P95 <=75ms', 'planned'),
+  (1203, 120, 'A2.3', 'Light program compilation and runtime', 'Compiler contract pass 100%; runtime overhead <=3ms P95', 'planned'),
+  (2201, 220, 'P2.1', 'Unified cognition-native envelope', 'Backward compatibility pass 100%; required blocks enforced in CI', 'in_progress'),
+  (2202, 220, 'P2.2', 'Explainability and governance metadata', 'Trace summary in >=95% sessions; governance metadata coverage 100%', 'planned'),
+  (3201, 320, 'R2.1', 'Semantic drift detection', 'Drift recall >=98%; false positives <=3%', 'planned'),
+  (3202, 320, 'R2.2', 'Deterministic containment', 'Containment <=75ms P95; Sev-1 replay reproducibility 100%', 'planned'),
+  (4201, 420, 'B2.1', 'Performance benchmark suite', 'Nightly completion 100%; memory increase <=25%', 'planned'),
+  (4202, 420, 'B2.2', 'Semantic legibility benchmark', 'Composite score >=0.80; inter-rater agreement >=0.70', 'planned'),
+  (5201, 520, 'O2.1', 'Observability and runbooks', 'MTTD <=10m; MTTR <=30m; Sev-1 playbook validation 100%', 'planned'),
+  (5202, 520, 'O2.2', 'Security and privacy controls', '0 critical audit findings; required CI compliance pass 100%', 'planned'),
+  (6201, 620, 'M2.1', 'Progressive rollout', 'Promotion gated by SLO+benchmark+error budget; rollback <=15m', 'planned'),
+  (6202, 620, 'M2.2', 'Legacy cleanup', 'Zero migration data loss; compatibility pass rate unchanged after cleanup', 'planned')
 ON CONFLICT (id) DO UPDATE SET
-  title=excluded.title,
-  acceptance_criteria=excluded.acceptance_criteria,
-  status=excluded.status;
+  title = excluded.title,
+  acceptance_criteria = excluded.acceptance_criteria,
+  status = excluded.status;
 
 INSERT INTO tasks (id, story_id, code, title, measurable_outcome, owner, status) VALUES
-  (9001, 1001, 'A1.1.1', 'Standardize lightfield_input contract', 'Single ingestion contract used by 100% reflection transactions', 'platform-architecture', 'in_progress'),
-  (9002, 1001, 'A1.1.2', 'Add deterministic rendering profile packs', 'Profiles cover shape/color/density/flow with validated presets', 'runtime-team', 'planned'),
-  (9003, 1002, 'A1.2.1', 'Add uncertainty and interference primitives', 'New fields validated by contract tests without regressions', 'platform-architecture', 'planned'),
-  (9004, 1002, 'A1.2.2', 'Add collapse and convergence primitives', 'Reasoning-state classifier reaches F1 >=0.90', 'ml-reliability', 'planned'),
-  (9005, 1003, 'A1.3.1', 'Implement latent state graph engine', 'State transition logs generated for >=85% sampled sessions', 'genesis-cognition', 'planned'),
-  (9006, 2001, 'P1.1.1', 'Define protocol envelope for 3 cognition modes', 'v3 envelope accepted by schema lint and fixtures', 'aetherbus-contracts', 'in_progress'),
-  (9007, 2001, 'P1.1.2', 'Ship v2/v3 compatibility adapters', 'Adapters pass 100% consumer compatibility tests', 'aetherbus-contracts', 'planned'),
-  (9008, 3001, 'R1.1.1', 'Build semantic drift detector service', 'Detector catches >=98% seeded divergence scenarios', 'ml-reliability', 'planned'),
-  (9009, 3001, 'R1.1.2', 'Add deterministic fallback trigger path', 'Fallback activates in <75ms P95 after drift breach', 'runtime-team', 'planned'),
-  (9010, 4002, 'B1.2.1', 'Implement Reasoning Legibility Score harness', 'RLS generated for every benchmark run', 'benchmark-team', 'planned'),
-  (9011, 5001, 'O1.1.1', 'Deploy cognitive observability dashboards', 'Latency/drift/fallback/RLS metrics available in production dashboards', 'sre', 'planned'),
-  (9012, 6001, 'M1.1.1', 'Execute canary rollout 5-20-50-100', 'All stages satisfy SLO and error-budget gates', 'release-management', 'planned')
+  (9201, 1201, 'A2.1.1', 'Normalize LLM semantics into SemanticField contract', 'SemanticField emitted for 100% cognition-native requests', 'platform-architecture', 'in_progress'),
+  (9202, 1201, 'A2.1.2', 'Add SemanticField schema and validator checks', 'CI validator coverage includes all SemanticField required attributes', 'aetherbus-contracts', 'planned'),
+  (9203, 1202, 'A2.2.1', 'Build MorphogenesisEngine topology planner', 'Topology seed + attractor map generated for >=99.9% replay payloads', 'genesis-cognition', 'planned'),
+  (9204, 1202, 'A2.2.2', 'Implement policy-aware morph constraints', 'Unsafe trajectories blocked with policy metadata emitted 100%', 'ml-reliability', 'planned'),
+  (9205, 1203, 'A2.3.1', 'Compile light programs to shader/particle/force outputs', 'Compiled artifact includes shader_uniforms + particle_targets + force_fields in 100% valid requests', 'runtime-team', 'planned'),
+  (9206, 1203, 'A2.3.2', 'Run CognitiveFieldRuntime with deterministic fallback', 'Fallback engages <=75ms P95 when drift or SLO trigger breaches threshold', 'runtime-team', 'planned'),
+  (9207, 2201, 'P2.1.1', 'Add cognition-native envelope blocks', 'Schema includes semantic_field/morphogenesis_plan/light_program/runtime_state and passes fixtures', 'aetherbus-contracts', 'in_progress'),
+  (9208, 2201, 'P2.1.2', 'Ship visual_parameters compatibility adapter', 'Legacy consumers pass 100% compatibility tests through adapter', 'aetherbus-contracts', 'planned'),
+  (9209, 3201, 'R2.1.1', 'Implement semantic-to-form drift metrics', 'Drift metrics logged at each runtime window and queryable in telemetry backend', 'ml-reliability', 'planned'),
+  (9210, 3202, 'R2.2.1', 'Implement soft-clamp and deterministic anchor containment', 'Containment mode chosen and applied automatically across seeded failure scenarios', 'runtime-team', 'planned'),
+  (9211, 4201, 'B2.1.1', 'Publish compile/tick/resource benchmark scenarios', 'Nightly benchmark report includes compile latency and tick stability percentiles', 'benchmark-team', 'planned'),
+  (9212, 5201, 'O2.1.1', 'Deploy drift/compile/fallback/frame observability dashboards', 'Dashboards + alerts are live with on-call routing for all critical metrics', 'sre', 'planned'),
+  (9213, 6201, 'M2.1.1', 'Execute progressive canary rollout 5/20/50/100', 'All phases satisfy promotion gates with recorded gate artifacts', 'release-management', 'planned')
 ON CONFLICT (id) DO UPDATE SET
-  title=excluded.title,
-  measurable_outcome=excluded.measurable_outcome,
-  owner=excluded.owner,
-  status=excluded.status;
+  title = excluded.title,
+  measurable_outcome = excluded.measurable_outcome,
+  owner = excluded.owner,
+  status = excluded.status;
 
 INSERT INTO decision_options (id, initiative_id, option_code, summary, pros, cons, chosen) VALUES
-  (1, 1, 'A', 'Layered maturity rollout: Reflection -> Reasoning Surface -> Native Intelligence', 'lowest migration risk, clear rollback, incremental validation', 'temporary complexity from multi-mode coexistence', 1),
-  (2, 1, 'B', 'Big-bang native-intelligence rewrite', 'fastest theoretical arrival at target architecture', 'high delivery risk and weak rollback control', 0),
-  (3, 1, 'C', 'Reflection-only optimization', 'predictable operations and near-term latency gains', 'fails strategic objective for reasoning visibility', 0)
+  (1, 1, 'A', 'Incremental middle-layer insertion', 'lowest migration risk, clear rollback, progressive observability', 'temporary dual-path complexity', 1),
+  (2, 1, 'B', 'Big-bang full replacement', 'fast architecture purity', 'high reliability and schedule risk, hard rollback', 0),
+  (3, 1, 'C', 'Direct mapping with minor heuristics', 'low near-term cost', 'does not deliver true generative temporal cognition', 0)
 ON CONFLICT (id) DO UPDATE SET
-  option_code=excluded.option_code,
-  summary=excluded.summary,
-  pros=excluded.pros,
-  cons=excluded.cons,
-  chosen=excluded.chosen;
+  option_code = excluded.option_code,
+  summary = excluded.summary,
+  pros = excluded.pros,
+  cons = excluded.cons,
+  chosen = excluded.chosen;
 
 INSERT INTO risks (id, initiative_id, risk_title, failure_mode, mitigation_plan, severity) VALUES
-  (1, 1, 'Semantic misrepresentation risk', 'Visual reasoning appears convincing while semantically incorrect', 'Semantic drift detector plus deterministic anchor and explainability audits', 'critical'),
-  (2, 1, 'Latency regression in native mode', 'Native cognition mode breaches render/update SLO', 'Stage-gated budgets, adaptive quality scaling, and hard promotion gates', 'high'),
-  (3, 1, 'Protocol fragmentation', 'Clients diverge in support for cognition-native fields', 'Versioned envelope with adapters and required schema lint checks', 'high'),
-  (4, 1, 'Privacy leakage from cognitive traces', 'Sensitive traces retained beyond policy window', 'TTL enforcement, policy scans, and auditable access controls', 'critical')
+  (1, 1, 'Semantic persuasion mismatch', 'Rendered field appears convincing while diverging from source semantics', 'Drift metrics, deterministic anchors, explainability audits', 'critical'),
+  (2, 1, 'Latency and cost regression', 'Runtime evolution stage breaches latency/resource envelopes', 'Benchmark gates, adaptive quality scaling, strict rollout gates', 'high'),
+  (3, 1, 'Protocol fragmentation', 'Consumers parse inconsistent envelope subsets across versions', 'Versioned contracts with mandatory CI lint and adapters', 'high'),
+  (4, 1, 'Privacy over-retention', 'Cognitive traces stored beyond policy TTL or accessed without control', 'TTL enforcement, deny-by-default storage, auditable access logs', 'critical')
 ON CONFLICT (id) DO UPDATE SET
-  risk_title=excluded.risk_title,
-  failure_mode=excluded.failure_mode,
-  mitigation_plan=excluded.mitigation_plan,
-  severity=excluded.severity;
+  risk_title = excluded.risk_title,
+  failure_mode = excluded.failure_mode,
+  mitigation_plan = excluded.mitigation_plan,
+  severity = excluded.severity;
 
 INSERT INTO rollout_phases (id, initiative_id, phase_name, timeline_weeks, owner, entry_gate, rollback_trigger) VALUES
-  (1, 1, 'Stage 0: Protocol v3 foundation', '1-3', 'platform-architect', 'Schema validators and feature flags pass in CI', 'Protocol compatibility failures >1%'),
-  (2, 1, 'Stage 1: Reflection hardening + reasoning primitives', '4-8', 'runtime-lead', 'Shadow mode metrics and compatibility gates green', 'SLO or schema regression in canary'),
-  (3, 1, 'Stage 2: Native state engine + drift controls', '9-14', 'ml-reliability-lead', 'Drift detector and replay gates pass', 'Drift false-negative incidents or latency breach'),
-  (4, 1, 'Stage 3: Canary to GA + redundancy cleanup', '15-20', 'release-manager', 'Canary gates pass at each traffic tier', 'Error-budget burn or RLS degradation below threshold')
+  (1, 1, 'Phase 0: Contracts and flags', '1-2', 'platform-architect', 'Schema validators and feature flags pass in CI', 'Protocol contract failure or compatibility drop >1%'),
+  (2, 1, 'Phase 1: SemanticField and Morphogenesis shadow mode', '3-6', 'runtime-lead', 'Shadow mode telemetry stable and compatibility green', 'SLO breach or drift false-negative incidents'),
+  (3, 1, 'Phase 2: Compiler and runtime canary 5%->20%', '7-10', 'ml-reliability-lead', 'Benchmark and drift gates pass for canary cohorts', 'Error budget burn or sustained latency regression'),
+  (4, 1, 'Phase 3: Canary 50%->100% and legacy cleanup', '11-14', 'release-manager', 'Promotion gates pass at each tier and replay verification complete', 'Semantic legibility drop below gate or compliance failure')
 ON CONFLICT (id) DO UPDATE SET
-  phase_name=excluded.phase_name,
-  timeline_weeks=excluded.timeline_weeks,
-  owner=excluded.owner,
-  entry_gate=excluded.entry_gate,
-  rollback_trigger=excluded.rollback_trigger;
+  phase_name = excluded.phase_name,
+  timeline_weeks = excluded.timeline_weeks,
+  owner = excluded.owner,
+  entry_gate = excluded.entry_gate,
+  rollback_trigger = excluded.rollback_trigger;
 
 INSERT INTO dod_gates (id, initiative_id, gate_category, gate_rule, measurable_target) VALUES
-  (1, 1, 'tests', 'Contract, replay, semantic alignment, migration rehearsal suites', '100% required suite pass'),
-  (2, 1, 'slo', 'Render/update latency gate across all modes', 'P95 <16.7ms Tier-1 and <33ms Tier-2'),
-  (3, 1, 'benchmark', 'Performance and Reasoning Legibility Score gate', 'RLS >=0.80 and native-mode memory increase <=25%'),
-  (4, 1, 'observability', 'Latency/drift/fallback/RLS dashboard and alert gate', 'MTTD <=10 minutes and MTTR <=30 minutes'),
-  (5, 1, 'runbooks', 'Drift/protocol/privacy/rollback runbook gate', '100% Sev-1 scenario coverage'),
-  (6, 1, 'security', 'Privacy and cognitive-trace policy compliance gate', '0 critical audit findings')
+  (1, 1, 'tests', 'Contract/replay/drift/migration rehearsal suites', '100% required suite pass'),
+  (2, 1, 'slo', 'Render and update latency across rollout phases', 'P95 <16.7ms Tier-1 and <33ms Tier-2'),
+  (3, 1, 'benchmark', 'Compile/tick/resource + semantic legibility gate', 'Memory increase <=25% and legibility score >=0.80'),
+  (4, 1, 'observability', 'Stage-level dashboard + alerting gate', 'MTTD <=10 minutes and MTTR <=30 minutes'),
+  (5, 1, 'runbooks', 'Drift/compiler/protocol/privacy/rollback runbook gate', '100% Sev-1 scenario coverage'),
+  (6, 1, 'security', 'Privacy retention and auditability gate', '0 critical findings and 100% CI compliance pass')
 ON CONFLICT (id) DO UPDATE SET
-  gate_category=excluded.gate_category,
-  gate_rule=excluded.gate_rule,
-  measurable_target=excluded.measurable_target;
+  gate_category = excluded.gate_category,
+  gate_rule = excluded.gate_rule,
+  measurable_target = excluded.measurable_target;
