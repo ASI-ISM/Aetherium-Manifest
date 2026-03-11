@@ -496,8 +496,11 @@ Future directions:
 - **Proxy Key Rotation and Tenant Scope**  
   Add key identifiers (`kid`) with dual-key rotation windows and optional tenant-scoped signing secrets.
 
+- **SDLC Automation Workflow** ✅  
+  Added a unified GitHub Actions workflow for lint/typecheck, contract/runtime tests, JS tests, nightly benchmarks, and container build smoke checks.
+
 - **Contract Fuzz Testing**  
-  Build property-based payload generators + schema mutation corpus + regression suites.
+  Add property-based payload generators + schema mutation corpus + regression suites integrated into CI quality gates.
 
 - **Voice Model Experimentation**  
   A/B routing and quality tracking by language-region (WER, latency, accuracy).
