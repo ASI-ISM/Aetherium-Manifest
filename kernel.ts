@@ -1,10 +1,12 @@
-import { mockLocalLightModel } from './light-control-language';
+import { generateLightControlLanguage } from './light-control-language';
 import { FormationRetriever, mergeFormationWithLCL } from './formation-retriever';
 import { compileShapeField, compileGlyphField, compileSceneField } from './shape-compiler';
 import { perceptualFeedbackLoop } from './perceptual-feedback';
+import { RendererWebGL } from './renderer-webgl';
 
 const display = document.getElementById('display-layer') as HTMLCanvasElement;
 const ctx = display.getContext('2d', { alpha: false });
+let webglRenderer: RendererWebGL | null = null;
 const memCanvas = document.getElementById('memory-layer') as HTMLCanvasElement;
 const memCtx = memCanvas.getContext('2d', { willReadFrequently: true });
 
@@ -332,14 +334,14 @@ async function handleUserLightRequest(userText: string) {
       Kernel.state = 'PARSE';
       updateFSMUI();
 
-      const lcl = await mockLocalLightModel(userText);
+      const lcl = await generateLightControlLanguage(userText);
       if (rev !== pipelineRevision) return;
       setSchemaView(lcl);
 
       Kernel.state = 'RETRIEVE';
       updateFSMUI();
 
-      const retrieved = FormationRetriever(lcl);
+      const retrieved = await FormationRetriever(lcl);
       if (rev !== pipelineRevision) return;
 
       const enriched = mergeFormationWithLCL(lcl, retrieved);
@@ -382,16 +384,22 @@ function render() {
       renderTime += 0.016;
       frameCounter++;
 
-      const trail = clamp(Kernel.trailAlpha + Kernel.coherence * 0.18, 0.08, 0.46);
-      ctx.fillStyle = `rgba(1, 1, 2, ${trail})`;
-      ctx.fillRect(0, 0, W, H);
-
-      ctx.globalCompositeOperation = 'lighter';
       for (const p of photons) {
         p.update(renderTime);
-        p.draw();
       }
-      ctx.globalCompositeOperation = 'source-over';
+
+      if (webglRenderer) {
+        webglRenderer.render(photons, W, H, Kernel.glowAlpha);
+      } else {
+        const trail = clamp(Kernel.trailAlpha + Kernel.coherence * 0.18, 0.08, 0.46);
+        ctx.fillStyle = `rgba(1, 1, 2, ${trail})`;
+        ctx.fillRect(0, 0, W, H);
+        ctx.globalCompositeOperation = 'lighter';
+        for (const p of photons) {
+          p.draw();
+        }
+        ctx.globalCompositeOperation = 'source-over';
+      }
 
       if (frameCounter % 20 === 0) {
         perceptualFeedbackLoop(photons, W, H, lastLCL, Kernel, clamp, (k: any) => { Object.assign(Kernel, k); });
@@ -405,6 +413,11 @@ function bootstrap() {
       resize();
       photons = Array.from({ length: NUM_PHOTONS }, (_, i) => new Photon(i));
       showSchema();
+      try {
+        webglRenderer = new RendererWebGL(display);
+      } catch (error) {
+        console.warn('WebGL renderer unavailable; falling back to Canvas2D', error);
+      }
       updateFSMUI();
       render();
     }

@@ -1,61 +1,100 @@
-function perceptualFeedbackLoop() {
-      if (targetField.length === 0) {
-        Kernel.readability = 0;
-        Kernel.coverage = 0;
-        Kernel.stability = 0;
-        return;
-      }
+interface PhotonState {
+  pos: { x: number; y: number };
+  vel: { x: number; y: number };
+}
 
-      Kernel.state = 'FEEDBACK';
+interface EvalMetrics {
+  readability: number;
+  coverage: number;
+  stability: number;
+}
 
-      const sample = Math.min(photons.length, 2000);
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      let cx = 0, cy = 0, speedSum = 0;
+let pendingEval: Promise<EvalMetrics> | null = null;
 
-      for (let i = 0; i < sample; i++) {
-        const p = photons[i];
-        cx += p.pos.x;
-        cy += p.pos.y;
-        speedSum += Math.hypot(p.vel.x, p.vel.y);
-        if (p.pos.x < minX) minX = p.pos.x;
-        if (p.pos.x > maxX) maxX = p.pos.x;
-        if (p.pos.y < minY) minY = p.pos.y;
-        if (p.pos.y > maxY) maxY = p.pos.y;
-      }
+export function perceptualFeedbackLoop(
+  photons: PhotonState[],
+  W: number,
+  H: number,
+  lastLCL: any,
+  kernel: any,
+  clamp: (v: number, lo: number, hi: number) => number,
+  applyPatch: (patch: Record<string, unknown>) => void,
+): void {
+  if (!photons.length) {
+    applyPatch({ readability: 0, coverage: 0, stability: 0 });
+    return;
+  }
 
-      cx /= sample;
-      cy /= sample;
-      const bboxArea = Math.max(1, (maxX - minX) * (maxY - minY));
-      const coverage = clamp(bboxArea / (W * H), 0, 1);
-      const stability = 1 / (1 + speedSum / sample);
-      const targetCoverage = lastLCL?.morphology.family === 'glyph' ? 0.12 : 0.18;
-      const readability = clamp(1 - Math.abs(coverage - targetCoverage) / Math.max(targetCoverage, 0.05), 0, 1);
+  kernel.state = 'FEEDBACK';
+  if (!pendingEval) {
+    pendingEval = evaluateWithBioVisionNet(photons, W, H, lastLCL)
+      .catch(() => evaluateWithEdgeModel(photons, W, H, lastLCL))
+      .finally(() => {
+        pendingEval = null;
+      });
+  }
 
-      Kernel.coverage = coverage;
-      Kernel.stability = stability;
-      Kernel.readability = readability;
+  pendingEval.then((metrics) => {
+    applyPatch(metrics);
 
-      const targetCoh = Kernel.coherenceTarget;
-      if (readability < 0.45) {
-        Kernel.coherence = clamp(Kernel.coherence + 0.02, 0.05, targetCoh + 0.12);
-        Kernel.noiseMax = clamp(Kernel.noiseMax - 0.08, 0.35, 6.5);
-      } else if (stability > 0.82 && Kernel.coherence > targetCoh) {
-        Kernel.coherence = lerp(Kernel.coherence, targetCoh, 0.08);
-      } else {
-        Kernel.coherence = lerp(Kernel.coherence, targetCoh, 0.03);
-      }
-
-      if (Kernel.lastCentroid) {
-        const drift = Math.hypot(cx - Kernel.lastCentroid.x, cy - Kernel.lastCentroid.y);
-        if (drift > Math.min(W, H) * 0.05) {
-          Kernel.flowMag = clamp(Kernel.flowMag * 0.96, 0.12, 1.2);
-        }
-      }
-      Kernel.lastCentroid = { x: cx, y: cy };
-
-      if (Kernel.state === 'FEEDBACK' && Kernel.readability > 0.68 && Kernel.stability > 0.55) {
-        Kernel.state = 'RESONATE';
-      } else {
-        Kernel.state = 'FORMING';
-      }
+    const targetCoh = kernel.coherenceTarget;
+    if (metrics.readability < 0.45) {
+      kernel.coherence = clamp(kernel.coherence + 0.02, 0.05, targetCoh + 0.12);
+      kernel.noiseMax = clamp(kernel.noiseMax - 0.08, 0.35, 6.5);
+    } else {
+      kernel.coherence = kernel.coherence + (targetCoh - kernel.coherence) * 0.04;
     }
+
+    kernel.state = metrics.readability > 0.68 && metrics.stability > 0.55 ? 'RESONATE' : 'FORMING';
+  });
+}
+
+async function evaluateWithBioVisionNet(photons: PhotonState[], W: number, H: number, lastLCL: any): Promise<EvalMetrics> {
+  const response = await fetch('/api/perceptual/evaluate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'BioVisionNet',
+      frame_width: W,
+      frame_height: H,
+      morphology: lastLCL?.morphology?.family,
+      sample: photons.slice(0, 1024),
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`BioVisionNet endpoint failed with status ${response.status}`);
+  }
+
+  const payload = await response.json();
+  return {
+    readability: Number(payload.readability ?? 0),
+    coverage: Number(payload.coverage ?? 0),
+    stability: Number(payload.stability ?? 0),
+  };
+}
+
+function evaluateWithEdgeModel(photons: PhotonState[], W: number, H: number, lastLCL: any): EvalMetrics {
+  const sample = Math.min(photons.length, 2000);
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  let speedSum = 0;
+
+  for (let i = 0; i < sample; i++) {
+    const p = photons[i];
+    speedSum += Math.hypot(p.vel.x, p.vel.y);
+    minX = Math.min(minX, p.pos.x);
+    minY = Math.min(minY, p.pos.y);
+    maxX = Math.max(maxX, p.pos.x);
+    maxY = Math.max(maxY, p.pos.y);
+  }
+
+  const coverage = Math.max(0, Math.min(1, ((maxX - minX) * (maxY - minY)) / (W * H)));
+  const stability = 1 / (1 + speedSum / sample);
+  const targetCoverage = lastLCL?.morphology?.family === 'glyph' ? 0.12 : 0.18;
+  const readability = Math.max(0, Math.min(1, 1 - Math.abs(coverage - targetCoverage) / Math.max(targetCoverage, 0.05)));
+
+  return { readability, coverage, stability };
+}

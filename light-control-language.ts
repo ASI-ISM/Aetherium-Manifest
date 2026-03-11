@@ -1,134 +1,180 @@
+export interface LightControlLanguage {
+  version: string;
+  intent: 'create_light_form' | 'create_glyph' | 'create_scene';
+  morphology: {
+    family: string;
+    symmetry: number;
+    density: number;
+    scale: number;
+    edge_softness: number;
+  };
+  motion: {
+    archetype: string;
+    flow_mode: string;
+    coherence_target: number;
+    turbulence: number;
+    rhythm_hz: number;
+    attack_ms: number;
+    settle_ms: number;
+  };
+  optics: {
+    palette: string[];
+    luminance_boost: number;
+    glow_alpha: number;
+    trail_alpha: number;
+    color_mode: 'monochrome' | 'palette' | 'source_radiance';
+  };
+  content: {
+    text: string | null;
+    scene_recipe: Record<string, unknown> | null;
+  };
+  constraints: {
+    max_targets: number;
+    max_photons: number;
+    max_energy: number;
+  };
+  source_text: string;
+}
 
-export async function mockLocalLightModel(text: string): Promise<any> {
-      const lower = text.toLowerCase();
+const DEFAULT_TIMEOUT_MS = 6_000;
 
-      let family = 'sphere';
-      let archetype = 'stabilization';
-      let flow_mode = 'calm_drift';
-      let palette = ['#8B5CF6', '#FFFFFF'];
-      let color_mode = 'palette';
-      let render_mode = 'shape_field';
-      let coherence_target = 0.82;
-      let turbulence = 0.22;
-      let symmetry = 1;
-      let density = 0.76;
-      let scale = 0.35;
-      let textContent = null;
+export async function generateLightControlLanguage(text: string): Promise<LightControlLanguage> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
 
-      if (/เกลียว|vortex|spiral|หมุน|คิด/.test(text)) {
-        family = 'spiral_vortex';
-        archetype = 'reasoning';
-        flow_mode = 'upward_spiral';
-        palette = ['#FFD166', '#7C3AED'];
-        coherence_target = 0.86;
-        turbulence = 0.18;
-        scale = 0.42;
+  try {
+    const response = await fetch('/api/lcl/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: text,
+        schema: 'lcl.v3',
+        temperature: 0.15,
+      }),
+      signal: controller.signal,
+    });
+
+    if (response.ok) {
+      const payload = await response.json();
+      const lcl = payload?.lcl ?? payload;
+      if (isLclPayload(lcl)) {
+        return lcl;
       }
+      console.warn('LCL backend returned invalid payload, using deterministic fallback');
+    } else {
+      console.warn('LCL backend request failed', response.status);
+    }
+  } catch (error) {
+    console.warn('LCL backend unavailable, using deterministic fallback', error);
+  } finally {
+    clearTimeout(timeout);
+  }
 
-      if (/ทรงกลม|sphere|สมดุล|สงบ|หายใจ/.test(text)) {
-        family = 'sphere';
-        archetype = 'stabilization';
-        flow_mode = 'orbit';
-        palette = ['#00E5FF', '#FFFFFF'];
-        coherence_target = 0.90;
-        turbulence = 0.12;
-        scale = 0.30;
-      }
+  return fallbackHeuristicLcl(text);
+}
 
-      if (/ดอก|flower|บาน|กลีบ/.test(text)) {
-        family = 'flower_shell';
-        archetype = 'bloom';
-        flow_mode = 'radial';
-        palette = ['#F472B6', '#FDE68A'];
-        coherence_target = 0.78;
-        turbulence = 0.20;
-        symmetry = 6;
-        scale = 0.34;
-      }
+// backward-compat alias for older kernel imports
+export const mockLocalLightModel = generateLightControlLanguage;
 
-      if (/คลื่น|ริบบอน|ribbon|wave/.test(text)) {
-        family = 'wave_ribbon';
-        archetype = 'emergence';
-        flow_mode = 'ribbon';
-        palette = ['#22D3EE', '#818CF8'];
-        coherence_target = 0.72;
-        turbulence = 0.34;
-        density = 0.68;
-      }
+function isLclPayload(value: unknown): value is LightControlLanguage {
+  const candidate = value as Partial<LightControlLanguage>;
+  return Boolean(
+    candidate &&
+      candidate.version &&
+      candidate.morphology?.family &&
+      candidate.motion?.archetype &&
+      candidate.optics?.palette &&
+      candidate.constraints?.max_targets,
+  );
+}
 
-      if (/แตก|fracture|crack|ร้าว/.test(text)) {
-        family = 'fracture_ring';
-        archetype = 'fracture';
-        flow_mode = 'fracture_out';
-        palette = ['#DC2626', '#F59E0B'];
-        coherence_target = 0.38;
-        turbulence = 0.72;
-        density = 0.72;
-      }
+function fallbackHeuristicLcl(text: string): LightControlLanguage {
+  let family = 'sphere';
+  let archetype = 'stabilization';
+  let flow_mode = 'calm_drift';
+  let palette = ['#8B5CF6', '#FFFFFF'];
+  let color_mode: LightControlLanguage['optics']['color_mode'] = 'palette';
+  let render_mode: LightControlLanguage['intent'] = 'create_light_form';
+  let coherence_target = 0.82;
+  let turbulence = 0.22;
+  let symmetry = 1;
+  let density = 0.76;
+  let scale = 0.35;
+  let textContent = null;
 
-      if (/ตัวอักษร|ข้อความ|glyph|text/.test(text)) {
-        family = 'glyph';
-        archetype = 'stabilization';
-        flow_mode = 'calm_drift';
-        palette = ['#00E5FF', '#FFFFFF'];
-        render_mode = 'glyph_field';
-        color_mode = 'monochrome';
-        textContent = extractQuotedText(text) || 'AETHERIUM';
-        coherence_target = 0.92;
-        turbulence = 0.08;
-      }
+  if (/เกลียว|vortex|spiral|หมุน|คิด/.test(text)) {
+    family = 'spiral_vortex';
+    archetype = 'reasoning';
+    flow_mode = 'upward_spiral';
+    palette = ['#FFD166', '#7C3AED'];
+    coherence_target = 0.86;
+    turbulence = 0.18;
+    scale = 0.42;
+  }
 
-      if (/ฉาก|sunset|ภูเขา|ท้องฟ้า|scene|landscape/.test(text)) {
-        family = 'radiance_scene';
-        archetype = 'emergence';
-        flow_mode = 'calm_drift';
-        palette = ['#9D174D', '#F59E0B'];
-        render_mode = 'radiance_proxy';
-        color_mode = 'source_radiance';
-        coherence_target = 0.76;
-        turbulence = 0.20;
-      }
+  if (/ตัวอักษร|ข้อความ|glyph|text/.test(text)) {
+    family = 'glyph';
+    archetype = 'stabilization';
+    flow_mode = 'calm_drift';
+    palette = ['#00E5FF', '#FFFFFF'];
+    color_mode = 'monochrome';
+    render_mode = 'create_glyph';
+    textContent = extractQuotedText(text) || 'AETHERIUM';
+    coherence_target = 0.92;
+    turbulence = 0.08;
+  }
 
-      return {
-        version: '3.0',
-        intent: render_mode === 'glyph_field' ? 'create_glyph' : (render_mode === 'radiance_proxy' ? 'create_scene' : 'create_light_form'),
-        morphology: {
-          family,
-          symmetry,
-          density,
-          scale,
-          edge_softness: /คม|sharp/.test(text) ? 0.18 : 0.45
-        },
-        motion: {
-          archetype,
-          flow_mode,
-          coherence_target,
-          turbulence,
-          rhythm_hz: /ช้า|สงบ|gentle/.test(text) ? 0.08 : 0.2,
-          attack_ms: /เร็ว|ทันที|fast/.test(text) ? 250 : 700,
-          settle_ms: /เร็ว|ทันที|fast/.test(text) ? 400 : 1200
-        },
-        optics: {
-          palette,
-          luminance_boost: /เรือง|สว่าง|glow/.test(text) ? 1.65 : 1.25,
-          glow_alpha: /บาง|ละเอียด/.test(text) ? 0.42 : 0.62,
-          trail_alpha: /ฟุ้ง|เบลอ|dream/.test(text) ? 0.14 : 0.26,
-          color_mode
-        },
-        content: {
-          text: textContent,
-          scene_recipe: render_mode === 'radiance_proxy' ? { type: 'sunset_mountain' } : null
-        },
-        constraints: {
-          max_targets: 14000,
-          max_photons: 7000,
-          max_energy: 1.6
-        },
-        source_text: text
-      };
+  if (/ฉาก|sunset|ภูเขา|ท้องฟ้า|scene|landscape/.test(text)) {
+    family = 'radiance_scene';
+    archetype = 'emergence';
+    flow_mode = 'calm_drift';
+    palette = ['#9D174D', '#F59E0B'];
+    color_mode = 'source_radiance';
+    render_mode = 'create_scene';
+    coherence_target = 0.76;
+    turbulence = 0.2;
+  }
+
+  return {
+    version: '3.0',
+    intent: render_mode,
+    morphology: {
+      family,
+      symmetry,
+      density,
+      scale,
+      edge_softness: /คม|sharp/.test(text) ? 0.18 : 0.45,
+    },
+    motion: {
+      archetype,
+      flow_mode,
+      coherence_target,
+      turbulence,
+      rhythm_hz: /ช้า|สงบ|gentle/.test(text) ? 0.08 : 0.2,
+      attack_ms: /เร็ว|ทันที|fast/.test(text) ? 250 : 700,
+      settle_ms: /เร็ว|ทันที|fast/.test(text) ? 400 : 1200,
+    },
+    optics: {
+      palette,
+      luminance_boost: /เรือง|สว่าง|glow/.test(text) ? 1.65 : 1.25,
+      glow_alpha: /บาง|ละเอียด/.test(text) ? 0.42 : 0.62,
+      trail_alpha: /ฟุ้ง|เบลอ|dream/.test(text) ? 0.14 : 0.26,
+      color_mode,
+    },
+    content: {
+      text: textContent,
+      scene_recipe: render_mode === 'create_scene' ? { type: 'sunset_mountain' } : null,
+    },
+    constraints: {
+      max_targets: 14000,
+      max_photons: 7000,
+      max_energy: 1.6,
+    },
+    source_text: text,
+  };
 }
 
 function extractQuotedText(text: string): string | null {
-    const m = text.match(/["“”'']([^"“”'']+)["“”'']/);
-    return m ? m[1] : null;
+  const m = text.match(/["“”']([^"“”']+)["“”']/);
+  return m ? m[1] : null;
 }
