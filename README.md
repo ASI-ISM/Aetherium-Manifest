@@ -490,6 +490,9 @@ Future directions:
 - **Signed Proxy Requests** ✅  
   Implemented HMAC request signing + timestamp skew checks + nonce replay protection for `/api/v1/proxy/fetch` (configurable via environment flags).
 
+- **LCL Middle-Brain Pipeline** ✅  
+  Added a structured control path (`Intent Interpreter` → `Formation Retriever` → `Morphology Compiler` → `Runtime Governor`) with shape/scene/motion compilers and runtime safety clamping.
+
 - **Proxy Key Rotation and Tenant Scope**  
   Add key identifiers (`kid`) with dual-key rotation windows and optional tenant-scoped signing secrets.
 

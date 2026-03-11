@@ -183,13 +183,7 @@ class FormationRetrievalSystem:
         """
         
         # เก็บ archetype ฐาน
-        archetype_id = intent_packet["reference"]["motion_archetype_id"]
-        archetype = self.retrieve_archetype(
-            f"{intent_packet['motion']['archetype']}".replace("_", "/").
-            replace("spiral_convergence", "spiral_convergence").
-            replace("radial_bloom", "emergence/nebula_birth")
-            # simplified mapping
-        )
+        archetype = self._resolve_archetype(intent_packet)
         
         # ดัดแปลง base config ตามมอร์ฟโลยีและออปติกส์
         runtime_control = {
@@ -207,7 +201,8 @@ class FormationRetrievalSystem:
                 intent_packet["optics"],
                 intent_packet["morphology"]
             ),
-            "constraints": intent_packet["constraints"],
+            "constraints": intent_packet.get("constraints", {}),
+            "motion_bias": intent_packet.get("motion_bias", {}),
             "render_mode": self._select_render_mode(
                 intent_packet["intent"]["mode"],
                 intent_packet["morphology"]
@@ -216,6 +211,24 @@ class FormationRetrievalSystem:
         
         return runtime_control
     
+    def _resolve_archetype(self, intent_packet: Dict[str, Any]) -> FormationArchetype:
+        """Map motion archetype labels to canonical Book of Formation IDs."""
+
+        requested = intent_packet.get("reference", {}).get("motion_archetype_id")
+        if requested and requested in self.book_of_formation:
+            return self.book_of_formation[requested]
+
+        motion = intent_packet.get("motion", {}).get("archetype", "stabilization")
+        mapping = {
+            "emergence": "emergence/nebula_birth",
+            "stabilization": "stabilization/sphere_equilibrium",
+            "dissolution": "dissolution/light_fade",
+            "reasoning": "reasoning/spiral_convergence",
+            "error": "error/fracture_shell",
+        }
+        canonical = mapping.get(motion, "stabilization/sphere_equilibrium")
+        return self.book_of_formation.get(canonical, self.book_of_formation["stabilization/sphere_equilibrium"])
+
     def _adapt_field_parameters(self, 
                                base_config: Dict,
                                morphology: Dict,
@@ -273,14 +286,15 @@ class FormationRetrievalSystem:
         
         family = morphology.get("family", "")
         
-        if "spiral" in family or "convergence" in family:
-            return "particle_sdf_proxy"
-        elif "fracture" in family:
-            return "particle_shatter"
-        elif "nebula" in family or "cloud" in family:
-            return "particle_volumetric"
-        else:
-            return "particle_sdf_proxy"  # default
+        if intent_mode in {"scene", "world"}:
+            return "scene_field"
+        if intent_mode in {"motion", "feedback"}:
+            return "motion_field"
+        if "fracture" in family:
+            return "motion_field"
+        if "nebula" in family or "cloud" in family:
+            return "scene_field"
+        return "shape_field"
 
 
 # Example usage

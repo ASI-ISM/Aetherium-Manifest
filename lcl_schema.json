@@ -1,67 +1,89 @@
- url=https://github.com/Aetherium-Syndicate-Inspectra/Aetherium-Manifest/blob/main/
 {
-  "version": "3.0",
-  "title": "Light Control Language (LCL) Schema",
-  "description": "Structured control signals between Intent Interpreter and Runtime",
-  
-  "control_packet": {
-    "id": "unique_control_id",
-    "timestamp": "ISO8601",
-    
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Light Control Language (LCL)",
+  "type": "object",
+  "required": ["intent", "morphology", "motion", "optics", "constraints"],
+  "properties": {
+    "version": { "type": "string", "default": "3.1" },
     "intent": {
-      "user_request": "string",
-      "primary_goal": "enum: [create_form, respond_to_emotion, visualize_concept, manifest_error, dissolve]",
-      "abstraction_level": "enum: [concrete, symbolic, abstract]",
-      "mode": "enum: [symbol, world, shape, scene, motion, feedback]"
+      "type": "object",
+      "required": ["user_request", "primary_goal"],
+      "properties": {
+        "user_request": { "type": "string" },
+        "primary_goal": { "type": "string" },
+        "abstraction_level": { "enum": ["concrete", "symbolic", "abstract"] },
+        "mode": { "enum": ["symbol", "world", "shape", "scene", "motion", "feedback", "auto"] }
+      }
     },
-    
     "morphology": {
-      "family": "string",
-      "symmetry": "int 1-12",
-      "complexity": "float 0-1",
-      "edge_softness": "float 0-1",
-      "density": "float 0-1"
+      "type": "object",
+      "required": ["family"],
+      "properties": {
+        "family": { "type": "string" },
+        "symmetry": { "type": "integer", "minimum": 1, "maximum": 12 },
+        "edge_softness": { "type": "number", "minimum": 0, "maximum": 1 },
+        "density": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
     },
-    
     "motion": {
-      "archetype": "enum: [emergence, stabilization, dissolution, reasoning, error, breath, spiral, wave]",
-      "tempo_hz": "float 0.1-2.0",
-      "coherence_target": "float 0-1",
-      "flow_mode": "enum: [radial_bloom, spiral_convergence, wave_propagation, drift, fracture]",
-      "attack_ms": "int 200-2000",
-      "settle_ms": "int 500-5000",
-      "release_ms": "int 500-3000"
+      "type": "object",
+      "required": ["archetype", "flow_mode"],
+      "properties": {
+        "archetype": { "type": "string" },
+        "tempo_hz": { "type": "number", "minimum": 0.1, "maximum": 4 },
+        "coherence_target": { "type": "number", "minimum": 0, "maximum": 1 },
+        "flow_mode": { "type": "string" },
+        "attack_ms": { "type": "integer", "minimum": 50 },
+        "settle_ms": { "type": "integer", "minimum": 50 },
+        "release_ms": { "type": "integer", "minimum": 50 }
+      }
     },
-    
+    "motion_bias": {
+      "type": "object",
+      "properties": {
+        "archetype": { "type": "string" },
+        "rhythm_hz": { "type": "number", "minimum": 0.05, "maximum": 4 },
+        "attack": { "type": "number", "minimum": 0, "maximum": 1 },
+        "settling": { "type": "number", "minimum": 0, "maximum": 1 },
+        "drift": { "type": "number", "minimum": 0, "maximum": 1 },
+        "collapse_tendency": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
     "optics": {
-      "palette_mode": "enum: [thermodynamic, emotional, spectral, monochrome]",
-      "primary_colors": ["#HEX", "#HEX"],
-      "secondary_colors": ["#HEX", "#HEX"],
-      "glow_strength": "float 0-1",
-      "luminance": "float 0-1",
-      "contrast": "float 0-1"
+      "type": "object",
+      "properties": {
+        "palette_mode": { "type": "string" },
+        "primary_colors": { "type": "array", "items": { "type": "string" } },
+        "secondary_colors": { "type": "array", "items": { "type": "string" } },
+        "glow_strength": { "type": "number", "minimum": 0, "maximum": 1 },
+        "luminance": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
     },
-    
-    "field_parameters": {
-      "coherence": "float 0-1",
-      "turbulence": "float 0-1",
-      "flow_magnitude": "float 0-1",
-      "noise_level": "float 0-1",
-      "vorticity": "float 0-1"
+    "field": {
+      "type": "object",
+      "properties": {
+        "coherence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "turbulence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "flow_magnitude": { "type": "number", "minimum": 0, "maximum": 1 },
+        "noise_level": { "type": "number", "minimum": 0, "maximum": 1 },
+        "vorticity": { "type": "number", "minimum": -1, "maximum": 1 }
+      }
     },
-    
     "constraints": {
-      "max_particles": "int",
-      "max_energy": "float",
-      "max_brightness": "float",
-      "duration_ms": "int or null",
-      "safety_level": "enum: [strict, normal, expressive]"
+      "type": "object",
+      "properties": {
+        "max_targets": { "type": "integer", "minimum": 100 },
+        "max_particles": { "type": "integer", "minimum": 100 },
+        "max_energy": { "type": "number", "minimum": 0.1 },
+        "max_brightness": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
     },
-    
-    "reference": {
-      "book_of_formation_id": "string or null",
-      "motion_archetype_id": "string",
-      "evaluation_mode": "enum: [off, periodic, continuous]"
+    "safety": {
+      "type": "object",
+      "properties": {
+        "max_targets": { "type": "integer", "minimum": 100 },
+        "max_particle_energy": { "type": "number", "minimum": 0.1 }
+      }
     }
   }
 }

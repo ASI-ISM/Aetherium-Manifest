@@ -113,19 +113,32 @@ class IntentInterpreter:
                 "user_request": user_text,
                 "primary_goal": intent_type.value,
                 "abstraction_level": analysis.get("abstraction_level", "symbolic"),
-                "mode": "auto"  # ปล่อยให้ runtime ตัดสิน
+                "mode": "shape"  # routed by controller render strategy
             },
             "morphology": morphology,
             "motion": motion,
             "optics": optics,
-            "field_parameters": {
+            "field": {
                 "coherence": 0.65,
                 "turbulence": 0.15,
                 "flow_magnitude": 0.5,
                 "noise_level": 0.2,
                 "vorticity": 0.0
             },
+            "motion_bias": {
+                "archetype": motion.get("archetype", "stabilization"),
+                "rhythm_hz": motion.get("tempo_hz", 0.2),
+                "attack": 0.7 if motion.get("tempo_hz", 0.2) < 0.4 else 0.5,
+                "settling": 0.82,
+                "drift": 0.11,
+                "collapse_tendency": 0.03 if intent_type != IntentType.MANIFEST_ERROR else 0.22
+            },
+            "safety": {
+                "max_targets": 14000,
+                "max_particle_energy": 1.4
+            },
             "constraints": {
+                "max_targets": 12000,
                 "max_particles": 12000,
                 "max_energy": 1.4,
                 "max_brightness": 0.95,
