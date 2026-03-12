@@ -470,6 +470,7 @@ cd api_gateway && pytest -q
 
 # contract checks
 python3 tools/contracts/contract_checker.py
+python3 tools/contracts/contract_fuzz.py
 
 # release benchmark gates (performance + semantics)
 python3 tools/benchmarks/runtime_semantic_benchmark.py --input tools/benchmarks/runtime_semantic_samples.sample.json
@@ -499,8 +500,11 @@ Future directions:
 - **SDLC Automation Workflow** ✅  
   Added a unified GitHub Actions workflow for lint/typecheck, contract/runtime tests, JS tests, nightly benchmarks, and container build smoke checks.
 
-- **Contract Fuzz Testing**  
-  Add property-based payload generators + schema mutation corpus + regression suites integrated into CI quality gates.
+- **Contract Fuzz Testing** ✅  
+  Added deterministic schema mutation fuzzing (`tools/contracts/contract_fuzz.py`) with a regression corpus (`tools/contracts/payloads/fuzz_regressions.json`) and CI-ready pass/fail thresholds.
+
+- **Contract Differential Drift Guard**  
+  Add schema-vs-runtime differential checks to detect acceptance drift between gateway validators and canonical JSON schemas.
 
 - **Voice Model Experimentation**  
   A/B routing and quality tracking by language-region (WER, latency, accuracy).
