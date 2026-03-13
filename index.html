@@ -397,11 +397,11 @@
     // แต่ละ theme มีพารามิเตอร์ของแรงดึง สี ความฟุ้ง และ mode การไหลของอนุภาค
     const THEMES = {
       idle: {
-        palette: ['#274060', '#3d5a80', '#7cc6fe'],
-        force: 0.015,
-        noise: 0.25,
-        glow: 0.34,
-        trail: 0.12,
+        palette: ['#031b44', '#0b4fd9', '#00b7ff', '#d8f6ff'],
+        force: 0.022,
+        noise: 0.12,
+        glow: 0.42,
+        trail: 0.07,
         mode: 'standby'
       },
       sent: {
@@ -510,24 +510,93 @@
     // ------------------------------------------------------------
 
     function getStandbyTarget(index) {
-      // โหมดตั้งต้นต้องเป็น “ทรงกลมที่มีชีวิต”
-      // เราจึงสร้างทรงกลมแบบมี pulse / breathing และมีการ ripple เบา ๆ ตามเวลา
+      // แบ่งสัดส่วนอนุภาคเป็น 3 ชั้น:
+      // 1) core = แกนทรงกลมกลาง
+      // 2) ring = วงแหวนสว่างรอบแกน
+      // 3) arms = แขนเกลียวภายนอก
       const t = index / NUM_PHOTONS;
-      const angle = t * Math.PI * 2 * 7.0;
+      const pulse = 1 + Math.sin(renderTime * 1.35) * 0.05;
 
-      // breathing คือการขยาย-ยุบเล็กน้อยของรัศมีทรงกลมตามเวลา
-      const breathing = 1 + Math.sin(renderTime * 1.25) * 0.08;
-      const radius = Math.min(W, H) * 0.10 * breathing;
+      const coreRadius = Math.min(W, H) * 0.055 * pulse;
+      const ringRadius = Math.min(W, H) * 0.13 * pulse;
+      const armRadius = Math.min(W, H) * 0.34 * pulse;
 
-      // ใช้พิกัดรูปวงกลมใน 2D แต่บิดด้วย harmonic เล็กน้อยเพื่อไม่ให้แข็งนิ่งเกินไป
-      const radialMod = 1 + Math.sin(angle * 3.0 + renderTime * 0.9) * 0.08;
-      const x = CX + Math.cos(angle) * radius * radialMod;
-      const y = CY + Math.sin(angle) * radius * (0.78 + Math.cos(angle * 2.0 + renderTime * 0.7) * 0.06);
+      let x = CX;
+      let y = CY;
+      let color;
+
+      if (t < 0.18) {
+        // -----------------------------
+        // CORE: จุดกำเนิดทรงกลมสว่าง
+        // -----------------------------
+        const localT = t / 0.18;
+        const a = localT * Math.PI * 2 * 6 + renderTime * 1.8;
+        const r = Math.sqrt(localT) * coreRadius;
+
+        x = CX + Math.cos(a) * r;
+        y = CY + Math.sin(a) * r;
+
+        color = paletteColor(localT, ['#4cc9ff', '#dffaff', '#7ae8ff']);
+      } else if (t < 0.42) {
+        // -----------------------------------
+        // RING: วงแหวนเรืองแสงรอบจุดศูนย์กลาง
+        // -----------------------------------
+        const localT = (t - 0.18) / 0.24;
+        const a = localT * Math.PI * 2;
+        const wobble = 1 + Math.sin(a * 6 + renderTime * 2.2) * 0.04;
+
+        x = CX + Math.cos(a + renderTime * 0.85) * ringRadius * wobble;
+        y = CY + Math.sin(a + renderTime * 0.85) * ringRadius * wobble * 0.92;
+
+        color = paletteColor(localT, ['#8eeeff', '#ffffff', '#36c6ff']);
+      } else {
+        // -------------------------------------------------
+        // ARMS: แขนเกลียวภายนอกแบบในภาพ อนุภาคจะหมุนวนเข้าหาศูนย์
+        // -------------------------------------------------
+        const localT = (t - 0.42) / 0.58;
+
+        const armCount = 4;
+        const armIndex = index % armCount;
+
+        const radius = localT * armRadius;
+
+        const spiralAngle =
+          localT * Math.PI * 7.5 +
+          armIndex * (Math.PI * 2 / armCount) +
+          renderTime * 0.95;
+
+        const curl = Math.sin(localT * 18 - renderTime * 1.4 + armIndex) * 0.16;
+
+        x = CX + Math.cos(spiralAngle + curl) * radius;
+        y = CY + Math.sin(spiralAngle + curl) * radius * 0.88;
+
+        color = paletteColor(localT, ['#0a47c9', '#00b7ff', '#d8f6ff']);
+      }
+
+      return { x, y, color };
+    }
+
+    function getVortexFlow(x, y) {
+      // คำนวณเวกเตอร์รอบศูนย์กลางเพื่อให้แสงหมุนวนตลอดเวลา
+      const dx = x - CX;
+      const dy = y - CY;
+      const dist = Math.hypot(dx, dy) || 1;
+
+      // เวกเตอร์สัมผัสวงกลม (tangential) สำหรับการหมุน
+      const tx = -dy / dist;
+      const ty = dx / dist;
+
+      // เวกเตอร์ดึงเข้าศูนย์กลางเล็กน้อย เพื่อให้เกิดลักษณะวังวน
+      const ix = -dx / dist;
+      const iy = -dy / dist;
+
+      // ใกล้แกนกลางให้หมุนช้าลงนิดหนึ่ง ปลายแขนให้พลิ้วกว่า
+      const swirl = Math.min(1.4, 0.35 + dist / (Math.min(W, H) * 0.2));
+      const inward = Math.max(0.06, 0.22 - dist / (Math.min(W, H) * 1.4));
 
       return {
-        x,
-        y,
-        color: paletteColor(t, THEMES.idle.palette)
+        fx: tx * swirl + ix * inward,
+        fy: ty * swirl + iy * inward
       };
     }
 
