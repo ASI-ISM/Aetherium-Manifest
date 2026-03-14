@@ -503,8 +503,11 @@ Future directions:
 - **Contract Fuzz Testing** ✅  
   Added deterministic schema mutation fuzzing (`tools/contracts/contract_fuzz.py`) with a regression corpus (`tools/contracts/payloads/fuzz_regressions.json`) and CI-ready pass/fail thresholds.
 
-- **Contract Differential Drift Guard**  
-  Add schema-vs-runtime differential checks to detect acceptance drift between gateway validators and canonical JSON schemas.
+- **Contract Differential Drift Guard** ✅  
+  Added schema-vs-runtime differential checks (`tools/contracts/runtime_drift_guard.py`) with deterministic fixtures to detect acceptance drift between gateway validators and canonical JSON schemas.
+
+- **Contract Drift Telemetry Export**  
+  Export drift-guard structural match and policy-violation rates into telemetry for dashboarding and alerting.
 
 - **Voice Model Experimentation**  
   A/B routing and quality tracking by language-region (WER, latency, accuracy).

@@ -1,0 +1,139 @@
+[
+  {
+    "name": "valid_baseline",
+    "payload": {
+      "session_id": "user_883920_session_001",
+      "model_response": {
+        "trace_id": "gen_883920_ax",
+        "reasoning_trace": "user expresses stress and requests support",
+        "intent_vector": {
+          "category": "analysis_request_with_empathy",
+          "emotional_valence": -0.7,
+          "energy_level": 0.8
+        },
+        "visual_manifestation": {
+          "base_shape": "spiral_vortex",
+          "transition_type": "morph_fluid",
+          "color_palette": {
+            "primary": "#800080",
+            "secondary": "#00FFFF"
+          },
+          "particle_physics": {
+            "turbulence": 0.4,
+            "flow_direction": "centripetal",
+            "luminance_mass": 0.9,
+            "particle_count": 12000
+          },
+          "chromatic_mode": "BIT_24_RGB",
+          "device_tier": 3
+        }
+      },
+      "model_metadata": {
+        "model_name": "gpt-4o",
+        "temperature": 0.3,
+        "max_tokens": 1500
+      }
+    }
+  },
+  {
+    "name": "invalid_missing_session_id",
+    "payload": {
+      "model_response": {
+        "trace_id": "gen_missing_sid",
+        "reasoning_trace": "missing session",
+        "intent_vector": {
+          "category": "analysis_request_with_empathy",
+          "emotional_valence": 0.1,
+          "energy_level": 0.5
+        },
+        "visual_manifestation": {
+          "base_shape": "ring",
+          "transition_type": "pulse",
+          "color_palette": {
+            "primary": "#00FFFF"
+          },
+          "particle_physics": {
+            "turbulence": 0.2,
+            "flow_direction": "centripetal",
+            "luminance_mass": 0.8,
+            "particle_count": 1000
+          },
+          "chromatic_mode": "BIT_24_RGB"
+        }
+      },
+      "model_metadata": {
+        "model_name": "gpt-4o",
+        "temperature": 0.2,
+        "max_tokens": 256
+      }
+    }
+  },
+  {
+    "name": "invalid_energy_level_out_of_range",
+    "payload": {
+      "session_id": "session_energy_invalid",
+      "model_response": {
+        "trace_id": "gen_energy_invalid",
+        "reasoning_trace": "invalid energy",
+        "intent_vector": {
+          "category": "analysis_request_with_empathy",
+          "emotional_valence": 0.1,
+          "energy_level": 1.4
+        },
+        "visual_manifestation": {
+          "base_shape": "ring",
+          "transition_type": "pulse",
+          "color_palette": {
+            "primary": "#00FFFF"
+          },
+          "particle_physics": {
+            "turbulence": 0.2,
+            "flow_direction": "centripetal",
+            "luminance_mass": 0.8,
+            "particle_count": 1000
+          },
+          "chromatic_mode": "BIT_24_RGB"
+        }
+      },
+      "model_metadata": {
+        "model_name": "gpt-4o",
+        "temperature": 0.2,
+        "max_tokens": 256
+      }
+    }
+  },
+  {
+    "name": "policy_violation_crimson_without_emergency_override",
+    "payload": {
+      "session_id": "session_policy_case",
+      "model_response": {
+        "trace_id": "gen_policy_case",
+        "reasoning_trace": "policy violation case",
+        "intent_vector": {
+          "category": "analysis_request_with_empathy",
+          "emotional_valence": -0.1,
+          "energy_level": 0.2
+        },
+        "visual_manifestation": {
+          "base_shape": "ring",
+          "transition_type": "pulse",
+          "color_palette": {
+            "primary": "#DC143C"
+          },
+          "particle_physics": {
+            "turbulence": 0.1,
+            "flow_direction": "centripetal",
+            "luminance_mass": 0.7,
+            "particle_count": 400
+          },
+          "chromatic_mode": "BIT_24_RGB"
+        }
+      },
+      "model_metadata": {
+        "model_name": "gpt-4o",
+        "temperature": 0.2,
+        "max_tokens": 256
+      }
+    }
+  }
+]

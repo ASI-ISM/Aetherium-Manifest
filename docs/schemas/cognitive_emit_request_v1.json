@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aetherium.dev/schemas/cognitive_emit_request_v1.json",
+  "title": "CognitiveEmitRequestV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["session_id", "model_response", "model_metadata"],
+  "properties": {
+    "session_id": {"type": "string", "minLength": 1},
+    "model_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trace_id", "reasoning_trace", "intent_vector", "visual_manifestation"],
+      "properties": {
+        "trace_id": {"type": "string", "minLength": 1},
+        "reasoning_trace": {"type": "string", "minLength": 1},
+        "intent_vector": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["category", "emotional_valence", "energy_level"],
+          "properties": {
+            "category": {"type": "string", "minLength": 1},
+            "emotional_valence": {"type": "number", "minimum": -1.0, "maximum": 1.0},
+            "energy_level": {"type": "number", "minimum": 0.0, "maximum": 1.0}
+          }
+        },
+        "visual_manifestation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "base_shape",
+            "transition_type",
+            "color_palette",
+            "particle_physics",
+            "chromatic_mode"
+          ],
+          "properties": {
+            "base_shape": {"type": "string", "minLength": 1},
+            "transition_type": {"type": "string", "minLength": 1},
+            "color_palette": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["primary"],
+              "properties": {
+                "primary": {"type": "string", "minLength": 1},
+                "secondary": {"type": ["string", "null"]}
+              }
+            },
+            "particle_physics": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["turbulence", "flow_direction", "luminance_mass"],
+              "properties": {
+                "turbulence": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                "flow_direction": {"type": "string", "minLength": 1},
+                "luminance_mass": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                "particle_count": {"type": "integer", "minimum": 0, "default": 0}
+              }
+            },
+            "chromatic_mode": {"type": "string", "minLength": 1},
+            "emergency_override": {"type": "boolean", "default": false},
+            "device_tier": {"type": "integer", "minimum": 1, "maximum": 4, "default": 1}
+          }
+        }
+      }
+    },
+    "model_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model_name", "temperature", "max_tokens"],
+      "properties": {
+        "model_name": {"type": "string", "minLength": 1},
+        "temperature": {"type": "number", "minimum": 0.0, "maximum": 2.0},
+        "max_tokens": {"type": "integer", "exclusiveMinimum": 0}
+      }
+    }
+  },
+  "x-field-evolution": {
+    "introduced_in": "cognitive_emit_request_v1",
+    "supersedes": "none",
+    "compatibility_adapter": "runtime:api_gateway.main.CognitiveEmitRequest",
+    "required_evolution_sections": ["model_response", "model_metadata"]
+  }
+}

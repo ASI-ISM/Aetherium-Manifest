@@ -13,7 +13,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from tools.contracts.protocol_adapter import roundtrip_envelope, to_legacy_visual_parameters
+from tools.contracts.protocol_adapter import roundtrip_envelope, to_legacy_visual_parameters  # noqa: E402
+from tools.contracts.runtime_drift_guard import run_guard as run_runtime_drift_guard  # noqa: E402
 
 SCHEMA_DIR = REPO_ROOT / "docs" / "schemas"
 PAYLOAD_DIR = Path(__file__).resolve().parent / "payloads"
@@ -233,6 +234,10 @@ def run_contract_checks(mode: Mode = "strict") -> int:
 
     global_errors.extend(_check_embodiment_compatibility(global_audits))
     global_errors.extend(_check_envelope_roundtrip_integrity(global_audits))
+    if run_runtime_drift_guard() != 0:
+        global_errors.append("runtime drift guard detected structural mismatch")
+    else:
+        global_audits.append("runtime_drift_guard: structural_match_rate=100.00%")
 
     if global_errors:
         failures += 1
