@@ -460,6 +460,20 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 - `tools/benchmarks/`: latency and stress benchmark helpers
 - `docs/`: architecture, interfaces, schemas, safety/governance, and roadmap references
 
+### Runtime Database Structure (Current)
+
+The prototype gateway currently uses an in-memory time-series structure for telemetry:
+
+- Store: `TELEMETRY_TS_DB: dict[str, list[dict[str, Any]]]`
+- Partition key: `metric` (each metric name maps to one series)
+- Point shape: `{"metric": str, "value": float, "ts": datetime, "tags": dict[str, str]}`
+- Retention guard: each series is trimmed to the latest `2500` points on ingest
+- Access APIs:
+  - `POST /api/v1/telemetry/ingest`
+  - `GET /api/v1/telemetry/query?metric=...&window_seconds=...`
+
+This structure is designed for deterministic local/runtime testing. For production durability, move to a persistent TSDB backend while preserving endpoint contracts.
+
 ---
 
 ## Validation & Tests
@@ -488,23 +502,8 @@ Future directions:
 - **Persistent Telemetry Database**  
   Integrate TSDB backends (InfluxDB, TimescaleDB) with retention + downsampling.
 
-- **Signed Proxy Requests** ✅  
-  Implemented HMAC request signing + timestamp skew checks + nonce replay protection for `/api/v1/proxy/fetch` (configurable via environment flags).
-
-- **LCL Middle-Brain Pipeline** ✅  
-  Added a structured control path (`Intent Interpreter` → `Formation Retriever` → `Morphology Compiler` → `Runtime Governor`) with shape/scene/motion compilers and runtime safety clamping.
-
 - **Proxy Key Rotation and Tenant Scope**  
   Add key identifiers (`kid`) with dual-key rotation windows and optional tenant-scoped signing secrets.
-
-- **SDLC Automation Workflow** ✅  
-  Added a unified GitHub Actions workflow for lint/typecheck, contract/runtime tests, JS tests, nightly benchmarks, and container build smoke checks.
-
-- **Contract Fuzz Testing** ✅  
-  Added deterministic schema mutation fuzzing (`tools/contracts/contract_fuzz.py`) with a regression corpus (`tools/contracts/payloads/fuzz_regressions.json`) and CI-ready pass/fail thresholds.
-
-- **Contract Differential Drift Guard** ✅  
-  Added schema-vs-runtime differential checks (`tools/contracts/runtime_drift_guard.py`) with deterministic fixtures to detect acceptance drift between gateway validators and canonical JSON schemas.
 
 - **Contract Drift Telemetry Export**  
   Export drift-guard structural match and policy-violation rates into telemetry for dashboarding and alerting.
@@ -520,6 +519,21 @@ Future directions:
 
 - **Session Replay**  
   Timeline scrub + event bookmarks for debugging intent/telemetry behavior.
+
+### AI Agent Implementable Extension Proposals
+
+- **Aetherium Motion Knowledge Base Runtime Mapper**
+  - Implement a deterministic mapper module that converts `cognitive_state` + `dynamic_parameters` to runtime visual parameters (color, brightness, speed, density, coherence, jitter).
+- **State Transition Interpolation Engine**
+  - Add a transition profile layer (cubic/cosine easing, duration presets, interruption handling) for smooth `from -> to` cognitive-state animation.
+- **Telemetry-to-Manifest Feedback Loop**
+  - Feed queried telemetry (latency/drift/load) back into visual modulation to expose live runtime health directly in the Manifest scene.
+- **Policy-Risk Visual Override Service**
+  - Centralize warning/error overrides so high `policy_risk` deterministically enforces Solar Orange/Plasma Red semantics across renderers.
+- **TSDB Adapter Abstraction**
+  - Introduce a storage adapter interface (`InMemory`, `InfluxDB`, `TimescaleDB`) while keeping the current API response format stable.
+- **Manifest Contract Test Generator**
+  - Generate test vectors from canonical schemas + knowledge-base tables to auto-verify backend/renderer semantic alignment.
 
 ---
 
@@ -602,7 +616,29 @@ Gateway: `http://localhost:8000` (เอกสาร API ที่ `/docs`)
 - `tools/benchmarks/`: สคริปต์ benchmark สำหรับ latency/stress
 - `docs/`: เอกสารสถาปัตยกรรม อินเทอร์เฟซ ความปลอดภัย และ roadmap
 
+### โครงสร้างฐานข้อมูล Runtime (ปัจจุบัน)
+
+ต้นแบบใน `api_gateway` ใช้ time-series database แบบ in-memory สำหรับ telemetry:
+
+- โครงสร้างหลัก: `TELEMETRY_TS_DB: dict[str, list[dict[str, Any]]]`
+- คีย์แบ่งชุดข้อมูล: `metric`
+- โครงสร้างข้อมูลจุด: `metric`, `value`, `ts`, `tags`
+- การคุมขนาดข้อมูล: ตัดข้อมูลให้เหลือ `2500` จุดล่าสุดต่อ metric ทุกครั้งที่ ingest
+- API ที่เกี่ยวข้อง:
+  - `POST /api/v1/telemetry/ingest`
+  - `GET /api/v1/telemetry/query`
+
+โครงสร้างนี้เหมาะกับการพัฒนา/ทดสอบแบบ deterministic และสามารถย้ายไปใช้ TSDB จริงใน production โดยคงสัญญา API เดิมได้.
+
 ### แนวทางต่อยอด
 รายละเอียดแผนระยะถัดไปถูกรวมไว้เพียงจุดเดียวในส่วน **Research & Engineering Roadmap** ด้านภาษาอังกฤษ เพื่อลดข้อมูลซ้ำซ้อนและให้มีแหล่งอ้างอิงเดียวของระบบ.
+
+### รายการฟังก์ชัน/แนวทางขยายที่ AI Agent สามารถทำต่อได้
+- ตัวแปลงสถานะความคิด (`cognitive_state`) + ค่าน้ำหนักเชิงพลวัต ไปเป็นพารามิเตอร์ภาพตาม Aetherium Motion Knowledge Base
+- เอนจิน transition ระหว่าง state ด้วย easing และกฎ from→to ที่กำหนดไว้
+- วงจร feedback จาก telemetry เพื่อปรับแสง/การเคลื่อนไหวแบบเรียลไทม์
+- ระบบ override ด้าน policy risk ให้แสดง WARNING/ERROR อย่างสม่ำเสมอทุก renderer
+- abstraction layer สำหรับสลับ backend ของ telemetry DB (in-memory/InfluxDB/TimescaleDB)
+- ตัวสร้างชุดทดสอบอัตโนมัติจาก schema + knowledge base เพื่อตรวจความสอดคล้อง backend/frontend
 
 ---
