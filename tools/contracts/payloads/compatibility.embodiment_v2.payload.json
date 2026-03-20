@@ -6,13 +6,60 @@
     "ambiguity": 0.21
   },
   "morphogenesis_plan": {
-    "topology_seeds": ["orb"],
+    "topology_seeds": ["sphere"],
     "attractors": ["coherence"],
     "constraints": ["turbulence<=0.21"],
     "temporal_operators": ["phase_lock"]
   },
+  "particle_control": {
+    "intent_state": {
+      "state": "responding",
+      "shape": "sphere",
+      "particle_density": 0.128,
+      "velocity": 0.5,
+      "turbulence": 0.21,
+      "cohesion": 0.58,
+      "flow_direction": "inward",
+      "glow_intensity": 0.66,
+      "flicker": 0.07,
+      "attractor": "core",
+      "palette": {
+        "mode": "adaptive",
+        "primary": "#88AAFF",
+        "secondary": "#CDE7FF"
+      }
+    },
+    "renderer_controls": {
+      "base_shape": "sphere",
+      "chromatic_mode": "adaptive",
+      "particle_count": 6400,
+      "flow_field": "inward",
+      "shader_uniforms": {
+        "glow_intensity": 0.66,
+        "flicker": 0.07,
+        "cohesion": 0.58,
+        "turbulence": 0.21,
+        "chromatic_aberration": 0.07
+      },
+      "runtime_profile": "deterministic"
+    }
+  },
   "light_program": {
-    "shader_uniforms": {"chromatic_aberration": 0.07},
+    "renderer_controls": {
+      "base_shape": "sphere",
+      "chromatic_mode": "adaptive",
+      "particle_count": 6400,
+      "flow_field": "inward",
+      "shader_uniforms": {
+        "glow_intensity": 0.66,
+        "flicker": 0.07,
+        "cohesion": 0.58,
+        "turbulence": 0.21,
+        "chromatic_aberration": 0.07
+      },
+      "runtime_profile": "deterministic"
+    },
+    "shader_uniforms": {"chromatic_aberration": 0.07, "turbulence": 0.21},
     "particle_targets": {"count": 6400},
     "force_field_descriptors": ["turbulence<=0.21"]
   },

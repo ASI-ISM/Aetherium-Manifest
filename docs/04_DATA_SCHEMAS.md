@@ -10,6 +10,15 @@
 - `payload_ptr` + `rkey`: zero-copy RDMA payload access
 - `ghost_flag`: แยก speculative message ออกจาก canonical flow
 
+## AI Particle Control Contract V1
+Canonical contract file: `docs/schemas/ai_particle_control_contract_v1.json`
+
+บล็อกหลักถูกแยกชัดเจนเป็น:
+- `intent_state` — semantic controls ที่ AI/agent ควร author เช่น `state`, `shape`, `particle_density`, `velocity`, `turbulence`, `cohesion`, `flow_direction`, `glow_intensity`, `flicker`, `attractor`, `palette`
+- `renderer_controls` — renderer/runtime specific fields เช่น `base_shape`, `chromatic_mode`, `particle_count`, `flow_field`, `shader_uniforms`, `runtime_profile`
+
+เหตุผล: ทำให้ authoring surface ซื่อสัตย์ต่อสถานะการคิดจริง ขณะเดียวกันก็ลด drift จากการ normalize คนละแบบระหว่าง backend/frontend ผ่าน adapter กลาง
+
 ## Embodiment Contract V1
 แยกเป็นบล็อกสำคัญ:
 - intent
@@ -52,6 +61,7 @@ Internal stage data models:
 Backwards compatibility:
 - Runtime output still targets `EMBODIMENT_V1` renderer ingestion shape.
 - New contracts are additive and can be gated by runtime feature flags.
+- Normalization from semantic intent into renderer/runtime controls MUST go through `tools/contracts/particle_control_adapter.py`.
 
 ## Embodiment Contract V2 (Explicit Envelope)
 Canonical contract file: `docs/schemas/embodiment_v2.json`
@@ -63,5 +73,7 @@ Required envelope sections:
 - `runtime_tick_policy`
 
 Compatibility policy:
-- Legacy consumers reading `visual_parameters` MUST use adapter `tools/contracts/protocol_adapter.py`.
+- `particle_control.intent_state` is the canonical semantic control block shared with `cognitive_emit_request_v1`.
+- `light_program.renderer_controls` is the canonical compiled renderer block shared with `embodiment_v2`.
+- Legacy consumers reading `visual_parameters` MUST use adapter `tools/contracts/protocol_adapter.py`, which in turn consumes the canonical particle control adapter output.
 - Schema lint enforces `x-field-evolution` metadata + required section presence for every governed contract.

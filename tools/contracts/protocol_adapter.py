@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from tools.contracts.particle_control_adapter import to_renderer_controls
+
 
 def _to_float(value: Any, default: float = 0.0) -> float:
     if value is None or isinstance(value, bool):
@@ -44,11 +46,21 @@ def to_legacy_visual_parameters(payload: dict[str, Any]) -> dict[str, Any]:
         tick_policy = payload.get("runtime_tick_policy", {})
         shader_uniforms = light_program.get("shader_uniforms", {})
 
+        if isinstance(payload.get("particle_control"), dict):
+            renderer_controls = to_renderer_controls(payload["particle_control"])
+            shader_uniforms = renderer_controls.get("shader_uniforms", {})
+            particle_count = _to_float(renderer_controls.get("particle_count"), 0.0)
+            base_shape = renderer_controls.get("base_shape", "ring")
+        else:
+            renderer_controls = {}
+            particle_count = _to_float(light_program.get("particle_targets", {}).get("count"), 0.0)
+            base_shape = morphogenesis.get("topology_seeds", ["ring"])[0]
+
         return {
-            "base_shape": morphogenesis.get("topology_seeds", ["ring"])[0],
-            "particle_density": _to_float(light_program.get("particle_targets", {}).get("count"), 0.0) / 10_000.0,
-            "turbulence": _to_float(semantic_field.get("ambiguity"), 0.0),
-            "chromatic_aberration": _to_float(shader_uniforms.get("chromatic_aberration"), 0.0),
+            "base_shape": base_shape,
+            "particle_density": particle_count / 50_000.0,
+            "turbulence": _to_float(shader_uniforms.get("turbulence"), _to_float(semantic_field.get("ambiguity"), 0.0)),
+            "chromatic_aberration": _to_float(shader_uniforms.get("chromatic_aberration"), _to_float(light_program.get("shader_uniforms", {}).get("chromatic_aberration"), 0.0)),
             "tick_rate_hz": max(_to_float(tick_policy.get("tick_rate_hz"), 24.0), 0.001),
         }
 

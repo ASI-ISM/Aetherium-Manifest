@@ -14,10 +14,58 @@
     "constraints": ["turbulence<=0.2", "chroma=adaptive"],
     "temporal_operators": ["phase_lock", "cadence_stabilize"]
   },
+  "particle_control": {
+    "intent_state": {
+      "state": "thinking",
+      "shape": "ring",
+      "particle_density": 0.156,
+      "velocity": 0.42,
+      "turbulence": 0.18,
+      "cohesion": 0.61,
+      "flow_direction": "clockwise",
+      "glow_intensity": 0.62,
+      "flicker": 0.04,
+      "attractor": "core",
+      "palette": {
+        "mode": "adaptive",
+        "primary": "#7C8CFF",
+        "secondary": "#4FC3FF"
+      }
+    },
+    "renderer_controls": {
+      "base_shape": "ring",
+      "chromatic_mode": "adaptive",
+      "particle_count": 7800,
+      "flow_field": "clockwise",
+      "shader_uniforms": {
+        "glow_intensity": 0.62,
+        "flicker": 0.04,
+        "cohesion": 0.61,
+        "turbulence": 0.18,
+        "chromatic_aberration": 0.04
+      },
+      "runtime_profile": "deterministic"
+    }
+  },
   "light_program": {
+    "renderer_controls": {
+      "base_shape": "ring",
+      "chromatic_mode": "adaptive",
+      "particle_count": 7800,
+      "flow_field": "clockwise",
+      "shader_uniforms": {
+        "glow_intensity": 0.62,
+        "flicker": 0.04,
+        "cohesion": 0.61,
+        "turbulence": 0.18,
+        "chromatic_aberration": 0.04
+      },
+      "runtime_profile": "deterministic"
+    },
     "shader_uniforms": {
       "shape": "ring",
-      "chromatic_aberration": 0.04
+      "chromatic_aberration": 0.04,
+      "turbulence": 0.18
     },
     "particle_targets": {
       "count": 7800,

@@ -4,28 +4,306 @@
   "title": "CognitiveEmitRequestV1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["session_id", "model_response", "model_metadata"],
+  "required": [
+    "session_id",
+    "model_response",
+    "model_metadata"
+  ],
+  "$defs": {
+    "particle_control": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$id": "https://aetherium.dev/schemas/ai_particle_control_contract_v1.json",
+      "title": "AIParticleControlContractV1",
+      "description": "Canonical AI particle control contract separating intent/state semantics from renderer/runtime fields.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "intent_state",
+        "renderer_controls"
+      ],
+      "properties": {
+        "intent_state": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "state",
+            "shape",
+            "particle_density",
+            "velocity",
+            "turbulence",
+            "cohesion",
+            "flow_direction",
+            "glow_intensity",
+            "flicker",
+            "attractor",
+            "palette"
+          ],
+          "properties": {
+            "state": {
+              "type": "string",
+              "enum": [
+                "idle",
+                "thinking",
+                "searching",
+                "responding",
+                "warning",
+                "error",
+                "transcendent"
+              ]
+            },
+            "shape": {
+              "type": "string",
+              "enum": [
+                "ring",
+                "helix",
+                "spiral_vortex",
+                "sphere",
+                "stream",
+                "burst",
+                "lattice"
+              ]
+            },
+            "particle_density": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0
+            },
+            "velocity": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0
+            },
+            "turbulence": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0
+            },
+            "cohesion": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0
+            },
+            "flow_direction": {
+              "type": "string",
+              "enum": [
+                "clockwise",
+                "counterclockwise",
+                "inward",
+                "outward",
+                "centripetal",
+                "centrifugal",
+                "bidirectional",
+                "still"
+              ]
+            },
+            "glow_intensity": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0
+            },
+            "flicker": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0
+            },
+            "attractor": {
+              "type": "string",
+              "enum": [
+                "core",
+                "halo",
+                "axis",
+                "orbit",
+                "mesh",
+                "none"
+              ]
+            },
+            "palette": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "mode",
+                "primary",
+                "secondary"
+              ],
+              "properties": {
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "adaptive",
+                    "dual_tone",
+                    "thermal",
+                    "spectral",
+                    "monochrome"
+                  ]
+                },
+                "primary": {
+                  "type": "string",
+                  "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$"
+                },
+                "secondary": {
+                  "type": "string",
+                  "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$"
+                },
+                "accent": {
+                  "type": "string",
+                  "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$"
+                }
+              }
+            }
+          }
+        },
+        "renderer_controls": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "base_shape",
+            "chromatic_mode",
+            "particle_count",
+            "flow_field",
+            "shader_uniforms",
+            "runtime_profile"
+          ],
+          "properties": {
+            "base_shape": {
+              "type": "string",
+              "enum": [
+                "ring",
+                "helix",
+                "spiral_vortex",
+                "sphere",
+                "stream",
+                "burst",
+                "lattice"
+              ]
+            },
+            "chromatic_mode": {
+              "type": "string",
+              "enum": [
+                "adaptive",
+                "dual_tone",
+                "thermal",
+                "spectral",
+                "monochrome"
+              ]
+            },
+            "particle_count": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 50000
+            },
+            "flow_field": {
+              "type": "string",
+              "enum": [
+                "clockwise",
+                "counterclockwise",
+                "inward",
+                "outward",
+                "centripetal",
+                "centrifugal",
+                "bidirectional",
+                "still"
+              ]
+            },
+            "shader_uniforms": {
+              "type": "object",
+              "additionalProperties": {
+                "oneOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "boolean"
+                  }
+                ]
+              },
+              "required": [
+                "glow_intensity",
+                "flicker",
+                "cohesion"
+              ]
+            },
+            "runtime_profile": {
+              "type": "string",
+              "enum": [
+                "deterministic",
+                "adaptive",
+                "low_power",
+                "cinematic"
+              ]
+            }
+          }
+        }
+      },
+      "x-field-evolution": {
+        "introduced_in": "ai_particle_control_contract_v1",
+        "supersedes": "none",
+        "compatibility_adapter": "tools.contracts.particle_control_adapter",
+        "required_evolution_sections": [
+          "intent_state",
+          "renderer_controls"
+        ]
+      },
+      "x-canonical-source": "docs/schemas/ai_particle_control_contract_v1.json"
+    }
+  },
   "properties": {
-    "session_id": {"type": "string", "minLength": 1},
+    "session_id": {
+      "type": "string",
+      "minLength": 1
+    },
     "model_response": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["trace_id", "reasoning_trace", "intent_vector", "visual_manifestation"],
+      "required": [
+        "trace_id",
+        "reasoning_trace",
+        "intent_vector",
+        "particle_control",
+        "visual_manifestation"
+      ],
       "properties": {
-        "trace_id": {"type": "string", "minLength": 1},
-        "reasoning_trace": {"type": "string", "minLength": 1},
+        "trace_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reasoning_trace": {
+          "type": "string",
+          "minLength": 1
+        },
         "intent_vector": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["category", "emotional_valence", "energy_level"],
+          "required": [
+            "category",
+            "emotional_valence",
+            "energy_level"
+          ],
           "properties": {
-            "category": {"type": "string", "minLength": 1},
-            "emotional_valence": {"type": "number", "minimum": -1.0, "maximum": 1.0},
-            "energy_level": {"type": "number", "minimum": 0.0, "maximum": 1.0}
+            "category": {
+              "type": "string",
+              "minLength": 1
+            },
+            "emotional_valence": {
+              "type": "number",
+              "minimum": -1.0,
+              "maximum": 1.0
+            },
+            "energy_level": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0
+            }
           }
+        },
+        "particle_control": {
+          "$ref": "#/$defs/particle_control"
         },
         "visual_manifestation": {
           "type": "object",
+          "description": "Legacy-compatible view. Producers SHOULD derive this block from particle_control via tools/contracts/particle_control_adapter.py.",
           "additionalProperties": false,
           "required": [
             "base_shape",
@@ -35,31 +313,110 @@
             "chromatic_mode"
           ],
           "properties": {
-            "base_shape": {"type": "string", "minLength": 1},
-            "transition_type": {"type": "string", "minLength": 1},
+            "base_shape": {
+              "type": "string",
+              "enum": [
+                "ring",
+                "helix",
+                "spiral_vortex",
+                "sphere",
+                "stream",
+                "burst",
+                "lattice"
+              ]
+            },
+            "transition_type": {
+              "type": "string",
+              "enum": [
+                "pulse",
+                "bloom",
+                "ripple",
+                "morph",
+                "strobe",
+                "fade"
+              ]
+            },
             "color_palette": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["primary"],
+              "required": [
+                "primary"
+              ],
               "properties": {
-                "primary": {"type": "string", "minLength": 1},
-                "secondary": {"type": ["string", "null"]}
+                "primary": {
+                  "type": "string",
+                  "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$"
+                },
+                "secondary": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$"
+                }
               }
             },
             "particle_physics": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["turbulence", "flow_direction", "luminance_mass"],
+              "required": [
+                "turbulence",
+                "flow_direction",
+                "luminance_mass",
+                "particle_count"
+              ],
               "properties": {
-                "turbulence": {"type": "number", "minimum": 0.0, "maximum": 1.0},
-                "flow_direction": {"type": "string", "minLength": 1},
-                "luminance_mass": {"type": "number", "minimum": 0.0, "maximum": 1.0},
-                "particle_count": {"type": "integer", "minimum": 0, "default": 0}
+                "turbulence": {
+                  "type": "number",
+                  "minimum": 0.0,
+                  "maximum": 1.0
+                },
+                "flow_direction": {
+                  "type": "string",
+                  "enum": [
+                    "clockwise",
+                    "counterclockwise",
+                    "inward",
+                    "outward",
+                    "centripetal",
+                    "centrifugal",
+                    "bidirectional",
+                    "still"
+                  ]
+                },
+                "luminance_mass": {
+                  "type": "number",
+                  "minimum": 0.0,
+                  "maximum": 1.0
+                },
+                "particle_count": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 50000,
+                  "default": 0
+                }
               }
             },
-            "chromatic_mode": {"type": "string", "minLength": 1},
-            "emergency_override": {"type": "boolean", "default": false},
-            "device_tier": {"type": "integer", "minimum": 1, "maximum": 4, "default": 1}
+            "chromatic_mode": {
+              "type": "string",
+              "enum": [
+                "adaptive",
+                "dual_tone",
+                "thermal",
+                "spectral",
+                "monochrome"
+              ]
+            },
+            "emergency_override": {
+              "type": "boolean",
+              "default": false
+            },
+            "device_tier": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4,
+              "default": 1
+            }
           }
         }
       }
@@ -67,18 +424,35 @@
     "model_metadata": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["model_name", "temperature", "max_tokens"],
+      "required": [
+        "model_name",
+        "temperature",
+        "max_tokens"
+      ],
       "properties": {
-        "model_name": {"type": "string", "minLength": 1},
-        "temperature": {"type": "number", "minimum": 0.0, "maximum": 2.0},
-        "max_tokens": {"type": "integer", "exclusiveMinimum": 0}
+        "model_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "temperature": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 2.0
+        },
+        "max_tokens": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        }
       }
     }
   },
   "x-field-evolution": {
     "introduced_in": "cognitive_emit_request_v1",
     "supersedes": "none",
-    "compatibility_adapter": "runtime:api_gateway.main.CognitiveEmitRequest",
-    "required_evolution_sections": ["model_response", "model_metadata"]
+    "compatibility_adapter": "tools.contracts.particle_control_adapter.to_visual_manifestation",
+    "required_evolution_sections": [
+      "model_response",
+      "model_metadata"
+    ]
   }
 }

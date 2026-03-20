@@ -11,9 +11,40 @@
           "emotional_valence": -0.7,
           "energy_level": 0.8
         },
+        "particle_control": {
+          "intent_state": {
+            "state": "thinking",
+            "shape": "spiral_vortex",
+            "particle_density": 0.24,
+            "velocity": 0.6,
+            "turbulence": 0.4,
+            "cohesion": 0.7,
+            "flow_direction": "centripetal",
+            "glow_intensity": 0.9,
+            "flicker": 0.1,
+            "attractor": "core",
+            "palette": {
+              "mode": "spectral",
+              "primary": "#800080",
+              "secondary": "#00FFFF"
+            }
+          },
+          "renderer_controls": {
+            "base_shape": "spiral_vortex",
+            "chromatic_mode": "spectral",
+            "particle_count": 12000,
+            "flow_field": "centripetal",
+            "shader_uniforms": {
+              "glow_intensity": 0.9,
+              "flicker": 0.1,
+              "cohesion": 0.7
+            },
+            "runtime_profile": "adaptive"
+          }
+        },
         "visual_manifestation": {
           "base_shape": "spiral_vortex",
-          "transition_type": "morph_fluid",
+          "transition_type": "morph",
           "color_palette": {
             "primary": "#800080",
             "secondary": "#00FFFF"
@@ -24,7 +55,7 @@
             "luminance_mass": 0.9,
             "particle_count": 12000
           },
-          "chromatic_mode": "BIT_24_RGB",
+          "chromatic_mode": "spectral",
           "device_tier": 3
         }
       },
@@ -58,7 +89,7 @@
             "luminance_mass": 0.8,
             "particle_count": 1000
           },
-          "chromatic_mode": "BIT_24_RGB"
+          "chromatic_mode": "spectral"
         }
       },
       "model_metadata": {
@@ -92,7 +123,7 @@
             "luminance_mass": 0.8,
             "particle_count": 1000
           },
-          "chromatic_mode": "BIT_24_RGB"
+          "chromatic_mode": "spectral"
         }
       },
       "model_metadata": {
@@ -126,7 +157,38 @@
             "luminance_mass": 0.7,
             "particle_count": 400
           },
-          "chromatic_mode": "BIT_24_RGB"
+          "chromatic_mode": "spectral"
+        },
+        "particle_control": {
+          "intent_state": {
+            "state": "warning",
+            "shape": "ring",
+            "particle_density": 0.008,
+            "velocity": 0.2,
+            "turbulence": 0.1,
+            "cohesion": 0.6,
+            "flow_direction": "centripetal",
+            "glow_intensity": 0.7,
+            "flicker": 0.0,
+            "attractor": "core",
+            "palette": {
+              "mode": "spectral",
+              "primary": "#DC143C",
+              "secondary": "#FFB3C1"
+            }
+          },
+          "renderer_controls": {
+            "base_shape": "ring",
+            "chromatic_mode": "spectral",
+            "particle_count": 400,
+            "flow_field": "centripetal",
+            "shader_uniforms": {
+              "glow_intensity": 0.7,
+              "flicker": 0.0,
+              "cohesion": 0.6
+            },
+            "runtime_profile": "deterministic"
+          }
         }
       },
       "model_metadata": {

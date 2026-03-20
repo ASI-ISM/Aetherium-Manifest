@@ -1,6 +1,246 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "EmbodimentContractV2",
+  "$defs": {
+    "particle_control": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$id": "https://aetherium.dev/schemas/ai_particle_control_contract_v1.json",
+      "title": "AIParticleControlContractV1",
+      "description": "Canonical AI particle control contract separating intent/state semantics from renderer/runtime fields.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "intent_state",
+        "renderer_controls"
+      ],
+      "properties": {
+        "intent_state": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "state",
+            "shape",
+            "particle_density",
+            "velocity",
+            "turbulence",
+            "cohesion",
+            "flow_direction",
+            "glow_intensity",
+            "flicker",
+            "attractor",
+            "palette"
+          ],
+          "properties": {
+            "state": {
+              "type": "string",
+              "enum": [
+                "idle",
+                "thinking",
+                "searching",
+                "responding",
+                "warning",
+                "error",
+                "transcendent"
+              ]
+            },
+            "shape": {
+              "type": "string",
+              "enum": [
+                "ring",
+                "helix",
+                "spiral_vortex",
+                "sphere",
+                "stream",
+                "burst",
+                "lattice"
+              ]
+            },
+            "particle_density": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0
+            },
+            "velocity": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0
+            },
+            "turbulence": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0
+            },
+            "cohesion": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0
+            },
+            "flow_direction": {
+              "type": "string",
+              "enum": [
+                "clockwise",
+                "counterclockwise",
+                "inward",
+                "outward",
+                "centripetal",
+                "centrifugal",
+                "bidirectional",
+                "still"
+              ]
+            },
+            "glow_intensity": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0
+            },
+            "flicker": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0
+            },
+            "attractor": {
+              "type": "string",
+              "enum": [
+                "core",
+                "halo",
+                "axis",
+                "orbit",
+                "mesh",
+                "none"
+              ]
+            },
+            "palette": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "mode",
+                "primary",
+                "secondary"
+              ],
+              "properties": {
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "adaptive",
+                    "dual_tone",
+                    "thermal",
+                    "spectral",
+                    "monochrome"
+                  ]
+                },
+                "primary": {
+                  "type": "string",
+                  "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$"
+                },
+                "secondary": {
+                  "type": "string",
+                  "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$"
+                },
+                "accent": {
+                  "type": "string",
+                  "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$"
+                }
+              }
+            }
+          }
+        },
+        "renderer_controls": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "base_shape",
+            "chromatic_mode",
+            "particle_count",
+            "flow_field",
+            "shader_uniforms",
+            "runtime_profile"
+          ],
+          "properties": {
+            "base_shape": {
+              "type": "string",
+              "enum": [
+                "ring",
+                "helix",
+                "spiral_vortex",
+                "sphere",
+                "stream",
+                "burst",
+                "lattice"
+              ]
+            },
+            "chromatic_mode": {
+              "type": "string",
+              "enum": [
+                "adaptive",
+                "dual_tone",
+                "thermal",
+                "spectral",
+                "monochrome"
+              ]
+            },
+            "particle_count": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 50000
+            },
+            "flow_field": {
+              "type": "string",
+              "enum": [
+                "clockwise",
+                "counterclockwise",
+                "inward",
+                "outward",
+                "centripetal",
+                "centrifugal",
+                "bidirectional",
+                "still"
+              ]
+            },
+            "shader_uniforms": {
+              "type": "object",
+              "additionalProperties": {
+                "oneOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "boolean"
+                  }
+                ]
+              },
+              "required": [
+                "glow_intensity",
+                "flicker",
+                "cohesion"
+              ]
+            },
+            "runtime_profile": {
+              "type": "string",
+              "enum": [
+                "deterministic",
+                "adaptive",
+                "low_power",
+                "cinematic"
+              ]
+            }
+          }
+        }
+      },
+      "x-field-evolution": {
+        "introduced_in": "ai_particle_control_contract_v1",
+        "supersedes": "none",
+        "compatibility_adapter": "tools.contracts.particle_control_adapter",
+        "required_evolution_sections": [
+          "intent_state",
+          "renderer_controls"
+        ]
+      },
+      "x-canonical-source": "docs/schemas/ai_particle_control_contract_v1.json"
+    }
+  },
   "x-field-evolution": {
     "introduced_in": "2.0.0",
     "supersedes": "EMBODIMENT_V1",
@@ -9,7 +249,8 @@
       "semantic_field",
       "morphogenesis_plan",
       "light_program",
-      "runtime_tick_policy"
+      "runtime_tick_policy",
+      "particle_control"
     ]
   },
   "type": "object",
@@ -18,7 +259,8 @@
     "semantic_field",
     "morphogenesis_plan",
     "light_program",
-    "runtime_tick_policy"
+    "runtime_tick_policy",
+    "particle_control"
   ],
   "properties": {
     "contract_type": {
@@ -27,54 +269,214 @@
     },
     "semantic_field": {
       "type": "object",
-      "required": ["semantic_tensors", "polarity", "ambiguity"],
+      "required": [
+        "semantic_tensors",
+        "polarity",
+        "ambiguity"
+      ],
       "properties": {
         "semantic_tensors": {
           "type": "object",
-          "additionalProperties": {"type": "number"}
+          "additionalProperties": {
+            "type": "number"
+          }
         },
-        "polarity": {"type": "number", "minimum": -1, "maximum": 1},
-        "ambiguity": {"type": "number", "minimum": 0, "maximum": 1}
+        "polarity": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        },
+        "ambiguity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
       },
       "additionalProperties": true
     },
     "morphogenesis_plan": {
       "type": "object",
-      "required": ["topology_seeds", "attractors", "constraints", "temporal_operators"],
+      "required": [
+        "topology_seeds",
+        "attractors",
+        "constraints",
+        "temporal_operators"
+      ],
       "properties": {
-        "topology_seeds": {"type": "array", "items": {"type": "string"}},
-        "attractors": {"type": "array", "items": {"type": "string"}},
-        "constraints": {"type": "array", "items": {"type": "string"}},
-        "temporal_operators": {"type": "array", "items": {"type": "string"}}
+        "topology_seeds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "attractors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "temporal_operators": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       },
       "additionalProperties": true
     },
+    "particle_control": {
+      "$ref": "#/$defs/particle_control"
+    },
     "light_program": {
       "type": "object",
-      "required": ["shader_uniforms", "particle_targets", "force_field_descriptors"],
+      "description": "Compiled renderer/runtime payload derived from particle_control.renderer_controls via tools/contracts/particle_control_adapter.py.",
+      "required": [
+        "renderer_controls",
+        "shader_uniforms",
+        "particle_targets",
+        "force_field_descriptors"
+      ],
       "properties": {
+        "renderer_controls": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "base_shape",
+            "chromatic_mode",
+            "particle_count",
+            "flow_field",
+            "shader_uniforms",
+            "runtime_profile"
+          ],
+          "properties": {
+            "base_shape": {
+              "type": "string",
+              "enum": [
+                "ring",
+                "helix",
+                "spiral_vortex",
+                "sphere",
+                "stream",
+                "burst",
+                "lattice"
+              ]
+            },
+            "chromatic_mode": {
+              "type": "string",
+              "enum": [
+                "adaptive",
+                "dual_tone",
+                "thermal",
+                "spectral",
+                "monochrome"
+              ]
+            },
+            "particle_count": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 50000
+            },
+            "flow_field": {
+              "type": "string",
+              "enum": [
+                "clockwise",
+                "counterclockwise",
+                "inward",
+                "outward",
+                "centripetal",
+                "centrifugal",
+                "bidirectional",
+                "still"
+              ]
+            },
+            "shader_uniforms": {
+              "type": "object",
+              "additionalProperties": {
+                "oneOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "boolean"
+                  }
+                ]
+              },
+              "required": [
+                "glow_intensity",
+                "flicker",
+                "cohesion"
+              ]
+            },
+            "runtime_profile": {
+              "type": "string",
+              "enum": [
+                "deterministic",
+                "adaptive",
+                "low_power",
+                "cinematic"
+              ]
+            }
+          }
+        },
         "shader_uniforms": {
           "type": "object",
           "additionalProperties": {
-            "oneOf": [{"type": "number"}, {"type": "string"}]
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ]
           }
         },
         "particle_targets": {
           "type": "object",
-          "additionalProperties": {"type": "number"}
+          "additionalProperties": {
+            "type": "number"
+          }
         },
-        "force_field_descriptors": {"type": "array", "items": {"type": "string"}
+        "force_field_descriptors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": true
     },
     "runtime_tick_policy": {
       "type": "object",
-      "required": ["tick_rate_hz", "mode"],
+      "required": [
+        "tick_rate_hz",
+        "mode"
+      ],
       "properties": {
-        "tick_rate_hz": {"type": "number", "exclusiveMinimum": 0},
-        "mode": {"type": "string", "enum": ["deterministic", "adaptive"]},
-        "jitter_budget_ms": {"type": "number", "minimum": 0}
+        "tick_rate_hz": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "deterministic",
+            "adaptive"
+          ]
+        },
+        "jitter_budget_ms": {
+          "type": "number",
+          "minimum": 0
+        }
       },
       "additionalProperties": false
     },
@@ -82,11 +484,37 @@
       "type": "object",
       "description": "Optional pre-adapted output for legacy consumers.",
       "properties": {
-        "base_shape": {"type": "string"},
-        "particle_density": {"type": "number"},
-        "turbulence": {"type": "number"},
-        "chromatic_aberration": {"type": "number"},
-        "tick_rate_hz": {"type": "number", "exclusiveMinimum": 0}
+        "base_shape": {
+          "type": "string",
+          "enum": [
+            "ring",
+            "helix",
+            "spiral_vortex",
+            "sphere",
+            "stream",
+            "burst",
+            "lattice"
+          ]
+        },
+        "particle_density": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "turbulence": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "chromatic_aberration": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "tick_rate_hz": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
       },
       "additionalProperties": true
     }

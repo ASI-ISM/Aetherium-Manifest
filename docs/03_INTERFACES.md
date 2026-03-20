@@ -13,9 +13,16 @@ Input:
 - certainty/latency signals
 
 Output:
-- visual_manifestation params (shape, turbulence, chroma, cadence)
+- canonical `AI Particle Control Contract` split into:
+  - `intent_state` (stateful intent semantics for cognition)
+  - `renderer_controls` (explicit renderer/runtime knobs)
 
 Rule: แสงต้องเป็นภาษาของ state ไม่ใช่ ambient effect
+
+Canonical control rules:
+- `intent_state` is the only authoring surface for AI/backend planners.
+- `renderer_controls` MUST be produced by `tools/contracts/particle_control_adapter.py` rather than ad-hoc frontend/backend normalization.
+- Shared governed fields: `state`, `shape`, `particle_density`, `velocity`, `turbulence`, `cohesion`, `flow_direction`, `glow_intensity`, `flicker`, `attractor`, `palette`.
 
 ### Manifestation Gate
 - CHAT intents ต้องผ่าน threshold
@@ -32,6 +39,7 @@ Pipeline stage contract (canonical):
 - `Intent -> SemanticField -> MorphogenesisEngine -> LightCompiler -> CognitiveFieldRuntime`
 
 Compatibility rules:
+- `CognitiveFieldRuntime` MUST compile `intent_state -> renderer_controls` through the canonical adapter before emitting `EMBODIMENT_V1` or `EMBODIMENT_V2`.
 - `CognitiveFieldRuntime` MUST emit the existing renderer ingestion ABI (`EMBODIMENT_V1`) without breaking field compatibility.
 - Direct visual mapping path remains available as fallback mode when either feature flag is disabled:
   - `light_cognition_layer_enabled`
