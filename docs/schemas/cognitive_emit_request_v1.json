@@ -7,7 +7,8 @@
   "required": [
     "session_id",
     "model_response",
-    "model_metadata"
+    "model_metadata",
+    "governor_context"
   ],
   "$defs": {
     "particle_control": {
@@ -246,7 +247,107 @@
           "renderer_controls"
         ]
       },
-      "x-canonical-source": "docs/schemas/ai_particle_control_contract_v1.json"
+      "x-canonical-source": "docs/schemas/ai_particle_control_contract_v1.json",
+      "x-runtime-governor": {
+        "pipeline": "validate -> clamp -> fallback -> policy_block -> capability_gate -> telemetry_log",
+        "result_fields": [
+          "accepted_command",
+          "rejected_fields",
+          "fallback_reason",
+          "policy_block_count",
+          "last_accepted_command"
+        ]
+      }
+    },
+    "human_override": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "operator_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "allow_runtime_governor_bypass": {
+          "type": "boolean",
+          "default": false
+        },
+        "force_safe_mode": {
+          "type": "boolean",
+          "default": false
+        },
+        "locked_command": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/particle_control"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "device_capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_particle_count": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "supports_motion_sensors": {
+          "type": "boolean",
+          "default": true
+        },
+        "motion_sensor_permission": {
+          "type": "string",
+          "enum": [
+            "granted",
+            "denied",
+            "prompt"
+          ],
+          "default": "granted"
+        },
+        "low_power_mode": {
+          "type": "boolean",
+          "default": false
+        },
+        "gpu_tier": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "maximum": 4
+        }
+      }
+    },
+    "governor_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "human_override": {
+          "$ref": "#/$defs/human_override"
+        },
+        "device_capability": {
+          "$ref": "#/$defs/device_capability"
+        },
+        "last_accepted_command": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/particle_control"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
     }
   },
   "properties": {
@@ -444,6 +545,9 @@
           "exclusiveMinimum": 0
         }
       }
+    },
+    "governor_context": {
+      "$ref": "#/$defs/governor_context"
     }
   },
   "x-field-evolution": {
@@ -453,6 +557,16 @@
     "required_evolution_sections": [
       "model_response",
       "model_metadata"
+    ]
+  },
+  "x-runtime-governor": {
+    "pipeline": "validate -> clamp -> fallback -> policy_block -> capability_gate -> telemetry_log",
+    "result_fields": [
+      "accepted_command",
+      "rejected_fields",
+      "fallback_reason",
+      "policy_block_count",
+      "last_accepted_command"
     ]
   }
 }

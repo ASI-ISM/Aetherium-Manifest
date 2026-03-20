@@ -150,3 +150,76 @@ def test_reliability_temporal_morphogenesis_endpoint(client: TestClient) -> None
     assert "drift_detector_recall" in payload
     assert "containment_activation_p95_ms" in payload
     assert "sev1_replay_reproducibility" in payload
+
+
+def _valid_emit_payload() -> dict:
+    return {
+        "session_id": "sess-1",
+        "model_response": {
+            "trace_id": "trace-1",
+            "reasoning_trace": "guided",
+            "intent_vector": {"category": "guide", "emotional_valence": 0.2, "energy_level": 0.7},
+            "particle_control": {
+                "intent_state": {
+                    "state": "thinking",
+                    "shape": "ring",
+                    "particle_density": 0.3,
+                    "velocity": 0.8,
+                    "turbulence": 0.4,
+                    "cohesion": 0.6,
+                    "flow_direction": "centripetal",
+                    "glow_intensity": 0.7,
+                    "flicker": 0.1,
+                    "attractor": "core",
+                    "palette": {"mode": "adaptive", "primary": "#88CCFF", "secondary": "#4466FF"},
+                },
+                "renderer_controls": {
+                    "base_shape": "ring",
+                    "chromatic_mode": "adaptive",
+                    "particle_count": 4800,
+                    "flow_field": "centripetal",
+                    "shader_uniforms": {"glow_intensity": 0.7, "flicker": 0.1, "cohesion": 0.6},
+                    "runtime_profile": "adaptive",
+                },
+            },
+            "visual_manifestation": {
+                "base_shape": "ring",
+                "transition_type": "pulse",
+                "color_palette": {"primary": "#88CCFF", "secondary": "#4466FF"},
+                "particle_physics": {
+                    "turbulence": 0.4,
+                    "flow_direction": "centripetal",
+                    "luminance_mass": 0.7,
+                    "particle_count": 4800,
+                },
+                "chromatic_mode": "adaptive",
+                "emergency_override": False,
+                "device_tier": 1,
+            },
+        },
+        "model_metadata": {"model_name": "gpt-4o", "temperature": 0.2, "max_tokens": 256},
+        "governor_context": {
+            "human_override": {"force_safe_mode": False, "allow_runtime_governor_bypass": False},
+            "device_capability": {
+                "max_particle_count": 3000,
+                "supports_motion_sensors": True,
+                "motion_sensor_permission": "denied",
+                "low_power_mode": True,
+                "gpu_tier": 2,
+            },
+        },
+    }
+
+
+def test_emit_returns_governor_result(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/cognitive/emit",
+        json=_valid_emit_payload(),
+        headers={"X-API-Key": "test-key", "X-Model-Provider": "openai", "X-Model-Version": "2026-03"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["governor_result"]["accepted_command"]["renderer_controls"]["particle_count"] == 2000
+    assert payload["governor_result"]["fallback_reason"] in {"device_low_power_mode", "sensor_permission_denied", "containment:soft_clamp", "containment:deterministic_anchor_replay", "containment:hard_rollback_legacy"}
+    assert "renderer_controls.particle_count" in payload["governor_result"]["rejected_fields"]
+    assert payload["visual_manifestation"]["particle_physics"]["flow_direction"] == "still"

@@ -21,7 +21,7 @@ import httpx
 from .deterministic_replay import INCIDENT_REPLAY_PACKAGES, replay_incident_package
 from fastapi import FastAPI, Header, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 app = FastAPI(title="AGNS Cognitive DSL Gateway", version="1.1.0")
 logger = logging.getLogger("aetherium.api_gateway")
@@ -103,6 +103,75 @@ class CompiledLightProgram(BaseModel):
     force_field_descriptors: list[str] = Field(default_factory=list)
     update_cadence_hz: float = Field(gt=0.0)
 
+
+
+class ParticlePalette(BaseModel):
+    mode: str
+    primary: str
+    secondary: str
+    accent: str | None = None
+
+
+class IntentState(BaseModel):
+    state: str
+    shape: str
+    particle_density: float = Field(ge=0.0, le=1.0)
+    velocity: float = Field(ge=0.0, le=1.0)
+    turbulence: float = Field(ge=0.0, le=1.0)
+    cohesion: float = Field(ge=0.0, le=1.0)
+    flow_direction: str
+    glow_intensity: float = Field(ge=0.0, le=1.0)
+    flicker: float = Field(ge=0.0, le=1.0)
+    attractor: str
+    palette: ParticlePalette
+
+
+class RendererControls(BaseModel):
+    base_shape: str
+    chromatic_mode: str
+    particle_count: int = Field(ge=0, le=50_000)
+    flow_field: str
+    shader_uniforms: dict[str, float | str | bool] = Field(default_factory=dict)
+    runtime_profile: str
+
+
+class ParticleControlContract(BaseModel):
+    intent_state: IntentState
+    renderer_controls: RendererControls
+
+
+class HumanOverrideState(BaseModel):
+    operator_id: str | None = None
+    allow_runtime_governor_bypass: bool = False
+    force_safe_mode: bool = False
+    locked_command: ParticleControlContract | None = None
+
+
+class DeviceCapabilityState(BaseModel):
+    max_particle_count: int | None = Field(default=None, ge=0)
+    supports_motion_sensors: bool = True
+    motion_sensor_permission: Literal["granted", "denied", "prompt"] = "granted"
+    low_power_mode: bool = False
+    gpu_tier: int | None = Field(default=None, ge=1, le=4)
+
+
+class GovernorContext(BaseModel):
+    human_override: HumanOverrideState = Field(default_factory=HumanOverrideState)
+    device_capability: DeviceCapabilityState = Field(default_factory=DeviceCapabilityState)
+    last_accepted_command: ParticleControlContract | None = None
+
+
+class GovernorResult(BaseModel):
+    accepted_command: ParticleControlContract
+    rejected_fields: list[str] = Field(default_factory=list)
+    fallback_reason: str | None = None
+    policy_block_count: int = 0
+    last_accepted_command: ParticleControlContract | None = None
+    telemetry_logging: dict[str, Any] = Field(default_factory=dict)
+    containment: ContainmentDecision | None = None
+    divergence_detected: bool = False
+    model_config = ConfigDict(protected_namespaces=())
+
 class ColorPalette(BaseModel):
     primary: str
     secondary: str | None = None
@@ -126,6 +195,7 @@ class ModelResponse(BaseModel):
     trace_id: str
     reasoning_trace: str
     intent_vector: IntentVector
+    particle_control: ParticleControlContract
     visual_manifestation: VisualManifestation
 
 class ModelMetadata(BaseModel):
@@ -137,6 +207,7 @@ class CognitiveEmitRequest(BaseModel):
     session_id: str
     model_response: ModelResponse
     model_metadata: ModelMetadata
+    governor_context: GovernorContext = Field(default_factory=GovernorContext)
 
 class GenerateRequest(BaseModel):
     prompt: str
@@ -210,6 +281,7 @@ class PipelineExecutionResult(BaseModel):
     visual_manifestation: "VisualManifestation"
     metrics: PipelineExecutionMetrics
     runtime_guard: RuntimeGuardResult | None = None
+    governor_result: GovernorResult | None = None
 
 
 # --- In-memory State and Concurrency --- 
@@ -493,13 +565,106 @@ def _morphogenesis_to_compiled(plan: MorphogenesisPlan, visual: VisualManifestat
     )
 
 
+def _clamp(value: float, minimum: float, maximum: float) -> float:
+    return max(minimum, min(maximum, value))
+
+
+def _particle_control_to_visual_manifestation(control: ParticleControlContract, visual: VisualManifestation) -> VisualManifestation:
+    manifested = visual.model_copy(deep=True)
+    manifested.base_shape = control.renderer_controls.base_shape
+    manifested.chromatic_mode = control.renderer_controls.chromatic_mode
+    manifested.particle_physics.particle_count = control.renderer_controls.particle_count
+    manifested.particle_physics.flow_direction = control.renderer_controls.flow_field
+    manifested.particle_physics.turbulence = control.intent_state.turbulence
+    manifested.particle_physics.luminance_mass = control.intent_state.glow_intensity
+    manifested.color_palette.primary = control.intent_state.palette.primary
+    manifested.color_palette.secondary = control.intent_state.palette.secondary
+    return manifested
+
+
+def _apply_governor_constraints(
+    control: ParticleControlContract,
+    *,
+    context: GovernorContext,
+    runtime_visual: VisualManifestation,
+) -> GovernorResult:
+    accepted = control.model_copy(deep=True)
+    rejected_fields: list[str] = []
+    fallback_reason: str | None = None
+    policy_block_count = 0
+
+    max_particles = FIRMA_CONSTRAINTS["max_particles_by_tier"].get(runtime_visual.device_tier, 5_000)
+    capability_max = context.device_capability.max_particle_count
+    if capability_max is not None:
+        max_particles = min(max_particles, capability_max)
+    if context.device_capability.low_power_mode:
+        max_particles = min(max_particles, 2_000)
+        accepted.renderer_controls.runtime_profile = "low_power"
+        rejected_fields.append("renderer_controls.runtime_profile")
+
+    if accepted.renderer_controls.particle_count > max_particles:
+        accepted.renderer_controls.particle_count = max_particles
+        rejected_fields.append("renderer_controls.particle_count")
+
+    accepted.intent_state.turbulence = _clamp(accepted.intent_state.turbulence, 0.0, 0.85)
+    accepted.intent_state.velocity = _clamp(accepted.intent_state.velocity, 0.0, 1.0)
+    accepted.intent_state.glow_intensity = _clamp(accepted.intent_state.glow_intensity, 0.0, 1.0)
+
+    if accepted.intent_state.state == "warning" and accepted.intent_state.palette.primary.upper() == "#DC143C":
+        if not runtime_visual.emergency_override:
+            policy_block_count += 1
+            rejected_fields.append("intent_state.palette.primary")
+            accepted.intent_state.palette.primary = "#FF8800"
+            fallback_reason = "reserved_emergency_palette"
+
+    if accepted.intent_state.flow_direction in {"centripetal", "centrifugal"} and (
+        not context.device_capability.supports_motion_sensors
+        or context.device_capability.motion_sensor_permission != "granted"
+    ):
+        accepted.intent_state.flow_direction = "still"
+        accepted.renderer_controls.flow_field = "still"
+        rejected_fields.extend(["intent_state.flow_direction", "renderer_controls.flow_field"])
+        fallback_reason = fallback_reason or "sensor_permission_denied"
+
+    if context.human_override.force_safe_mode:
+        accepted.intent_state.turbulence = min(accepted.intent_state.turbulence, 0.2)
+        accepted.renderer_controls.runtime_profile = "deterministic"
+        fallback_reason = fallback_reason or "human_override_safe_mode"
+        rejected_fields.extend(["intent_state.turbulence", "renderer_controls.runtime_profile"])
+
+    if context.human_override.locked_command is not None:
+        accepted = context.human_override.locked_command.model_copy(deep=True)
+        fallback_reason = "human_override_locked_command"
+        rejected_fields.append("*")
+
+    telemetry_logging = {
+        "governor_version": "runtime_governor_v1",
+        "policy_block_count": policy_block_count,
+        "rejected_fields": rejected_fields,
+        "device_capability": context.device_capability.model_dump(),
+    }
+    return GovernorResult(
+        accepted_command=accepted,
+        rejected_fields=rejected_fields,
+        fallback_reason=fallback_reason,
+        policy_block_count=policy_block_count,
+        last_accepted_command=context.last_accepted_command,
+        telemetry_logging=telemetry_logging,
+    )
+
+
 def _compiled_to_runtime_visual(program: CompiledLightProgram, visual: VisualManifestation) -> VisualManifestation:
-    # Backward-compatible renderer ABI: preserve existing contract shape.
     _ = program
     return visual
 
 
-def _run_light_cognition_pipeline(intent: IntentVector, visual: VisualManifestation, trace_id: str) -> PipelineExecutionResult:
+def _run_light_cognition_pipeline(
+    intent: IntentVector,
+    control: ParticleControlContract,
+    visual: VisualManifestation,
+    governor_context: GovernorContext,
+    trace_id: str,
+) -> PipelineExecutionResult:
     t0 = perf_counter()
     semantic = _intent_to_semantic_field(intent)
     t1 = perf_counter()
@@ -509,7 +674,14 @@ def _run_light_cognition_pipeline(intent: IntentVector, visual: VisualManifestat
     t3 = perf_counter()
     runtime_visual = _compiled_to_runtime_visual(compiled, visual)
     rendered_telemetry_field = _build_rendered_field_telemetry(semantic, runtime_visual, trace_id)
-    runtime_guard, guarded_visual = _run_runtime_guard(semantic, rendered_telemetry_field, compiled, runtime_visual)
+    governor_result, runtime_guard, guarded_visual = _run_runtime_governor(
+        intent_field=semantic,
+        rendered_telemetry_field=rendered_telemetry_field,
+        compiled=compiled,
+        control=control,
+        visual=runtime_visual,
+        context=governor_context,
+    )
     t4 = perf_counter()
     return PipelineExecutionResult(
         semantic_field=semantic,
@@ -524,6 +696,7 @@ def _run_light_cognition_pipeline(intent: IntentVector, visual: VisualManifestat
             total_pipeline_ms=(t4 - t0) * 1000,
         ),
         runtime_guard=runtime_guard,
+        governor_result=governor_result,
     )
 
 
@@ -587,13 +760,17 @@ def _apply_containment(mode: ContainmentMode, visual: VisualManifestation) -> tu
     return _run_direct_visual_fallback(visual), None
 
 
-def _run_runtime_guard(
+def _run_runtime_governor(
     intent_field: SemanticField,
     rendered_telemetry_field: SemanticField,
     compiled: CompiledLightProgram,
+    control: ParticleControlContract,
     visual: VisualManifestation,
-) -> tuple[RuntimeGuardResult, VisualManifestation]:
+    context: GovernorContext,
+) -> tuple[GovernorResult, RuntimeGuardResult, VisualManifestation]:
     t0 = perf_counter()
+    governor_result = _apply_governor_constraints(control, context=context, runtime_visual=visual)
+    governed_visual = _particle_control_to_visual_manifestation(governor_result.accepted_command, visual)
     metrics = _compute_drift_metrics(intent_field, rendered_telemetry_field, compiled)
     divergence_detected = (
         metrics.semantic_coherence_score < 0.86
@@ -601,33 +778,66 @@ def _run_runtime_guard(
         or metrics.temporal_instability_ratio > 0.2
     )
 
-    if not divergence_detected:
-        latency_ms = (perf_counter() - t0) * 1000
-        return (
-            RuntimeGuardResult(
-                metrics=metrics,
-                divergence_detected=False,
-                containment=ContainmentDecision(activated=False, activation_latency_ms=latency_ms),
-            ),
-            visual,
+    containment = ContainmentDecision(activated=False)
+    if divergence_detected and not context.human_override.allow_runtime_governor_bypass:
+        mode = _select_containment_mode(metrics)
+        governed_visual, anchor_package = _apply_containment(mode, governed_visual)
+        containment = ContainmentDecision(
+            activated=True,
+            mode=mode,
+            anchor_replay_package=anchor_package,
         )
+        governor_result.fallback_reason = governor_result.fallback_reason or f"containment:{mode.value}"
 
-    mode = _select_containment_mode(metrics)
-    contained_visual, anchor_package = _apply_containment(mode, visual)
     latency_ms = (perf_counter() - t0) * 1000
-    return (
-        RuntimeGuardResult(
-            metrics=metrics,
-            divergence_detected=True,
-            containment=ContainmentDecision(
-                activated=True,
-                mode=mode,
-                activation_latency_ms=latency_ms,
-                anchor_replay_package=anchor_package,
-            ),
-        ),
-        contained_visual,
+    containment.activation_latency_ms = latency_ms
+    runtime_guard = RuntimeGuardResult(
+        metrics=metrics,
+        divergence_detected=divergence_detected,
+        containment=containment,
     )
+    governor_result.containment = containment
+    governor_result.divergence_detected = divergence_detected
+    governor_result.telemetry_logging.update({
+        "divergence_detected": divergence_detected,
+        "containment_mode": containment.mode.value if containment.mode else None,
+        "activation_latency_ms": latency_ms,
+    })
+    governor_result.last_accepted_command = governor_result.accepted_command.model_copy(deep=True)
+    return governor_result, runtime_guard, governed_visual
+
+
+def _run_runtime_guard(
+    intent_field: SemanticField,
+    rendered_telemetry_field: SemanticField,
+    compiled: CompiledLightProgram,
+    visual: VisualManifestation,
+) -> tuple[RuntimeGuardResult, VisualManifestation]:
+    default_control = ParticleControlContract(
+        intent_state=IntentState(
+            state="idle",
+            shape=visual.base_shape,
+            particle_density=min(1.0, visual.particle_physics.particle_count / 50000),
+            velocity=0.5,
+            turbulence=visual.particle_physics.turbulence,
+            cohesion=0.5,
+            flow_direction=visual.particle_physics.flow_direction,
+            glow_intensity=visual.particle_physics.luminance_mass,
+            flicker=0.0,
+            attractor="core",
+            palette=ParticlePalette(mode=visual.chromatic_mode, primary=visual.color_palette.primary, secondary=visual.color_palette.secondary or visual.color_palette.primary),
+        ),
+        renderer_controls=RendererControls(
+            base_shape=visual.base_shape,
+            chromatic_mode=visual.chromatic_mode,
+            particle_count=visual.particle_physics.particle_count,
+            flow_field=visual.particle_physics.flow_direction,
+            shader_uniforms={"glow_intensity": visual.particle_physics.luminance_mass, "flicker": 0.0, "cohesion": 0.5},
+            runtime_profile="adaptive",
+        ),
+    )
+    _, runtime_guard, governed_visual = _run_runtime_governor(intent_field, rendered_telemetry_field, compiled, default_control, visual, GovernorContext())
+    return runtime_guard, governed_visual
 
 
 def _build_rendered_field_telemetry(semantic: SemanticField, visual: VisualManifestation, trace_id: str) -> SemanticField:
@@ -721,10 +931,13 @@ async def emit_cognitive_dsl(
     light_cognition_layer_enabled = _env_flag("light_cognition_layer_enabled", default=True)
     morphogenesis_runtime_enabled = _env_flag("morphogenesis_runtime_enabled", default=True)
 
+    response: dict[str, Any] = {"status": "success", "trace_id": parsed.model_response.trace_id}
     if light_cognition_layer_enabled and morphogenesis_runtime_enabled:
         pipeline_result = _run_light_cognition_pipeline(
             intent=parsed.model_response.intent_vector,
+            control=parsed.model_response.particle_control,
             visual=parsed.model_response.visual_manifestation,
+            governor_context=parsed.governor_context,
             trace_id=parsed.model_response.trace_id,
         )
         if pipeline_result.runtime_guard:
@@ -732,11 +945,12 @@ async def emit_cognitive_dsl(
         replay_status = _run_seeded_incident_replay_packages()
         async with RELIABILITY_LOCK:
             REPLAY_REPRO_BY_PACKAGE.update(replay_status)
-        _ = pipeline_result.visual_manifestation
+        response["governor_result"] = pipeline_result.governor_result.model_dump() if pipeline_result.governor_result else None
+        response["visual_manifestation"] = pipeline_result.visual_manifestation.model_dump()
     else:
-        _run_direct_visual_fallback(parsed.model_response.visual_manifestation)
+        response["visual_manifestation"] = _run_direct_visual_fallback(parsed.model_response.visual_manifestation).model_dump()
 
-    return {"status": "success", "trace_id": parsed.model_response.trace_id}
+    return response
 
 @app.post("/api/v1/cognitive/validate")
 async def validate_cognitive_dsl(

@@ -101,6 +101,35 @@ class CreativeStressScenarioTests(unittest.TestCase):
         self.assertTrue(result["checks"]["no_state_lie"])
 
 
+
+
+def make_particle_control(base_shape: str = "ring", particle_count: int = 3200, flow_direction: str = "clockwise", turbulence: float = 0.25, glow_intensity: float = 0.4):
+    from api_gateway.main import IntentState, ParticleControlContract, ParticlePalette, RendererControls
+
+    return ParticleControlContract(
+        intent_state=IntentState(
+            state="thinking",
+            shape=base_shape,
+            particle_density=min(1.0, particle_count / 50000),
+            velocity=0.5,
+            turbulence=turbulence,
+            cohesion=0.6,
+            flow_direction=flow_direction,
+            glow_intensity=glow_intensity,
+            flicker=0.1,
+            attractor="core",
+            palette=ParticlePalette(mode="adaptive", primary="#88CCFF", secondary="#4466FF"),
+        ),
+        renderer_controls=RendererControls(
+            base_shape=base_shape,
+            chromatic_mode="adaptive",
+            particle_count=particle_count,
+            flow_field=flow_direction,
+            shader_uniforms={"glow_intensity": glow_intensity, "flicker": 0.1, "cohesion": 0.6},
+            runtime_profile="adaptive",
+        ),
+    )
+
 class IntentLightKnowledgeGraphTests(unittest.TestCase):
     def test_graph_builder_applies_k_anon(self) -> None:
         records = [
@@ -303,6 +332,7 @@ class LightCognitionPipelineTests(unittest.TestCase):
             IntentVector,
             ParticlePhysics,
             VisualManifestation,
+            GovernorContext,
             _run_light_cognition_pipeline,
         )
 
@@ -322,7 +352,7 @@ class LightCognitionPipelineTests(unittest.TestCase):
             device_tier=2,
         )
 
-        result = _run_light_cognition_pipeline(intent, visual, trace_id="unit-trace")
+        result = _run_light_cognition_pipeline(intent, make_particle_control(base_shape="ring", particle_count=3200, turbulence=0.2, glow_intensity=0.4), visual, GovernorContext(), trace_id="unit-trace")
         self.assertIn("energy", result.semantic_field.semantic_tensors)
         self.assertTrue(result.morphogenesis_plan.temporal_operators)
         self.assertGreater(result.compiled_program.update_cadence_hz, 0)
@@ -497,6 +527,7 @@ class TemporalMorphogenesisReliabilityTests(unittest.TestCase):
             IntentVector,
             ParticlePhysics,
             VisualManifestation,
+            GovernorContext,
             _run_light_cognition_pipeline,
         )
 
@@ -518,7 +549,7 @@ class TemporalMorphogenesisReliabilityTests(unittest.TestCase):
 
         latencies: list[float] = []
         for i in range(200):
-            result = _run_light_cognition_pipeline(intent, visual, trace_id=f"seeded-{i}")
+            result = _run_light_cognition_pipeline(intent, make_particle_control(base_shape="helix", particle_count=4500, flow_direction="counterclockwise", turbulence=0.9, glow_intensity=0.9), visual, GovernorContext(), trace_id=f"seeded-{i}")
             self.assertIsNotNone(result.runtime_guard)
             latencies.append(result.runtime_guard.containment.activation_latency_ms)
 
