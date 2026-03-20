@@ -9,7 +9,88 @@ interface EvalMetrics {
   stability: number;
 }
 
+interface FrameSample {
+  width: number;
+  height: number;
+  rgba: Uint8Array;
+}
+
+interface PhotonSample {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+}
+
+export interface PerceptualEvaluator {
+  evaluate(frame: FrameSample, field: { points: Array<{ x: number; y: number }> }, photons: PhotonSample[]): Promise<EvalMetrics>;
+}
+
 let pendingEval: Promise<EvalMetrics> | null = null;
+
+export class BioVisionRemoteEvaluator implements PerceptualEvaluator {
+  private readonly apiBaseUrl: string;
+
+  constructor(apiBaseUrl: string) {
+    this.apiBaseUrl = apiBaseUrl;
+  }
+
+  async evaluate(frame: FrameSample, field: { points: Array<{ x: number; y: number }> }, photons: PhotonSample[]): Promise<EvalMetrics> {
+    const response = await fetch(`${this.apiBaseUrl.replace(/\/$/, '')}/api/perceptual/evaluate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        frame_width: frame.width,
+        frame_height: frame.height,
+        target_points: field.points.length,
+        sample: photons.slice(0, 1024),
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Remote evaluator failed with status ${response.status}`);
+    }
+
+    const payload = await response.json();
+    return {
+      readability: Number(payload.readability ?? 0),
+      coverage: Number(payload.coverage ?? 0),
+      stability: Number(payload.stability ?? 0),
+    };
+  }
+}
+
+export class EdgeAwareLocalEvaluator implements PerceptualEvaluator {
+  async evaluate(frame: FrameSample, field: { points: Array<{ x: number; y: number }> }, photons: PhotonSample[]): Promise<EvalMetrics> {
+    const photonState: PhotonState[] = photons.map((photon) => ({
+      pos: { x: photon.x, y: photon.y },
+      vel: { x: photon.vx, y: photon.vy },
+    }));
+    return evaluateWithEdgeModel(photonState, frame.width, frame.height, { morphology: { family: field.points.length ? 'shape' : 'void' } });
+  }
+}
+
+export function feedbackAdjustments(
+  metrics: EvalMetrics,
+  coherence: number,
+  coherenceTarget: number,
+  flowMag: number,
+  noiseMax: number,
+): { coherence: number; flowMag: number; noiseMax: number } {
+  if (metrics.readability < 0.45) {
+    return {
+      coherence: clamp(coherence + 0.02, 0.05, coherenceTarget + 0.12),
+      flowMag: clamp(flowMag * 0.98, 0.1, 1.5),
+      noiseMax: clamp(noiseMax - 0.08, 0.35, 6.5),
+    };
+  }
+
+  return {
+    coherence: coherence + (coherenceTarget - coherence) * 0.04,
+    flowMag: clamp(flowMag + 0.01, 0.1, 1.5),
+    noiseMax: clamp(noiseMax * 0.995, 0.35, 6.5),
+  };
+}
 
 export function perceptualFeedbackLoop(
   photons: PhotonState[],
@@ -97,4 +178,8 @@ function evaluateWithEdgeModel(photons: PhotonState[], W: number, H: number, las
   const readability = Math.max(0, Math.min(1, 1 - Math.abs(coverage - targetCoverage) / Math.max(targetCoverage, 0.05)));
 
   return { readability, coverage, stability };
+}
+
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v));
 }
