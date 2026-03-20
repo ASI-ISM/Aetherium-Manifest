@@ -1,96 +1,129 @@
-// AETHERIUM KERNEL TEST SUITE (Placeholder)
-//
-// This file provides a basic structure for testing the AetheriumKernel.
-// In a real-world scenario, you would use a testing framework like Jest or Vitest.
-//
-// To run these tests, you would typically use a command like: `npx vitest run`
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { AetheriumKernel } from './kernel.ts';
 
-import { AetheriumKernel } from './kernel';
+class MockCanvasElement {
+  width = 800;
+  height = 600;
+  clientWidth = 800;
+  clientHeight = 600;
 
-// --- Mocking Dependencies ---
-// We need to mock browser-specific features and network requests.
+  getContext(kind: string) {
+    if (kind === 'webgl2') {
+      return {
+        BLEND: 1,
+        ONE: 1,
+        COLOR_BUFFER_BIT: 0x4000,
+        RGBA: 0x1908,
+        UNSIGNED_BYTE: 0x1401,
+        clear: () => {},
+        clearColor: () => {},
+        enable: () => {},
+        blendFunc: () => {},
+        viewport: () => {},
+        readPixels: () => {},
+      };
+    }
 
-// Mock Canvas & WebGL2 Context
-global.HTMLCanvasElement.prototype.getContext = () => {
-  return {
-    clear: () => {},
-    clearColor: () => {},
-    enable: () => {},
-    blendFunc: () => {},
-    viewport: () => {},
-    readPixels: () => {},
-    // Add other mocked GL functions as needed by the renderer
-  };
-};
+    if (kind === '2d') {
+      return {
+        clearRect: () => {},
+        fillText: () => {},
+        getImageData: () => ({ data: new Uint8ClampedArray(this.width * this.height * 4) }),
+        set font(_value: string) {},
+        set textAlign(_value: string) {},
+        set textBaseline(_value: string) {},
+        set fillStyle(_value: string) {},
+      };
+    }
 
-global.fetch = async (url) => {
-  console.log(`Mock fetch for: ${url}`);
-  if (url.toString().endsWith('/api/light/interpret')) {
-    return new Response(JSON.stringify({ 
-      lcl: { version: '4.0', intent: 'create_light_form', /* ... other LCL fields */ } 
+    return null;
+  }
+}
+
+globalThis.HTMLCanvasElement = MockCanvasElement as typeof HTMLCanvasElement;
+globalThis.window = { innerWidth: 800, innerHeight: 600 } as Window & typeof globalThis;
+globalThis.document = {
+  createElement: () => new MockCanvasElement(),
+} as Document;
+globalThis.requestAnimationFrame = ((cb: FrameRequestCallback) => {
+  return 1;
+}) as typeof requestAnimationFrame;
+globalThis.cancelAnimationFrame = (() => {}) as typeof cancelAnimationFrame;
+globalThis.fetch = (async (url: string | URL) => {
+  const target = url.toString();
+  if (target.endsWith('/api/light/interpret')) {
+    return new Response(JSON.stringify({
+      lcl: {
+        version: '4.0',
+        intent: 'create_light_form',
+        morphology: { family: 'sphere', symmetry: 1, density: 0.5, scale: 0.3, edge_softness: 0.4 },
+        motion: {
+          archetype: 'stabilization',
+          flow_mode: 'calm_drift',
+          coherence_target: 0.8,
+          turbulence: 0.2,
+          rhythm_hz: 0.2,
+          attack_ms: 400,
+          settle_ms: 1200,
+        },
+        optics: {
+          palette: ['#ffffff'],
+          luminance_boost: 1.2,
+          glow_alpha: 0.6,
+          trail_alpha: 0.2,
+          color_mode: 'palette',
+        },
+        content: { text: null, scene_recipe: null },
+        constraints: { max_targets: 14000, max_photons: 7000, max_energy: 1.6 },
+        source_text: 'create a golden spiral',
+      },
     }));
   }
-  if (url.toString().endsWith('/manifest.yaml')) {
-    return new Response(JSON.stringify({ formations: [] }));
+
+  if (target.endsWith('/manifest.yaml')) {
+    return new Response(JSON.stringify({ formations: [] }), { status: 200 });
   }
-  return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } });
-};
 
-// --- Test Suite ---
+  return new Response(JSON.stringify({ readability: 0.7, coverage: 0.2, stability: 0.7 }), { status: 200 });
+}) as typeof fetch;
 
-describe('AetheriumKernel', () => {
-
-  let kernel: AetheriumKernel;
-  let canvas: HTMLCanvasElement;
-
-  beforeEach(() => {
-    // Create a new kernel instance before each test
-    canvas = document.createElement('canvas');
-    kernel = new AetheriumKernel({
-      canvas: canvas,
-      apiBaseUrl: 'http://mock-api.com',
-      formationBaseUrl: '.',
-      evaluatorMode: 'local',
-    });
+test('AetheriumKernel initializes without errors', () => {
+  const kernel = new AetheriumKernel({
+    canvas: document.createElement('canvas'),
+    apiBaseUrl: 'http://mock-api.com',
+    formationBaseUrl: '.',
+    evaluatorMode: 'local',
   });
 
-  test('should initialize without errors', () => {
-    // Assert that the kernel was created successfully
-    expect(kernel).toBeInstanceOf(AetheriumKernel);
+  assert.ok(kernel instanceof AetheriumKernel);
+});
+
+test('AetheriumKernel handles a user request and can reset state', async () => {
+  const kernel = new AetheriumKernel({
+    canvas: document.createElement('canvas'),
+    apiBaseUrl: 'http://mock-api.com',
+    formationBaseUrl: '.',
+    evaluatorMode: 'local',
   });
 
-  test('should start and stop the animation loop', () => {
-    // To test this properly, you might need to mock requestAnimationFrame
-    // and advance timers manually.
-    kernel.start();
-    // expect(requestAnimationFrame).toHaveBeenCalled();
-    kernel.stop();
-    // expect(cancelAnimationFrame).toHaveBeenCalled();
+  await kernel.handleUserLightRequest('create a golden spiral');
+  assert.equal(kernel.getLCLSchema()?.version, '4.0');
+
+  kernel.resetToVoid();
+  assert.equal(kernel.getLCLSchema(), null);
+});
+
+test('AetheriumKernel resizes and can start-stop animation safely', () => {
+  const kernel = new AetheriumKernel({
+    canvas: document.createElement('canvas'),
+    apiBaseUrl: 'http://mock-api.com',
+    formationBaseUrl: '.',
+    evaluatorMode: 'local',
   });
 
-  test('should handle a user light request and generate an LCL', async () => {
-    const userText = "create a golden spiral";
-    await kernel.handleUserLightRequest(userText);
-    
-    const lcl = kernel.getLCLSchema();
-    expect(lcl).not.toBeNull();
-    expect(lcl?.version).toBe('4.0');
-  });
-
-  test('should reset the kernel to a void state', async () => {
-    await kernel.handleUserLightRequest("some effect");
-    expect(kernel.getLCLSchema()).not.toBeNull(); // Ensure state is not null
-
-    kernel.resetToVoid();
-    expect(kernel.getLCLSchema()).toBeNull();
-    // You could also check if photons are in a default state
-  });
-  
-  test('should resize the viewport and re-apply LCL', () => {
-      // This test would require more detailed mocking of the renderer 
-      // and compiled field to verify the re-application.
-      kernel.resize(1920, 1080);
-      // expect(...) the viewport-dependent properties to be updated.
-  });
-
+  kernel.resize(1920, 1080);
+  kernel.start();
+  kernel.stop();
+  assert.ok(true);
 });

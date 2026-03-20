@@ -1,25 +1,24 @@
 import {
   interpretWithBackendLLM,
-  LightControlLanguage,
   normalizeLCL,
-} from './light-control-language';
+} from './light-control-language.ts';
+import type { LightControlLanguage } from './light-control-language.ts';
 import {
   loadFormationBundle,
   mergeRetrievedFormation,
   retrieveFormation,
-} from './formation-retriever';
+} from './formation-retriever.ts';
 import {
   compileGlyphFieldFromAlphaMask,
   compileShapeField,
-  CompiledField,
-  Viewport,
-} from './shape-compiler';
+} from './shape-compiler.ts';
+import type { CompiledField, Viewport } from './shape-compiler.ts';
 import {
   BioVisionRemoteEvaluator,
   EdgeAwareLocalEvaluator,
   feedbackAdjustments,
-  PerceptualEvaluator,
-} from './perceptual-feedback';
+} from './perceptual-feedback.ts';
+import type { PerceptualEvaluator } from './perceptual-feedback.ts';
 
 export interface KernelConfig {
   apiBaseUrl: string;

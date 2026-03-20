@@ -1,3 +1,16 @@
+export type MotionArchetype = string;
+
+export interface FormationReference {
+  id: string;
+  title: string;
+  archetype: MotionArchetype;
+  keywords: string[];
+  manifestPath?: string;
+  annotationPath?: string;
+  previewVideoPath?: string;
+  score?: number;
+}
+
 export interface LightControlLanguage {
   version: string;
   intent: 'create_light_form' | 'create_glyph' | 'create_scene';
@@ -27,6 +40,7 @@ export interface LightControlLanguage {
   content: {
     text: string | null;
     scene_recipe: Record<string, unknown> | null;
+    semantic_tags?: string[];
   };
   constraints: {
     max_targets: number;
@@ -34,6 +48,14 @@ export interface LightControlLanguage {
     max_energy: number;
   };
   source_text: string;
+  retrieved_formation?: FormationReference;
+  runtime_bias?: {
+    forceBias?: number;
+    flowBias?: number;
+    noiseBias?: number;
+    coherenceStart?: number;
+    archetypePhrase?: string;
+  };
 }
 
 const DEFAULT_TIMEOUT_MS = 6_000;
@@ -75,6 +97,68 @@ export async function generateLightControlLanguage(text: string): Promise<LightC
 
 // backward-compat alias for older kernel imports
 export const mockLocalLightModel = generateLightControlLanguage;
+
+export async function interpretWithBackendLLM(
+  apiBaseUrl: string,
+  payload: {
+    userText: string;
+    viewport?: { width: number; height: number };
+    limits?: Record<string, number>;
+  },
+): Promise<LightControlLanguage> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${apiBaseUrl.replace(/\/$/, '')}/api/light/interpret`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Interpretation request failed with status ${response.status}`);
+    }
+
+    const result = await response.json();
+    const lcl = result?.lcl ?? result;
+    return normalizeLCL(isLclPayload(lcl) ? lcl : fallbackHeuristicLcl(payload.userText));
+  } catch (error) {
+    console.warn('Interpretation backend unavailable, using deterministic fallback', error);
+    return fallbackHeuristicLcl(payload.userText);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export function normalizeLCL(lcl: Partial<LightControlLanguage>): LightControlLanguage {
+  const fallback = fallbackHeuristicLcl(lcl.source_text ?? '');
+  return {
+    ...fallback,
+    ...lcl,
+    morphology: {
+      ...fallback.morphology,
+      ...lcl.morphology,
+    },
+    motion: {
+      ...fallback.motion,
+      ...lcl.motion,
+    },
+    optics: {
+      ...fallback.optics,
+      ...lcl.optics,
+    },
+    content: {
+      ...fallback.content,
+      ...lcl.content,
+    },
+    constraints: {
+      ...fallback.constraints,
+      ...lcl.constraints,
+    },
+  };
+}
 
 function isLclPayload(value: unknown): value is LightControlLanguage {
   const candidate = value as Partial<LightControlLanguage>;

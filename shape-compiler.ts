@@ -4,6 +4,38 @@ export interface TargetPoint {
   color: number[];
 }
 
+export interface Viewport {
+  width: number;
+  height: number;
+}
+
+export interface CompiledField {
+  points: TargetPoint[];
+}
+
+export function compileGlyphFieldFromAlphaMask(
+  alphaMask: Uint8Array,
+  viewport: Viewport,
+  colorHex: string,
+): CompiledField {
+  const points: TargetPoint[] = [];
+  const step = Math.max(1, Math.floor(viewport.width / 160));
+  const color = hexToLinear(colorHex);
+
+  for (let y = 0; y < viewport.height; y += step) {
+    for (let x = 0; x < viewport.width; x += step) {
+      const idx = y * viewport.width + x;
+      if (alphaMask[idx] > 120) {
+        points.push({ x, y, color });
+      }
+    }
+  }
+
+  return { points };
+}
+
+export function compileShapeField(lcl: any, viewport: Viewport): CompiledField;
+
 export function compileGlyphField(
   lcl: any,
   memCtx: CanvasRenderingContext2D,
@@ -84,37 +116,44 @@ export function compileSceneField(
 
 export function compileShapeField(
   lcl: any,
-  W: number,
-  H: number,
-  CX: number,
-  CY: number,
-  hexToLinear: (hex: string) => number[],
-  lerp: (a: number, b: number, t: number) => number,
-  clamp: (v: number, lo: number, hi: number) => number,
-  setTargetField: (pts: TargetPoint[]) => void,
-): void {
+  WOrViewport: number | Viewport,
+  H?: number,
+  CX?: number,
+  CY?: number,
+  hexToLinearFn: (hex: string) => number[] = hexToLinear,
+  lerpFn: (a: number, b: number, t: number) => number = lerp,
+  clampFn: (v: number, lo: number, hi: number) => number = clamp,
+  setTargetField?: (pts: TargetPoint[]) => void,
+): void | CompiledField {
   const pts: TargetPoint[] = [];
+  const viewport = typeof WOrViewport === 'number'
+    ? { width: WOrViewport, height: H ?? WOrViewport }
+    : WOrViewport;
+  const W = viewport.width;
+  const HResolved = viewport.height;
+  const CXResolved = CX ?? W / 2;
+  const CYResolved = CY ?? HResolved / 2;
   const family = lcl.morphology.family;
-  const density = clamp(lcl.morphology.density, 0.1, 1.0);
+  const density = clampFn(lcl.morphology.density, 0.1, 1.0);
   const count = Math.floor((lcl.constraints.max_targets || 12000) * density);
-  const scale = Math.min(W, H) * clamp(lcl.morphology.scale, 0.12, 0.55);
-  const palette = (lcl.optics.palette || ['#FFFFFF']).map(hexToLinear);
+  const scale = Math.min(W, HResolved) * clampFn(lcl.morphology.scale, 0.12, 0.55);
+  const palette = (lcl.optics.palette || ['#FFFFFF']).map(hexToLinearFn);
 
   for (let i = 0; i < count; i++) {
     const t = i / Math.max(count, 1);
-    let x = CX;
-    let y = CY;
+    let x = CXResolved;
+    let y = CYResolved;
 
     if (family === 'sphere') {
       const r = scale * Math.sqrt(Math.random());
       const ang = Math.random() * Math.PI * 2;
-      x = CX + Math.cos(ang) * r;
-      y = CY + Math.sin(ang) * r;
+      x = CXResolved + Math.cos(ang) * r;
+      y = CYResolved + Math.sin(ang) * r;
     } else if (family === 'spiral_vortex') {
       const theta = t * Math.PI * 18;
       const r = 8 + t * scale;
-      x = CX + Math.cos(theta) * r;
-      y = CY + Math.sin(theta) * r * 0.55 - t * scale * 0.28;
+      x = CXResolved + Math.cos(theta) * r;
+      y = CYResolved + Math.sin(theta) * r * 0.55 - t * scale * 0.28;
     }
 
     const c0 = palette[i % palette.length];
@@ -123,9 +162,28 @@ export function compileShapeField(
     pts.push({
       x,
       y,
-      color: [lerp(c0[0], c1[0], mix), lerp(c0[1], c1[1], mix), lerp(c0[2], c1[2], mix)],
+      color: [lerpFn(c0[0], c1[0], mix), lerpFn(c0[1], c1[1], mix), lerpFn(c0[2], c1[2], mix)],
     });
   }
 
-  setTargetField(pts);
+  if (setTargetField) {
+    setTargetField(pts);
+    return;
+  }
+
+  return { points: pts };
+}
+
+function hexToLinear(hex: string): number[] {
+  const normalized = hex.replace('#', '');
+  const values = [0, 2, 4].map((offset) => parseInt(normalized.substring(offset, offset + 2), 16) / 255);
+  return values.map((value) => (value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4));
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v));
 }

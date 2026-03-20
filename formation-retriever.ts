@@ -1,8 +1,8 @@
-import {
+import type {
   FormationReference,
   LightControlLanguage,
   MotionArchetype,
-} from './light-control-language';
+} from './light-control-language.ts';
 
 export interface FormationManifestEntry {
   id: string;
@@ -142,12 +142,9 @@ async function fetchAndParseJson<T>(url: string): Promise<T> {
   if (!res.ok) throw new Error(`Failed to fetch content from ${url}: ${res.statusText}`);
   const text = await res.text();
   
-  // CRITICAL: This assumes the fetched content is valid JSON.
-  // In production, you would replace this with a robust YAML parser library (e.g., js-yaml)
-  // if the source is guaranteed to be YAML.
   try {
     return JSON.parse(text) as T;
-  } catch (e) {
+  } catch {
     throw new Error(`Failed to parse content from ${url} as JSON.`);
   }
 }
