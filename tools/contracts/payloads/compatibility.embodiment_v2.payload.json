@@ -1,19 +1,29 @@
 {
   "contract_type": "EMBODIMENT_V2",
   "semantic_field": {
-    "semantic_tensors": {"valence": 0.4},
+    "semantic_tensors": {
+      "valence": 0.4
+    },
     "polarity": 0.4,
     "ambiguity": 0.21
   },
   "morphogenesis_plan": {
-    "topology_seeds": ["sphere"],
-    "attractors": ["coherence"],
-    "constraints": ["turbulence<=0.21"],
-    "temporal_operators": ["phase_lock"]
+    "topology_seeds": [
+      "sphere"
+    ],
+    "attractors": [
+      "coherence"
+    ],
+    "constraints": [
+      "turbulence<=0.21"
+    ],
+    "temporal_operators": [
+      "phase_lock"
+    ]
   },
   "particle_control": {
     "intent_state": {
-      "state": "responding",
+      "state": "RESPONDING",
       "shape": "sphere",
       "particle_density": 0.128,
       "velocity": 0.5,
@@ -27,7 +37,10 @@
         "mode": "adaptive",
         "primary": "#88AAFF",
         "secondary": "#CDE7FF"
-      }
+      },
+      "state_entered_at": "2026-03-21T00:00:00Z",
+      "state_duration_ms": 0,
+      "transition_reason": "fixture_seed"
     },
     "renderer_controls": {
       "base_shape": "sphere",
@@ -59,9 +72,16 @@
       },
       "runtime_profile": "deterministic"
     },
-    "shader_uniforms": {"chromatic_aberration": 0.07, "turbulence": 0.21},
-    "particle_targets": {"count": 6400},
-    "force_field_descriptors": ["turbulence<=0.21"]
+    "shader_uniforms": {
+      "chromatic_aberration": 0.07,
+      "turbulence": 0.21
+    },
+    "particle_targets": {
+      "count": 6400
+    },
+    "force_field_descriptors": [
+      "turbulence<=0.21"
+    ]
   },
   "runtime_tick_policy": {
     "tick_rate_hz": 30,

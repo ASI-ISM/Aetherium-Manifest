@@ -7,7 +7,11 @@
         "particle_velocity": 0.4,
         "turbulence": 0.1,
         "chromatic_aberration": 0.02,
-        "cadence": {"bpm": 60, "phase": 0.0, "jitter": 0.03}
+        "cadence": {
+          "bpm": 60,
+          "phase": 0.0,
+          "jitter": 0.03
+        }
       }
     },
     "expected": {
@@ -25,19 +29,29 @@
     "payload": {
       "contract_type": "EMBODIMENT_V2",
       "semantic_field": {
-        "semantic_tensors": {"energy": 0.7},
+        "semantic_tensors": {
+          "energy": 0.7
+        },
         "polarity": 0.4,
         "ambiguity": 0.2
       },
       "morphogenesis_plan": {
-        "topology_seeds": ["helix"],
-        "attractors": ["coherence"],
-        "constraints": ["turbulence<=0.2"],
-        "temporal_operators": ["phase_lock"]
+        "topology_seeds": [
+          "helix"
+        ],
+        "attractors": [
+          "coherence"
+        ],
+        "constraints": [
+          "turbulence<=0.2"
+        ],
+        "temporal_operators": [
+          "phase_lock"
+        ]
       },
       "particle_control": {
         "intent_state": {
-          "state": "thinking",
+          "state": "THINKING",
           "shape": "helix",
           "particle_density": 0.1,
           "velocity": 0.3,
@@ -51,7 +65,10 @@
             "mode": "spectral",
             "primary": "#112233",
             "secondary": "#445566"
-          }
+          },
+          "state_entered_at": "2026-03-21T00:00:00Z",
+          "state_duration_ms": 0,
+          "transition_reason": "fixture_seed"
         },
         "renderer_controls": {
           "base_shape": "helix",
@@ -83,8 +100,13 @@
           },
           "runtime_profile": "deterministic"
         },
-        "shader_uniforms": {"chromatic_aberration": 0.08, "turbulence": 0.2},
-        "particle_targets": {"count": 5000},
+        "shader_uniforms": {
+          "chromatic_aberration": 0.08,
+          "turbulence": 0.2
+        },
+        "particle_targets": {
+          "count": 5000
+        },
         "force_field_descriptors": []
       },
       "runtime_tick_policy": {

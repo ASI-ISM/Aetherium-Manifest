@@ -12,6 +12,7 @@ export interface FormationReference {
 }
 
 export interface ParticleControlContract {
+  state: string;
   velocity: number;
   turbulence: number;
   cohesion: number;
@@ -178,6 +179,7 @@ function isLclPayload(value: unknown): value is LightControlLanguage {
       candidate.motion?.archetype &&
       candidate.optics?.palette &&
       candidate.constraints?.max_targets &&
+      candidate.particle_control?.state &&
       candidate.particle_control?.flow_direction,
   );
 }
@@ -286,6 +288,7 @@ function deriveParticleControl(params: {
   rhythm_hz: number;
 }): ParticleControlContract {
   return {
+    state: params.turbulence >= 0.2 ? 'GENERATING' : 'STABILIZED',
     velocity: clampNumber(0.25 + params.coherence_target * 0.5, 0, 1),
     turbulence: clampNumber(params.turbulence, 0, 1),
     cohesion: clampNumber(params.coherence_target, 0, 1),

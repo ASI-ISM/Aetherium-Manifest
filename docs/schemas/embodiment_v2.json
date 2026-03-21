@@ -19,6 +19,7 @@
           "additionalProperties": false,
           "required": [
             "state",
+            "state_entered_at",
             "shape",
             "particle_density",
             "velocity",
@@ -28,19 +29,27 @@
             "glow_intensity",
             "flicker",
             "attractor",
-            "palette"
+            "palette",
+            "state_duration_ms",
+            "transition_reason"
           ],
           "properties": {
             "state": {
               "type": "string",
               "enum": [
-                "idle",
-                "thinking",
-                "searching",
-                "responding",
-                "warning",
-                "error",
-                "transcendent"
+                "IDLE",
+                "LISTENING",
+                "GENERATING",
+                "THINKING",
+                "CONFIRMING",
+                "RESPONDING",
+                "WARNING",
+                "ERROR",
+                "STABILIZED",
+                "NIRODHA",
+                "SENSOR_PENDING_PERMISSION",
+                "SENSOR_ACTIVE",
+                "SENSOR_UNAVAILABLE"
               ]
             },
             "shape": {
@@ -141,6 +150,17 @@
                   "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$"
                 }
               }
+            },
+            "state_entered_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "state_duration_ms": {
+              "type": "number",
+              "minimum": 0.0
+            },
+            "transition_reason": {
+              "type": "string"
             }
           }
         },

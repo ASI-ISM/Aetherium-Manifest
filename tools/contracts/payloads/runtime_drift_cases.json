@@ -13,7 +13,7 @@
         },
         "particle_control": {
           "intent_state": {
-            "state": "thinking",
+            "state": "THINKING",
             "shape": "spiral_vortex",
             "particle_density": 0.24,
             "velocity": 0.6,
@@ -27,7 +27,10 @@
               "mode": "spectral",
               "primary": "#800080",
               "secondary": "#00FFFF"
-            }
+            },
+            "state_entered_at": "2026-03-21T00:00:00Z",
+            "state_duration_ms": 0,
+            "transition_reason": "fixture_seed"
           },
           "renderer_controls": {
             "base_shape": "spiral_vortex",
@@ -161,7 +164,7 @@
         },
         "particle_control": {
           "intent_state": {
-            "state": "warning",
+            "state": "WARNING",
             "shape": "ring",
             "particle_density": 0.008,
             "velocity": 0.2,
@@ -175,7 +178,10 @@
               "mode": "spectral",
               "primary": "#DC143C",
               "secondary": "#FFB3C1"
-            }
+            },
+            "state_entered_at": "2026-03-21T00:00:00Z",
+            "state_duration_ms": 0,
+            "transition_reason": "fixture_seed"
           },
           "renderer_controls": {
             "base_shape": "ring",

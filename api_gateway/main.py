@@ -66,6 +66,22 @@ MODEL_PROVIDER_MAP = {
     "claude-3-opus": "anthropic",
 }
 
+STATE_PROFILES: dict[str, dict[str, Any]] = {
+    "IDLE": {"density": 0.10, "velocity": 0.08, "turbulence": 0.04, "cohesion": 0.92, "flow": "still", "glow": 0.28, "flicker": 0.01, "palette": {"mode": "adaptive", "primary": "#8EEEFF", "secondary": "#DFFAFF", "accent": "#FFFFFF"}},
+    "LISTENING": {"density": 0.18, "velocity": 0.16, "turbulence": 0.08, "cohesion": 0.84, "flow": "clockwise", "glow": 0.38, "flicker": 0.03, "palette": {"mode": "adaptive", "primary": "#00E5FF", "secondary": "#7AE8FF", "accent": "#DFFAFF"}},
+    "GENERATING": {"density": 0.42, "velocity": 0.58, "turbulence": 0.34, "cohesion": 0.56, "flow": "clockwise", "glow": 0.66, "flicker": 0.10, "palette": {"mode": "spectral", "primary": "#7C3AED", "secondary": "#FFD166", "accent": "#FFF3B0"}},
+    "THINKING": {"density": 0.36, "velocity": 0.46, "turbulence": 0.24, "cohesion": 0.68, "flow": "counterclockwise", "glow": 0.58, "flicker": 0.06, "palette": {"mode": "adaptive", "primary": "#00F5FF", "secondary": "#7C3AED", "accent": "#DFFAFF"}},
+    "CONFIRMING": {"density": 0.28, "velocity": 0.22, "turbulence": 0.10, "cohesion": 0.82, "flow": "inward", "glow": 0.54, "flicker": 0.03, "palette": {"mode": "dual_tone", "primary": "#36C6FF", "secondary": "#FFFFFF", "accent": "#B8F2FF"}},
+    "RESPONDING": {"density": 0.44, "velocity": 0.52, "turbulence": 0.18, "cohesion": 0.72, "flow": "outward", "glow": 0.72, "flicker": 0.07, "palette": {"mode": "spectral", "primary": "#FFD166", "secondary": "#FF8C42", "accent": "#FFF3B0"}},
+    "WARNING": {"density": 0.24, "velocity": 0.20, "turbulence": 0.12, "cohesion": 0.88, "flow": "still", "glow": 0.70, "flicker": 0.02, "palette": {"mode": "thermal", "primary": "#FFB347", "secondary": "#FF8800", "accent": "#FFF0C2"}},
+    "ERROR": {"density": 0.16, "velocity": 0.12, "turbulence": 0.06, "cohesion": 0.94, "flow": "still", "glow": 0.82, "flicker": 0.00, "palette": {"mode": "thermal", "primary": "#FF6B6B", "secondary": "#A52A2A", "accent": "#FFD6D6"}},
+    "STABILIZED": {"density": 0.22, "velocity": 0.14, "turbulence": 0.05, "cohesion": 0.90, "flow": "still", "glow": 0.40, "flicker": 0.01, "palette": {"mode": "adaptive", "primary": "#4CC9FF", "secondary": "#DFFAFF", "accent": "#FFFFFF"}},
+    "NIRODHA": {"density": 0.05, "velocity": 0.02, "turbulence": 0.01, "cohesion": 0.98, "flow": "still", "glow": 0.12, "flicker": 0.00, "palette": {"mode": "monochrome", "primary": "#0B1026", "secondary": "#402A6E", "accent": "#0B1026"}},
+    "SENSOR_PENDING_PERMISSION": {"density": 0.14, "velocity": 0.10, "turbulence": 0.03, "cohesion": 0.90, "flow": "still", "glow": 0.34, "flicker": 0.02, "palette": {"mode": "adaptive", "primary": "#7AE8FF", "secondary": "#B8F2FF", "accent": "#FFFFFF"}},
+    "SENSOR_ACTIVE": {"density": 0.30, "velocity": 0.42, "turbulence": 0.20, "cohesion": 0.70, "flow": "centripetal", "glow": 0.60, "flicker": 0.05, "palette": {"mode": "spectral", "primary": "#00E5FF", "secondary": "#36C6FF", "accent": "#DFFAFF"}},
+    "SENSOR_UNAVAILABLE": {"density": 0.12, "velocity": 0.08, "turbulence": 0.02, "cohesion": 0.93, "flow": "still", "glow": 0.30, "flicker": 0.01, "palette": {"mode": "dual_tone", "primary": "#94A3B8", "secondary": "#CBD5E1", "accent": "#E2E8F0"}},
+}
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ALLOWED_ORIGINS,
@@ -115,6 +131,9 @@ class ParticlePalette(BaseModel):
 class IntentState(BaseModel):
     state: str
     shape: str
+    state_entered_at: datetime | None = None
+    state_duration_ms: float = Field(default=0.0, ge=0.0)
+    transition_reason: str | None = None
     particle_density: float = Field(ge=0.0, le=1.0)
     velocity: float = Field(ge=0.0, le=1.0)
     turbulence: float = Field(ge=0.0, le=1.0)
@@ -569,6 +588,50 @@ def _clamp(value: float, minimum: float, maximum: float) -> float:
     return max(minimum, min(maximum, value))
 
 
+def _normalize_state_name(state: str | None) -> str:
+    return (state or "IDLE").strip().replace("-", "_").replace(" ", "_").upper()
+
+
+def _resolve_state_profile(state: str | None) -> dict[str, Any]:
+    return STATE_PROFILES.get(_normalize_state_name(state), STATE_PROFILES["IDLE"])
+
+
+def _resolve_capability_state(state: str | None, capability: DeviceCapabilityState) -> str:
+    normalized = _normalize_state_name(state)
+    if normalized.startswith("SENSOR_"):
+        return normalized
+    if not capability.supports_motion_sensors or capability.motion_sensor_permission == "denied":
+        return "SENSOR_UNAVAILABLE"
+    if capability.motion_sensor_permission == "prompt":
+        return "SENSOR_PENDING_PERMISSION"
+    return normalized
+
+
+def _evaluate_state_transition(control: ParticleControlContract, context: GovernorContext) -> dict[str, Any]:
+    requested_state = _resolve_capability_state(control.intent_state.state, context.device_capability)
+    last_state = _normalize_state_name(context.last_accepted_command.intent_state.state) if context.last_accepted_command else "IDLE"
+    state_entered_at = control.intent_state.state_entered_at or datetime.now(timezone.utc)
+    if state_entered_at.tzinfo is None:
+        state_entered_at = state_entered_at.replace(tzinfo=timezone.utc)
+    previous_entered_at = context.last_accepted_command.intent_state.state_entered_at if context.last_accepted_command else None
+    if previous_entered_at is None:
+        duration_ms = 0.0
+    else:
+        if previous_entered_at.tzinfo is None:
+            previous_entered_at = previous_entered_at.replace(tzinfo=timezone.utc)
+        duration_ms = max(0.0, (state_entered_at - previous_entered_at).total_seconds() * 1000)
+    transition_reason = control.intent_state.transition_reason or (
+        "state_unchanged" if requested_state == last_state else f"state_transition:{last_state}->{requested_state}"
+    )
+    return {
+        "requested_state": requested_state,
+        "last_state": last_state,
+        "state_entered_at": state_entered_at,
+        "state_duration_ms": duration_ms,
+        "transition_reason": transition_reason,
+    }
+
+
 def _particle_control_to_visual_manifestation(control: ParticleControlContract, visual: VisualManifestation) -> VisualManifestation:
     manifested = visual.model_copy(deep=True)
     manifested.base_shape = control.renderer_controls.base_shape
@@ -589,9 +652,27 @@ def _apply_governor_constraints(
     runtime_visual: VisualManifestation,
 ) -> GovernorResult:
     accepted = control.model_copy(deep=True)
+    transition = _evaluate_state_transition(accepted, context)
+    profile = _resolve_state_profile(transition["requested_state"])
     rejected_fields: list[str] = []
     fallback_reason: str | None = None
     policy_block_count = 0
+
+    accepted.intent_state.state = transition["requested_state"]
+    accepted.intent_state.state_entered_at = transition["state_entered_at"]
+    accepted.intent_state.state_duration_ms = transition["state_duration_ms"]
+    accepted.intent_state.transition_reason = transition["transition_reason"]
+    accepted.intent_state.particle_density = _clamp(accepted.intent_state.particle_density, 0.0, 1.0)
+    accepted.intent_state.velocity = _clamp(accepted.intent_state.velocity or profile["velocity"], 0.0, 1.0)
+    accepted.intent_state.turbulence = _clamp(accepted.intent_state.turbulence or profile["turbulence"], 0.0, 0.85)
+    accepted.intent_state.cohesion = _clamp(accepted.intent_state.cohesion or profile["cohesion"], 0.0, 1.0)
+    accepted.intent_state.glow_intensity = _clamp(accepted.intent_state.glow_intensity or profile["glow"], 0.0, 1.0)
+    accepted.intent_state.flicker = _clamp(accepted.intent_state.flicker or profile["flicker"], 0.0, 1.0)
+    accepted.intent_state.flow_direction = accepted.intent_state.flow_direction or profile["flow"]
+    accepted.intent_state.palette.mode = accepted.intent_state.palette.mode or profile["palette"]["mode"]
+    accepted.intent_state.palette.primary = accepted.intent_state.palette.primary or profile["palette"]["primary"]
+    accepted.intent_state.palette.secondary = accepted.intent_state.palette.secondary or profile["palette"]["secondary"]
+    accepted.intent_state.palette.accent = accepted.intent_state.palette.accent or profile["palette"]["accent"]
 
     max_particles = FIRMA_CONSTRAINTS["max_particles_by_tier"].get(runtime_visual.device_tier, 5_000)
     capability_max = context.device_capability.max_particle_count
@@ -600,20 +681,20 @@ def _apply_governor_constraints(
     if context.device_capability.low_power_mode:
         max_particles = min(max_particles, 2_000)
         accepted.renderer_controls.runtime_profile = "low_power"
-        rejected_fields.append("renderer_controls.runtime_profile")
+        accepted.intent_state.state = "WARNING"
+        accepted.intent_state.transition_reason = "device_low_power_mode"
+        rejected_fields.extend(["renderer_controls.runtime_profile", "intent_state.state"])
 
     if accepted.renderer_controls.particle_count > max_particles:
         accepted.renderer_controls.particle_count = max_particles
         rejected_fields.append("renderer_controls.particle_count")
 
-    accepted.intent_state.turbulence = _clamp(accepted.intent_state.turbulence, 0.0, 0.85)
-    accepted.intent_state.velocity = _clamp(accepted.intent_state.velocity, 0.0, 1.0)
-    accepted.intent_state.glow_intensity = _clamp(accepted.intent_state.glow_intensity, 0.0, 1.0)
-
-    if accepted.intent_state.state == "warning" and accepted.intent_state.palette.primary.upper() == "#DC143C":
+    if accepted.intent_state.state == "WARNING" and accepted.intent_state.palette.primary.upper() == "#DC143C":
         if not runtime_visual.emergency_override:
             policy_block_count += 1
-            rejected_fields.append("intent_state.palette.primary")
+            accepted.intent_state.state = "WARNING"
+            accepted.intent_state.transition_reason = "reserved_emergency_palette"
+            rejected_fields.extend(["intent_state.state", "intent_state.palette.primary"])
             accepted.intent_state.palette.primary = "#FF8800"
             fallback_reason = "reserved_emergency_palette"
 
@@ -621,19 +702,26 @@ def _apply_governor_constraints(
         not context.device_capability.supports_motion_sensors
         or context.device_capability.motion_sensor_permission != "granted"
     ):
+        accepted.intent_state.state = _resolve_capability_state("SENSOR_PENDING_PERMISSION", context.device_capability)
+        accepted.intent_state.transition_reason = "sensor_permission_denied"
         accepted.intent_state.flow_direction = "still"
         accepted.renderer_controls.flow_field = "still"
-        rejected_fields.extend(["intent_state.flow_direction", "renderer_controls.flow_field"])
+        rejected_fields.extend(["intent_state.state", "intent_state.flow_direction", "renderer_controls.flow_field"])
         fallback_reason = fallback_reason or "sensor_permission_denied"
 
     if context.human_override.force_safe_mode:
+        accepted.intent_state.state = "CONFIRMING"
+        accepted.intent_state.transition_reason = "human_override_safe_mode"
         accepted.intent_state.turbulence = min(accepted.intent_state.turbulence, 0.2)
         accepted.renderer_controls.runtime_profile = "deterministic"
         fallback_reason = fallback_reason or "human_override_safe_mode"
-        rejected_fields.extend(["intent_state.turbulence", "renderer_controls.runtime_profile"])
+        rejected_fields.extend(["intent_state.state", "intent_state.turbulence", "renderer_controls.runtime_profile"])
 
     if context.human_override.locked_command is not None:
         accepted = context.human_override.locked_command.model_copy(deep=True)
+        accepted.intent_state.state_entered_at = transition["state_entered_at"]
+        accepted.intent_state.state_duration_ms = transition["state_duration_ms"]
+        accepted.intent_state.transition_reason = "human_override_locked_command"
         fallback_reason = "human_override_locked_command"
         rejected_fields.append("*")
 
@@ -642,6 +730,10 @@ def _apply_governor_constraints(
         "policy_block_count": policy_block_count,
         "rejected_fields": rejected_fields,
         "device_capability": context.device_capability.model_dump(),
+        "state": accepted.intent_state.state,
+        "state_entered_at": accepted.intent_state.state_entered_at.isoformat() if accepted.intent_state.state_entered_at else None,
+        "state_duration_ms": accepted.intent_state.state_duration_ms,
+        "transition_reason": accepted.intent_state.transition_reason,
     }
     return GovernorResult(
         accepted_command=accepted,
@@ -815,7 +907,7 @@ def _run_runtime_guard(
 ) -> tuple[RuntimeGuardResult, VisualManifestation]:
     default_control = ParticleControlContract(
         intent_state=IntentState(
-            state="idle",
+            state="IDLE",
             shape=visual.base_shape,
             particle_density=min(1.0, visual.particle_physics.particle_count / 50000),
             velocity=0.5,

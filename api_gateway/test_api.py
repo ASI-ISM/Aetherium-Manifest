@@ -161,7 +161,7 @@ def _valid_emit_payload() -> dict:
             "intent_vector": {"category": "guide", "emotional_valence": 0.2, "energy_level": 0.7},
             "particle_control": {
                 "intent_state": {
-                    "state": "thinking",
+                    "state": "THINKING",
                     "shape": "ring",
                     "particle_density": 0.3,
                     "velocity": 0.8,
@@ -223,3 +223,7 @@ def test_emit_returns_governor_result(client: TestClient) -> None:
     assert payload["governor_result"]["fallback_reason"] in {"device_low_power_mode", "sensor_permission_denied", "containment:soft_clamp", "containment:deterministic_anchor_replay", "containment:hard_rollback_legacy"}
     assert "renderer_controls.particle_count" in payload["governor_result"]["rejected_fields"]
     assert payload["visual_manifestation"]["particle_physics"]["flow_direction"] == "still"
+    assert payload["governor_result"]["accepted_command"]["intent_state"]["state"] in {"WARNING", "SENSOR_PENDING_PERMISSION", "SENSOR_UNAVAILABLE"}
+    assert payload["governor_result"]["telemetry_logging"]["state_entered_at"]
+    assert payload["governor_result"]["telemetry_logging"]["state_duration_ms"] >= 0
+    assert payload["governor_result"]["telemetry_logging"]["transition_reason"]

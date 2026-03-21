@@ -78,6 +78,7 @@ globalThis.fetch = (async (url: string | URL) => {
         constraints: { max_targets: 14000, max_photons: 7000, max_energy: 1.6 },
         source_text: 'create a golden spiral',
         particle_control: {
+          state: 'THINKING',
           velocity: 0.7,
           turbulence: 0.2,
           cohesion: 0.8,

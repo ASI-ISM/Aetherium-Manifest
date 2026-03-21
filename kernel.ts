@@ -56,6 +56,22 @@ interface RendererState {
   flicker: number;
 }
 
+const STATE_PROFILES: Record<string, Partial<ParticleControlContract>> = {
+  IDLE: { velocity: 0.08, turbulence: 0.04, cohesion: 0.92, flow_direction: 'still', glow_intensity: 0.28, flicker: 0.01, attractor: 'core' },
+  LISTENING: { velocity: 0.16, turbulence: 0.08, cohesion: 0.84, flow_direction: 'clockwise', glow_intensity: 0.38, flicker: 0.03, attractor: 'orbit' },
+  GENERATING: { velocity: 0.58, turbulence: 0.34, cohesion: 0.56, flow_direction: 'clockwise', glow_intensity: 0.66, flicker: 0.10, attractor: 'axis' },
+  THINKING: { velocity: 0.46, turbulence: 0.24, cohesion: 0.68, flow_direction: 'counterclockwise', glow_intensity: 0.58, flicker: 0.06, attractor: 'core' },
+  CONFIRMING: { velocity: 0.22, turbulence: 0.10, cohesion: 0.82, flow_direction: 'inward', glow_intensity: 0.54, flicker: 0.03, attractor: 'core' },
+  RESPONDING: { velocity: 0.52, turbulence: 0.18, cohesion: 0.72, flow_direction: 'outward', glow_intensity: 0.72, flicker: 0.07, attractor: 'halo' },
+  WARNING: { velocity: 0.20, turbulence: 0.12, cohesion: 0.88, flow_direction: 'still', glow_intensity: 0.70, flicker: 0.02, attractor: 'core' },
+  ERROR: { velocity: 0.12, turbulence: 0.06, cohesion: 0.94, flow_direction: 'still', glow_intensity: 0.82, flicker: 0.00, attractor: 'core' },
+  STABILIZED: { velocity: 0.14, turbulence: 0.05, cohesion: 0.90, flow_direction: 'still', glow_intensity: 0.40, flicker: 0.01, attractor: 'core' },
+  NIRODHA: { velocity: 0.02, turbulence: 0.01, cohesion: 0.98, flow_direction: 'still', glow_intensity: 0.12, flicker: 0.00, attractor: 'none' },
+  SENSOR_PENDING_PERMISSION: { velocity: 0.10, turbulence: 0.03, cohesion: 0.90, flow_direction: 'still', glow_intensity: 0.34, flicker: 0.02, attractor: 'core' },
+  SENSOR_ACTIVE: { velocity: 0.42, turbulence: 0.20, cohesion: 0.70, flow_direction: 'centripetal', glow_intensity: 0.60, flicker: 0.05, attractor: 'axis' },
+  SENSOR_UNAVAILABLE: { velocity: 0.08, turbulence: 0.02, cohesion: 0.93, flow_direction: 'still', glow_intensity: 0.30, flicker: 0.01, attractor: 'core' },
+};
+
 export class ParticleControlSurface {
   private readonly viewport: Viewport;
   private readonly time: number;
@@ -66,14 +82,18 @@ export class ParticleControlSurface {
   readonly drift: PhotonDriftState;
 
   constructor(control: ParticleControlContract, viewport: Viewport, time: number, coherence: number) {
-    this.control = control;
+    const profile = STATE_PROFILES[String(control.state ?? 'IDLE').toUpperCase()] ?? STATE_PROFILES.IDLE;
+    this.control = {
+      ...profile,
+      ...control,
+    };
     this.viewport = viewport;
     this.time = time;
     this.coherence = clamp(coherence, 0, 1);
-    this.rhythm = (control.rhythm_hz ?? 0.1) * Math.PI * 2;
+    this.rhythm = (this.control.rhythm_hz ?? 0.1) * Math.PI * 2;
     this.renderer = {
-      glowIntensity: clamp(control.glow_intensity, 0, 1),
-      flicker: clamp(control.flicker, 0, 1),
+      glowIntensity: clamp(this.control.glow_intensity, 0, 1),
+      flicker: clamp(this.control.flicker, 0, 1),
     };
     this.drift = {
       damping: 0.86 + (this.coherence * 0.08),
