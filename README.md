@@ -46,24 +46,44 @@ Manifest is the visual language of Aetherium intelligence.
 
 ## System Architecture
 
-The Aetherium ecosystem is composed of three major layers:
+The current prototype architecture centers on the runtime telemetry database shape that connects the frontend scene, API gateway, and query path:
 
 ```text
-┌─────────────────────────────────────┐
-│           AETHERIUM MANIFEST        │
-│     Visual Cognition Interface      │
-└─────────────────────────────────────┘
-                  ▲
-                  │
-           AetherBus Transport
-          (API + WebSocket Events)
-                  │
-                  ▼
-┌─────────────────────────────────────┐
-│          AETHERIUM GENESIS          │
-│        Cognitive Intelligence       │
-└─────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                         AETHERIUM MANIFEST                          │
+│      Frontend runtime / HUD / particle scene / voice controls       │
+│   emits fps, dropped_frames, particle_count, average_velocity,      │
+│              last_ai_command, policy_block_count                    │
+└───────────────────────────────┬──────────────────────────────────────┘
+                                │ POST /api/v1/telemetry/ingest
+                                ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                      API GATEWAY TELEMETRY LAYER                    │
+│      TelemetryPoint { metric, value, ts, tags } validation          │
+│               async lock + append/trim ingestion path               │
+└───────────────────────────────┬──────────────────────────────────────┘
+                                │ partition by metric
+                                ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                 TELEMETRY_TS_DB (in-memory prototype)               │
+│          dict[str, list[dict[str, Any]]] time-series store          │
+│   metric -> [ {metric, value, ts, tags}, ... latest 2500 points ]   │
+└───────────────────────────────┬──────────────────────────────────────┘
+                                │ GET /api/v1/telemetry/query
+                                ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                  Query + Aggregation Response Layer                 │
+│               count / mean / p95 / latest by window                 │
+└───────────────────────────────┬──────────────────────────────────────┘
+                                │
+                                ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│            Manifest HUD / operators / future TSDB adapters          │
+│      dashboarding, alerting, replay, feedback-loop modulation       │
+└──────────────────────────────────────────────────────────────────────┘
 ```
+
+This diagram reflects the implementation now documented under **Runtime Database Structure (Current)**, where telemetry is buffered in memory before being queried, surfaced to the HUD, or swapped behind a future persistent adapter.
 
 ### System Layers
 
@@ -496,7 +516,7 @@ python3 tools/benchmarks/runtime_semantic_benchmark.py --input tools/benchmarks/
 
 ## Research & Engineering Roadmap
 
-Future directions:
+Future directions only (completed suggestion items have been removed from both the English and Thai sections to keep this roadmap focused on active follow-on work):
 
 - **Distributed Runtime State**  
   Move mutable runtime state to Redis for multi-worker consistency.
@@ -522,20 +542,31 @@ Future directions:
 - **Session Replay**  
   Timeline scrub + event bookmarks for debugging intent/telemetry behavior.
 
+- **Telemetry Tiered Retention**  
+  Add hot/warm/cold retention tiers so short-window diagnostics remain fast while long-window summaries stay queryable.
+
+- **Operator Query Presets**  
+  Package reusable telemetry query profiles for safety-watch, motion-stability, and performance triage workflows.
+
+- **Runtime Anomaly Detection**  
+  Detect outlier combinations such as `fps` collapse + `policy_block_count` spikes and publish operator-facing alerts.
+
 ### AI Agent Implementable Extension Proposals
 
-- **Aetherium Motion Knowledge Base Runtime Mapper**
-  - Implement a deterministic mapper module that converts `cognitive_state` + `dynamic_parameters` to runtime visual parameters (color, brightness, speed, density, coherence, jitter).
-- **State Transition Interpolation Engine**
-  - Add a transition profile layer (cubic/cosine easing, duration presets, interruption handling) for smooth `from -> to` cognitive-state animation.
-- **Telemetry-to-Manifest Feedback Loop**
-  - Feed queried telemetry (latency/drift/load) back into visual modulation to expose live runtime health directly in the Manifest scene.
-- **Policy-Risk Visual Override Service**
-  - Centralize warning/error overrides so high `policy_risk` deterministically enforces Solar Orange/Plasma Red semantics across renderers.
-- **TSDB Adapter Abstraction**
-  - Introduce a storage adapter interface (`InMemory`, `InfluxDB`, `TimescaleDB`) while keeping the current API response format stable.
-- **Manifest Contract Test Generator**
-  - Generate test vectors from canonical schemas + knowledge-base tables to auto-verify backend/renderer semantic alignment.
+- **Telemetry Metric Taxonomy Normalizer**
+  - Add an agent-managed normalization layer for metric names and `tags` so ingestion remains consistent across frontend builds, test fixtures, and future workers.
+- **Retention and Downsampling Planner**
+  - Generate per-metric retention/downsampling policies and verify them against the current `window_seconds` query contract before rollout.
+- **Scene Health Anomaly Detector**
+  - Build a detector that correlates `fps`, `dropped_frames`, `particle_count`, `average_velocity`, and `policy_block_count` into actionable HUD warnings.
+- **Telemetry Session Replay Packager**
+  - Produce replay bundles that combine telemetry slices, event bookmarks, and last accepted command context for incident review.
+- **Operator Dashboard Query Preset Manager**
+  - Manage named telemetry presets, export/import them, and align preset schemas with API query semantics.
+- **Adaptive Runtime Governor Hook**
+  - Trigger bounded automated actions when telemetry thresholds are crossed, such as lowering particle budgets or forcing safer palette modes.
+- **Documentation Drift Sync Agent**
+  - Compare runtime telemetry fields and endpoint behavior against `README.md`/`docs` and open automated updates when implementation drift is detected.
 
 ---
 
@@ -633,14 +664,15 @@ Gateway: `http://localhost:8000` (เอกสาร API ที่ `/docs`)
 โครงสร้างนี้เหมาะกับการพัฒนา/ทดสอบแบบ deterministic และสามารถย้ายไปใช้ TSDB จริงใน production โดยคงสัญญา API เดิมได้.
 
 ### แนวทางต่อยอด
-รายละเอียดแผนระยะถัดไปถูกรวมไว้เพียงจุดเดียวในส่วน **Research & Engineering Roadmap** ด้านภาษาอังกฤษ เพื่อลดข้อมูลซ้ำซ้อนและให้มีแหล่งอ้างอิงเดียวของระบบ.
+รายละเอียดแผนระยะถัดไปถูกรวมไว้เพียงจุดเดียวในส่วน **Research & Engineering Roadmap** ด้านภาษาอังกฤษ เพื่อลดข้อมูลซ้ำซ้อนและให้มีแหล่งอ้างอิงเดียวของระบบ โดยตัดรายการข้อเสนอที่ทำเสร็จแล้วออกจากทั้งสองภาษาเพื่อไม่ให้ปะปนกับงานที่ยังอยู่ระหว่างดำเนินการ.
 
 ### รายการฟังก์ชัน/แนวทางขยายที่ AI Agent สามารถทำต่อได้
-- ตัวแปลงสถานะความคิด (`cognitive_state`) + ค่าน้ำหนักเชิงพลวัต ไปเป็นพารามิเตอร์ภาพตาม Aetherium Motion Knowledge Base
-- เอนจิน transition ระหว่าง state ด้วย easing และกฎ from→to ที่กำหนดไว้
-- วงจร feedback จาก telemetry เพื่อปรับแสง/การเคลื่อนไหวแบบเรียลไทม์
-- ระบบ override ด้าน policy risk ให้แสดง WARNING/ERROR อย่างสม่ำเสมอทุก renderer
-- abstraction layer สำหรับสลับ backend ของ telemetry DB (in-memory/InfluxDB/TimescaleDB)
-- ตัวสร้างชุดทดสอบอัตโนมัติจาก schema + knowledge base เพื่อตรวจความสอดคล้อง backend/frontend
+- ตัวจำแนก metric และสร้างแท็กอัตโนมัติ เพื่อ normalize `tags` ตามแหล่งที่มา/ฉากทดสอบ/รุ่นอุปกรณ์ก่อนจัดเก็บลง telemetry
+- ระบบ downsampling และ retention tiers สำหรับ query window หลายระดับ เพื่อเตรียมย้ายจาก in-memory ไปสู่ persistent TSDB โดยไม่เปลี่ยนสัญญา API
+- Scene anomaly detector ที่อ่าน `fps`, `dropped_frames`, `average_velocity` และ `policy_block_count` เพื่อแจ้งเตือนความผิดปกติบน HUD แบบ proactive
+- Telemetry session replay package ที่รวมช่วงเวลา metric + event bookmark เพื่อย้อนดูพฤติกรรมของ intent และ renderer หลังเกิด incident
+- Query preset manager สำหรับ operator dashboard เช่น latency-health, motion-stability, safety-watch พร้อมแชร์ preset ข้าม session
+- Agent orchestration hook สำหรับสั่ง action อัตโนมัติเมื่อค่า telemetry ข้าม threshold เช่น ลด particle budget, สลับ safe palette, หรือเปิดโหมด low-power
+- Runtime/README schema sync bot ที่เปรียบเทียบ field telemetry ในโค้ดกับเอกสาร แล้วเปิด PR เมื่อพบ drift
 
 ---
