@@ -474,6 +474,8 @@ The prototype gateway currently uses an in-memory time-series structure for tele
 
 This structure is designed for deterministic local/runtime testing. For production durability, move to a persistent TSDB backend while preserving endpoint contracts.
 
+Current frontend/kernel runtime telemetry mirrors the proposed control-plane observability fields and now tracks `fps`, `dropped_frames`, `particle_count`, `average_velocity`, `last_ai_command`, and `policy_block_count` before forwarding or persisting samples.
+
 ---
 
 ## Validation & Tests

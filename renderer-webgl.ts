@@ -1,20 +1,57 @@
-import particleVertexSource from './particle.vert.glsl';
-import particleFragmentSource from './particle.frag.glsl';
-import glowFragmentSource from './glow.frag.glsl';
+const particleVertexSource = `#version 300 es
+precision highp float;
+in vec2 a_position;
+in vec3 a_color;
+out vec3 v_color;
+void main() {
+  v_color = a_color;
+  gl_Position = vec4(a_position, 0.0, 1.0);
+  gl_PointSize = 2.5;
+}`;
 
-interface ParticleLike {
-  pos: { x: number; y: number };
-  color: number[];
+const particleFragmentSource = `#version 300 es
+precision highp float;
+in vec3 v_color;
+uniform float u_glowAlpha;
+out vec4 fragColor;
+void main() {
+  fragColor = vec4(v_color, u_glowAlpha);
+}`;
+
+const glowFragmentSource = `#version 300 es
+precision highp float;
+in vec3 v_color;
+uniform float u_glowAlpha;
+out vec4 fragColor;
+void main() {
+  vec2 uv = gl_PointCoord - vec2(0.5);
+  float halo = exp(-12.0 * dot(uv, uv));
+  fragColor = vec4(v_color * 1.25, halo * u_glowAlpha);
+}`;
+
+export interface RendererPhotonSnapshot {
+  x: number;
+  y: number;
+  color: [number, number, number];
+}
+
+export interface RendererFrameSnapshot {
+  width: number;
+  height: number;
+  glowAlpha: number;
+  photons: RendererPhotonSnapshot[];
 }
 
 export class RendererWebGL {
-  private gl: WebGL2RenderingContext;
-  private particleProgram: WebGLProgram;
-  private glowProgram: WebGLProgram;
-  private positionBuffer: WebGLBuffer;
-  private colorBuffer: WebGLBuffer;
+  private readonly canvas: HTMLCanvasElement;
+  private readonly gl: WebGL2RenderingContext;
+  private readonly particleProgram: WebGLProgram;
+  private readonly glowProgram: WebGLProgram;
+  private readonly positionBuffer: WebGLBuffer;
+  private readonly colorBuffer: WebGLBuffer;
 
-  constructor(private readonly canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement) {
+    this.canvas = canvas;
     const gl = canvas.getContext('webgl2', { alpha: false, premultipliedAlpha: false });
     if (!gl) {
       throw new Error('WebGL2 unavailable');
@@ -27,36 +64,40 @@ export class RendererWebGL {
     this.colorBuffer = must(gl.createBuffer(), 'color buffer');
   }
 
-  render(photons: ParticleLike[], width: number, height: number, glowAlpha: number): void {
+  get context(): WebGL2RenderingContext {
+    return this.gl;
+  }
+
+  render(frame: RendererFrameSnapshot): void {
     const gl = this.gl;
-    gl.viewport(0, 0, width, height);
+    gl.viewport(0, 0, frame.width, frame.height);
     gl.clearColor(0.003, 0.003, 0.008, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
-    const positions = new Float32Array(photons.length * 2);
-    const colors = new Float32Array(photons.length * 3);
-    for (let i = 0; i < photons.length; i++) {
-      const p = photons[i];
-      positions[i * 2] = (p.pos.x / width) * 2 - 1;
-      positions[i * 2 + 1] = 1 - (p.pos.y / height) * 2;
-      colors[i * 3] = p.color[0];
-      colors[i * 3 + 1] = p.color[1];
-      colors[i * 3 + 2] = p.color[2];
+    const positions = new Float32Array(frame.photons.length * 2);
+    const colors = new Float32Array(frame.photons.length * 3);
+    for (let i = 0; i < frame.photons.length; i++) {
+      const photon = frame.photons[i];
+      positions[i * 2] = (photon.x / frame.width) * 2 - 1;
+      positions[i * 2 + 1] = 1 - (photon.y / frame.height) * 2;
+      colors[i * 3] = photon.color[0];
+      colors[i * 3 + 1] = photon.color[1];
+      colors[i * 3 + 2] = photon.color[2];
     }
 
     gl.useProgram(this.particleProgram);
     bindAttribute(gl, this.particleProgram, this.positionBuffer, 'a_position', positions, 2);
     bindAttribute(gl, this.particleProgram, this.colorBuffer, 'a_color', colors, 3);
-    gl.uniform1f(gl.getUniformLocation(this.particleProgram, 'u_glowAlpha'), glowAlpha);
-    gl.drawArrays(gl.POINTS, 0, photons.length);
+    gl.uniform1f(gl.getUniformLocation(this.particleProgram, 'u_glowAlpha'), frame.glowAlpha);
+    gl.drawArrays(gl.POINTS, 0, frame.photons.length);
 
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.ONE, gl.ONE);
     gl.useProgram(this.glowProgram);
     bindAttribute(gl, this.glowProgram, this.positionBuffer, 'a_position', positions, 2);
     bindAttribute(gl, this.glowProgram, this.colorBuffer, 'a_color', colors, 3);
-    gl.uniform1f(gl.getUniformLocation(this.glowProgram, 'u_glowAlpha'), glowAlpha * 0.5);
-    gl.drawArrays(gl.POINTS, 0, photons.length);
+    gl.uniform1f(gl.getUniformLocation(this.glowProgram, 'u_glowAlpha'), frame.glowAlpha * 0.5);
+    gl.drawArrays(gl.POINTS, 0, frame.photons.length);
     gl.disable(gl.BLEND);
   }
 }

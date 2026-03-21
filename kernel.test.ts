@@ -13,12 +13,41 @@ class MockCanvasElement {
       return {
         BLEND: 1,
         ONE: 1,
+        POINTS: 0,
+        ARRAY_BUFFER: 0x8892,
+        DYNAMIC_DRAW: 0x88E8,
+        FLOAT: 0x1406,
         COLOR_BUFFER_BIT: 0x4000,
         RGBA: 0x1908,
         UNSIGNED_BYTE: 0x1401,
+        VERTEX_SHADER: 0x8B31,
+        FRAGMENT_SHADER: 0x8B30,
+        LINK_STATUS: 0x8B82,
+        COMPILE_STATUS: 0x8B81,
+        createBuffer: () => ({}),
+        createProgram: () => ({}),
+        createShader: () => ({}),
+        shaderSource: () => {},
+        compileShader: () => {},
+        getShaderParameter: () => true,
+        getShaderInfoLog: () => '',
+        attachShader: () => {},
+        linkProgram: () => {},
+        getProgramParameter: () => true,
+        getProgramInfoLog: () => '',
+        bindBuffer: () => {},
+        bufferData: () => {},
+        getAttribLocation: () => 0,
+        enableVertexAttribArray: () => {},
+        vertexAttribPointer: () => {},
+        getUniformLocation: () => ({}),
+        uniform1f: () => {},
+        useProgram: () => {},
+        drawArrays: () => {},
         clear: () => {},
         clearColor: () => {},
         enable: () => {},
+        disable: () => {},
         blendFunc: () => {},
         viewport: () => {},
         readPixels: () => {},
@@ -46,8 +75,11 @@ globalThis.window = { innerWidth: 800, innerHeight: 600 } as Window & typeof glo
 globalThis.document = {
   createElement: () => new MockCanvasElement(),
 } as Document;
+let rafCalls = 0;
 globalThis.requestAnimationFrame = ((cb: FrameRequestCallback) => {
-  return 1;
+  rafCalls += 1;
+  if (rafCalls === 1) cb(16.67);
+  return rafCalls;
 }) as typeof requestAnimationFrame;
 globalThis.cancelAnimationFrame = (() => {}) as typeof cancelAnimationFrame;
 globalThis.fetch = (async (url: string | URL) => {
@@ -108,6 +140,7 @@ test('AetheriumKernel initializes without errors', () => {
   });
 
   assert.ok(kernel instanceof AetheriumKernel);
+  assert.equal(kernel.getTelemetrySnapshot().particle_count, 7000);
 });
 
 test('AetheriumKernel handles a user request and can reset state', async () => {
@@ -120,9 +153,11 @@ test('AetheriumKernel handles a user request and can reset state', async () => {
 
   await kernel.handleUserLightRequest('create a golden spiral');
   assert.equal(kernel.getLCLSchema()?.version, '4.0');
+  assert.equal(kernel.getTelemetrySnapshot().last_ai_command, 'create a golden spiral');
 
   kernel.resetToVoid();
   assert.equal(kernel.getLCLSchema(), null);
+  assert.equal(kernel.getTelemetrySnapshot().last_ai_command, null);
 });
 
 test('AetheriumKernel resizes and can start-stop animation safely', () => {
@@ -136,5 +171,5 @@ test('AetheriumKernel resizes and can start-stop animation safely', () => {
   kernel.resize(1920, 1080);
   kernel.start();
   kernel.stop();
-  assert.ok(true);
+  assert.ok(kernel.getTelemetrySnapshot().fps > 0);
 });
