@@ -2,7 +2,7 @@ import {
   interpretWithBackendLLM,
   normalizeLCL,
 } from './light-control-language.ts';
-import type { LightControlLanguage } from './light-control-language.ts';
+import type { LightControlLanguage, ParticleControlContract } from './light-control-language.ts';
 import {
   loadFormationBundle,
   mergeRetrievedFormation,
@@ -37,6 +37,109 @@ interface Photon {
   retargetCooldown: number;
 }
 
+interface PhotonMotionState {
+  attractorForce: number;
+  flow: [number, number];
+  turbulence: number;
+  damping: number;
+  glowBlend: number;
+  flicker: number;
+}
+
+interface PhotonDriftState {
+  damping: number;
+  glowFade: number;
+}
+
+interface RendererState {
+  glowIntensity: number;
+  flicker: number;
+}
+
+export class ParticleControlSurface {
+  private readonly viewport: Viewport;
+  private readonly time: number;
+  private readonly control: ParticleControlContract;
+  private readonly rhythm: number;
+  private readonly coherence: number;
+  readonly renderer: RendererState;
+  readonly drift: PhotonDriftState;
+
+  constructor(control: ParticleControlContract, viewport: Viewport, time: number, coherence: number) {
+    this.control = control;
+    this.viewport = viewport;
+    this.time = time;
+    this.coherence = clamp(coherence, 0, 1);
+    this.rhythm = (control.rhythm_hz ?? 0.1) * Math.PI * 2;
+    this.renderer = {
+      glowIntensity: clamp(control.glow_intensity, 0, 1),
+      flicker: clamp(control.flicker, 0, 1),
+    };
+    this.drift = {
+      damping: 0.86 + (this.coherence * 0.08),
+      glowFade: 0.94 + (this.renderer.glowIntensity * 0.04),
+    };
+  }
+
+  static fromLCL(lcl: LightControlLanguage, viewport: Viewport, time: number, coherence: number): ParticleControlSurface {
+    return new ParticleControlSurface(lcl.particle_control, viewport, time, coherence);
+  }
+
+  nextPhotonState(photon: Photon, target: CompiledField['points'][number]): PhotonMotionState {
+    const dx = target.x - photon.pos[0];
+    const dy = target.y - photon.pos[1];
+    const dist = Math.hypot(dx, dy) || 1;
+    const cohesion = clamp(this.control.cohesion, 0, 1);
+    const velocity = clamp(this.control.velocity, 0, 1);
+    const attractorForce = Math.min(dist * (0.03 + cohesion * 0.05), 1 + velocity * 6) * (0.25 + velocity * 0.75);
+
+    return {
+      attractorForce,
+      flow: this.sampleFlowField(photon.pos[0], photon.pos[1]),
+      turbulence: (1 - this.coherence) * (0.2 + this.control.turbulence * 5),
+      damping: 0.84 + cohesion * 0.12,
+      glowBlend: 0.04 + this.renderer.glowIntensity * 0.18,
+      flicker: (Math.random() - 0.5) * this.renderer.flicker * 0.08,
+    };
+  }
+
+  private sampleFlowField(x: number, y: number): [number, number] {
+    const { width, height } = this.viewport;
+    const cx = width * 0.5;
+    const cy = height * 0.5;
+    const dx = x - cx;
+    const dy = y - cy;
+    const len = Math.hypot(dx, dy) || 1;
+    const velocity = 0.15 + this.control.velocity * 1.1;
+    const turbulence = this.control.turbulence;
+    const waveX = Math.sin(y * 0.006 + this.time * this.rhythm);
+    const waveY = Math.cos(x * 0.005 - this.time * (this.rhythm * 0.8 + 0.2));
+    const attractorSign = this.control.attractor === 'edge' ? -1 : 1;
+
+    switch (this.control.flow_direction) {
+      case 'clockwise':
+      case 'orbit':
+        return [(-dy / len) * velocity, (dx / len) * velocity];
+      case 'counterclockwise':
+        return [(dy / len) * velocity, (-dx / len) * velocity];
+      case 'inward':
+      case 'centripetal':
+        return [(-dx / len) * velocity * attractorSign, (-dy / len) * velocity * attractorSign];
+      case 'outward':
+      case 'centrifugal':
+        return [(dx / len) * velocity * attractorSign, (dy / len) * velocity * attractorSign];
+      case 'upward':
+        return [waveX * velocity * 0.25, -velocity + waveY * turbulence * 0.35];
+      case 'ribbon':
+        return [waveX * velocity, waveY * velocity * 0.35];
+      case 'still':
+        return [0, 0];
+      default:
+        return [waveX * velocity * (0.4 + turbulence * 0.3), waveY * velocity * (0.35 + turbulence * 0.25)];
+    }
+  }
+}
+
 export class AetheriumKernel {
   private readonly gl: WebGL2RenderingContext;
   private readonly config: Required<KernelConfig>;
@@ -53,10 +156,7 @@ export class AetheriumKernel {
 
   private coherence = 0.1;
   private coherenceTarget = 0.1;
-  private force = 0.0;
-  private flowMag = 0.8;
-  private noiseMax = 5.0;
-  private damp = 0.92;
+  private controlSurface: ParticleControlSurface | null = null;
 
   constructor(config: KernelConfig) {
     this.config = {
@@ -106,18 +206,17 @@ export class AetheriumKernel {
 
       this.applyLCL(enriched);
     } catch (error) {
-      console.error("Error handling user light request:", error);
-      // Optionally, update the UI to show an error state.
+      console.error('Error handling user light request:', error);
     }
   }
 
   resetToVoid(): void {
-    this.pipelineRevision++; // Invalidate any pending operations
+    this.pipelineRevision++;
     this.lcl = null;
     this.compiledField = null;
-    this.initParticles(); // Reset photons to a default state
-    // The render loop will naturally fade to the void state.
-    console.log("Kernel reset to void.");
+    this.controlSurface = null;
+    this.initParticles();
+    console.log('Kernel reset to void.');
   }
 
   getLCLSchema(): LightControlLanguage | null {
@@ -171,16 +270,13 @@ export class AetheriumKernel {
     gl.clearColor(0.01, 0.01, 0.015, 1.0);
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.ONE, gl.ONE);
-    // Production: Create buffers, programs, glow pass framebuffer, and ping-pong accumulation.
   }
 
   private applyLCL(lcl: LightControlLanguage): void {
     this.lcl = lcl;
-    this.coherence = lcl.runtime_bias?.coherenceStart ?? 0.12;
+    this.coherence = lcl.particle_control.cohesion;
     this.coherenceTarget = lcl.motion.coherence_target;
-    this.force = 0.15 * (lcl.runtime_bias?.forceBias ?? 1.0);
-    this.flowMag = 0.7 * (lcl.runtime_bias?.flowBias ?? 1.0);
-    this.noiseMax = 5.0 * (lcl.runtime_bias?.noiseBias ?? 0.6);
+    this.controlSurface = ParticleControlSurface.fromLCL(lcl, this.viewport, this.time, this.coherence);
 
     if (lcl.intent === 'create_glyph') {
       const alphaMask = this.renderGlyphToAlphaMask(lcl.content.text ?? 'AETHERIUM');
@@ -217,18 +313,18 @@ export class AetheriumKernel {
   }
 
   private updatePhotons(): void {
-    if (!this.compiledField || this.compiledField.points.length === 0) {
-        // If there's no field, let particles drift and fade.
-        for (const photon of this.photons) {
-            photon.vel[0] *= 0.95;
-            photon.vel[1] *= 0.95;
-            photon.pos[0] += photon.vel[0];
-            photon.pos[1] += photon.vel[1];
-            photon.color[0] *= 0.97;
-            photon.color[1] *= 0.97;
-            photon.color[2] *= 0.97;
-        }
-        return;
+    const controlSurface = this.controlSurface;
+    if (!controlSurface || !this.compiledField || this.compiledField.points.length === 0) {
+      for (const photon of this.photons) {
+        photon.vel[0] *= controlSurface?.drift.damping ?? 0.95;
+        photon.vel[1] *= controlSurface?.drift.damping ?? 0.95;
+        photon.pos[0] += photon.vel[0];
+        photon.pos[1] += photon.vel[1];
+        photon.color[0] *= controlSurface?.drift.glowFade ?? 0.97;
+        photon.color[1] *= controlSurface?.drift.glowFade ?? 0.97;
+        photon.color[2] *= controlSurface?.drift.glowFade ?? 0.97;
+      }
+      return;
     }
 
     const points = this.compiledField.points;
@@ -251,65 +347,32 @@ export class AetheriumKernel {
       const dx = target.x - photon.pos[0];
       const dy = target.y - photon.pos[1];
       const dist = Math.hypot(dx, dy) || 1;
-      const pull = Math.min(dist * 0.05, 5) * this.force;
+      const state = controlSurface.nextPhotonState(photon, target);
 
-      const flow = this.sampleFlowField(photon.pos[0], photon.pos[1]);
-      const noiseGain = (1 - this.coherence) * this.noiseMax;
-
-      photon.vel[0] = (photon.vel[0] + (dx / dist) * pull + flow[0] + (Math.random() - 0.5) * noiseGain) * this.damp;
-      photon.vel[1] = (photon.vel[1] + (dy / dist) * pull + flow[1] + (Math.random() - 0.5) * noiseGain) * this.damp;
+      photon.vel[0] = (photon.vel[0] + (dx / dist) * state.attractorForce + state.flow[0] + (Math.random() - 0.5) * state.turbulence) * state.damping;
+      photon.vel[1] = (photon.vel[1] + (dy / dist) * state.attractorForce + state.flow[1] + (Math.random() - 0.5) * state.turbulence) * state.damping;
       photon.pos[0] += photon.vel[0];
       photon.pos[1] += photon.vel[1];
 
-      photon.color[0] += (target.color[0] - photon.color[0]) * 0.1;
-      photon.color[1] += (target.color[1] - photon.color[1]) * 0.1;
-      photon.color[2] += (target.color[2] - photon.color[2]) * 0.1;
+      photon.color[0] += (target.color[0] - photon.color[0]) * state.glowBlend + state.flicker;
+      photon.color[1] += (target.color[1] - photon.color[1]) * state.glowBlend + state.flicker;
+      photon.color[2] += (target.color[2] - photon.color[2]) * state.glowBlend + state.flicker;
     }
-  }
-
-  private sampleFlowField(x: number, y: number): [number, number] {
-    const mode = this.lcl?.motion.flow_mode ?? 'calm_drift';
-    const { width, height } = this.viewport;
-    const cx = width * 0.5;
-    const cy = height * 0.5;
-    const localRhythm = (this.lcl?.motion.rhythm_hz ?? 0.1) * 6.28318;
-
-    if (mode === 'upward_spiral') {
-      const angle = Math.sin(x * 0.0025 + this.time * localRhythm) + Math.cos(y * 0.003 - this.time * 0.4);
-      return [Math.cos(angle) * this.flowMag * 0.7, -this.flowMag * 0.65 + Math.sin(angle) * this.flowMag * 0.3];
-    }
-
-    if (mode === 'orbit') {
-      const dx = x - cx;
-      const dy = y - cy;
-      const len = Math.hypot(dx, dy) || 1;
-      return [(-dy / len) * this.flowMag, (dx / len) * this.flowMag];
-    }
-
-    if (mode === 'radial') {
-      const dx = x - cx;
-      const dy = y - cy;
-      const len = Math.hypot(dx, dy) || 1;
-      return [(dx / len) * this.flowMag * 0.6, (dy / len) * this.flowMag * 0.6];
-    }
-
-    if (mode === 'ribbon') {
-      return [Math.sin(y * 0.01 + this.time * localRhythm) * this.flowMag, Math.cos(x * 0.004 - this.time * localRhythm) * this.flowMag * 0.35];
-    }
-
-    return [Math.sin(y * 0.006 + this.time * localRhythm) * this.flowMag * 0.55, Math.cos(x * 0.005 - this.time * localRhythm) * this.flowMag * 0.45];
   }
 
   private renderFrame(): void {
     this.time += 0.016;
+    if (this.lcl) {
+      this.controlSurface = ParticleControlSurface.fromLCL(this.lcl, this.viewport, this.time, this.coherence);
+    }
     this.frameCounter += 1;
     this.updatePhotons();
 
     const gl = this.gl;
     gl.clear(gl.COLOR_BUFFER_BIT);
 
-    // Production: Upload photon positions/colors to GPU buffers and draw points.
-    // Production: Render glow pass to FBO, then composite to screen.
+    // Production renderer boundary: upload the photon buffer to Canvas/WebGL/etc.
+    // Motion and behavior rules remain in ParticleControlSurface, so the renderer can swap independently.
   }
 
   private async runPerceptualFeedback(): Promise<void> {
@@ -327,25 +390,35 @@ export class AetheriumKernel {
     }));
 
     try {
-        const metrics = await this.evaluator.evaluate(
-          { width, height, rgba: pixels },
-          this.compiledField,
-          photonSample,
-        );
+      const metrics = await this.evaluator.evaluate(
+        { width, height, rgba: pixels },
+        this.compiledField,
+        photonSample,
+      );
 
-        const next = feedbackAdjustments(
-          metrics,
-          this.coherence,
-          this.lcl.motion.coherence_target,
-          this.flowMag,
-          this.noiseMax,
-        );
+      const next = feedbackAdjustments(
+        metrics,
+        this.coherence,
+        this.lcl.motion.coherence_target,
+        this.lcl.particle_control.velocity,
+        0.2 + this.lcl.particle_control.turbulence * 5,
+      );
 
-        this.coherence = next.coherence;
-        this.flowMag = next.flowMag;
-        this.noiseMax = next.noiseMax;
+      this.coherence = next.coherence;
+      const nextVelocity = clamp(next.flowMag / 1.1, 0, 1);
+      const nextTurbulence = clamp((next.noiseMax - 0.2) / 5, 0, 1);
+      this.lcl = {
+        ...this.lcl,
+        particle_control: {
+          ...this.lcl.particle_control,
+          velocity: nextVelocity,
+          turbulence: nextTurbulence,
+          cohesion: next.coherence,
+        },
+      };
+      this.controlSurface = ParticleControlSurface.fromLCL(this.lcl, this.viewport, this.time, this.coherence);
     } catch (error) {
-        console.warn("Perceptual feedback failed:", error);
+      console.warn('Perceptual feedback failed:', error);
     }
   }
 }

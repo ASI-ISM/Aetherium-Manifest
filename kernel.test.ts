@@ -77,6 +77,16 @@ globalThis.fetch = (async (url: string | URL) => {
         content: { text: null, scene_recipe: null },
         constraints: { max_targets: 14000, max_photons: 7000, max_energy: 1.6 },
         source_text: 'create a golden spiral',
+        particle_control: {
+          velocity: 0.7,
+          turbulence: 0.2,
+          cohesion: 0.8,
+          flow_direction: 'still',
+          glow_intensity: 0.6,
+          flicker: 0.1,
+          attractor: 'core',
+          rhythm_hz: 0.2,
+        },
       },
     }));
   }

@@ -11,6 +11,17 @@ export interface FormationReference {
   score?: number;
 }
 
+export interface ParticleControlContract {
+  velocity: number;
+  turbulence: number;
+  cohesion: number;
+  flow_direction: string;
+  glow_intensity: number;
+  flicker: number;
+  attractor: string;
+  rhythm_hz?: number;
+}
+
 export interface LightControlLanguage {
   version: string;
   intent: 'create_light_form' | 'create_glyph' | 'create_scene';
@@ -49,13 +60,7 @@ export interface LightControlLanguage {
   };
   source_text: string;
   retrieved_formation?: FormationReference;
-  runtime_bias?: {
-    forceBias?: number;
-    flowBias?: number;
-    noiseBias?: number;
-    coherenceStart?: number;
-    archetypePhrase?: string;
-  };
+  particle_control: ParticleControlContract;
 }
 
 const DEFAULT_TIMEOUT_MS = 6_000;
@@ -95,7 +100,6 @@ export async function generateLightControlLanguage(text: string): Promise<LightC
   return fallbackHeuristicLcl(text);
 }
 
-// backward-compat alias for older kernel imports
 export const mockLocalLightModel = generateLightControlLanguage;
 
 export async function interpretWithBackendLLM(
@@ -157,6 +161,11 @@ export function normalizeLCL(lcl: Partial<LightControlLanguage>): LightControlLa
       ...fallback.constraints,
       ...lcl.constraints,
     },
+    particle_control: {
+      ...fallback.particle_control,
+      ...lcl.particle_control,
+      rhythm_hz: lcl.particle_control?.rhythm_hz ?? lcl.motion?.rhythm_hz ?? fallback.particle_control.rhythm_hz,
+    },
   };
 }
 
@@ -168,7 +177,8 @@ function isLclPayload(value: unknown): value is LightControlLanguage {
       candidate.morphology?.family &&
       candidate.motion?.archetype &&
       candidate.optics?.palette &&
-      candidate.constraints?.max_targets,
+      candidate.constraints?.max_targets &&
+      candidate.particle_control?.flow_direction,
   );
 }
 
@@ -185,6 +195,7 @@ function fallbackHeuristicLcl(text: string): LightControlLanguage {
   let density = 0.76;
   let scale = 0.35;
   let textContent = null;
+  let rhythm_hz = 0.2;
 
   if (/เกลียว|vortex|spiral|หมุน|คิด/.test(text)) {
     family = 'spiral_vortex';
@@ -219,8 +230,10 @@ function fallbackHeuristicLcl(text: string): LightControlLanguage {
     turbulence = 0.2;
   }
 
+  rhythm_hz = /ช้า|สงบ|gentle/.test(text) ? 0.08 : 0.2;
+
   return {
-    version: '3.0',
+    version: '4.0',
     intent: render_mode,
     morphology: {
       family,
@@ -234,7 +247,7 @@ function fallbackHeuristicLcl(text: string): LightControlLanguage {
       flow_mode,
       coherence_target,
       turbulence,
-      rhythm_hz: /ช้า|สงบ|gentle/.test(text) ? 0.08 : 0.2,
+      rhythm_hz,
       attack_ms: /เร็ว|ทันที|fast/.test(text) ? 250 : 700,
       settle_ms: /เร็ว|ทันที|fast/.test(text) ? 400 : 1200,
     },
@@ -255,10 +268,56 @@ function fallbackHeuristicLcl(text: string): LightControlLanguage {
       max_energy: 1.6,
     },
     source_text: text,
+    particle_control: deriveParticleControl({
+      flow_mode,
+      coherence_target,
+      turbulence,
+      luminance_boost: /เรือง|สว่าง|glow/.test(text) ? 1.65 : 1.25,
+      rhythm_hz,
+    }),
   };
 }
 
+function deriveParticleControl(params: {
+  flow_mode: string;
+  coherence_target: number;
+  turbulence: number;
+  luminance_boost: number;
+  rhythm_hz: number;
+}): ParticleControlContract {
+  return {
+    velocity: clampNumber(0.25 + params.coherence_target * 0.5, 0, 1),
+    turbulence: clampNumber(params.turbulence, 0, 1),
+    cohesion: clampNumber(params.coherence_target, 0, 1),
+    flow_direction: mapFlowDirection(params.flow_mode),
+    glow_intensity: clampNumber(0.45 + (params.luminance_boost - 1) * 0.4, 0, 1),
+    flicker: clampNumber(params.turbulence * 0.35, 0, 1),
+    attractor: params.coherence_target >= 0.85 ? 'core' : 'axis',
+    rhythm_hz: params.rhythm_hz,
+  };
+}
+
+function mapFlowDirection(flowMode: string): string {
+  switch (flowMode) {
+    case 'orbit':
+      return 'clockwise';
+    case 'radial':
+      return 'outward';
+    case 'upward_spiral':
+      return 'upward';
+    case 'ribbon':
+      return 'ribbon';
+    case 'calm_drift':
+    default:
+      return 'still';
+  }
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
 function extractQuotedText(text: string): string | null {
-  const m = text.match(/["“”']([^"“”']+)["“”']/);
-  return m ? m[1] : null;
+  const match = text.match(/["'“”](.+?)["'“”]/);
+  return match?.[1] ?? null;
 }

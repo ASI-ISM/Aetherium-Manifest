@@ -2,87 +2,291 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Light Control Language (LCL)",
   "type": "object",
-  "required": ["intent", "morphology", "motion", "optics", "constraints"],
+  "required": [
+    "intent",
+    "morphology",
+    "motion",
+    "optics",
+    "constraints",
+    "particle_control"
+  ],
   "properties": {
-    "version": { "type": "string", "default": "3.1" },
+    "version": {
+      "type": "string",
+      "default": "3.1"
+    },
     "intent": {
       "type": "object",
-      "required": ["user_request", "primary_goal"],
+      "required": [
+        "user_request",
+        "primary_goal"
+      ],
       "properties": {
-        "user_request": { "type": "string" },
-        "primary_goal": { "type": "string" },
-        "abstraction_level": { "enum": ["concrete", "symbolic", "abstract"] },
-        "mode": { "enum": ["symbol", "world", "shape", "scene", "motion", "feedback", "auto"] }
+        "user_request": {
+          "type": "string"
+        },
+        "primary_goal": {
+          "type": "string"
+        },
+        "abstraction_level": {
+          "enum": [
+            "concrete",
+            "symbolic",
+            "abstract"
+          ]
+        },
+        "mode": {
+          "enum": [
+            "symbol",
+            "world",
+            "shape",
+            "scene",
+            "motion",
+            "feedback",
+            "auto"
+          ]
+        }
       }
     },
     "morphology": {
       "type": "object",
-      "required": ["family"],
+      "required": [
+        "family"
+      ],
       "properties": {
-        "family": { "type": "string" },
-        "symmetry": { "type": "integer", "minimum": 1, "maximum": 12 },
-        "edge_softness": { "type": "number", "minimum": 0, "maximum": 1 },
-        "density": { "type": "number", "minimum": 0, "maximum": 1 }
+        "family": {
+          "type": "string"
+        },
+        "symmetry": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12
+        },
+        "edge_softness": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "density": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
       }
     },
     "motion": {
       "type": "object",
-      "required": ["archetype", "flow_mode"],
+      "required": [
+        "archetype",
+        "flow_mode"
+      ],
       "properties": {
-        "archetype": { "type": "string" },
-        "tempo_hz": { "type": "number", "minimum": 0.1, "maximum": 4 },
-        "coherence_target": { "type": "number", "minimum": 0, "maximum": 1 },
-        "flow_mode": { "type": "string" },
-        "attack_ms": { "type": "integer", "minimum": 50 },
-        "settle_ms": { "type": "integer", "minimum": 50 },
-        "release_ms": { "type": "integer", "minimum": 50 }
+        "archetype": {
+          "type": "string"
+        },
+        "tempo_hz": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 4
+        },
+        "coherence_target": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "flow_mode": {
+          "type": "string"
+        },
+        "attack_ms": {
+          "type": "integer",
+          "minimum": 50
+        },
+        "settle_ms": {
+          "type": "integer",
+          "minimum": 50
+        },
+        "release_ms": {
+          "type": "integer",
+          "minimum": 50
+        }
       }
     },
     "motion_bias": {
       "type": "object",
       "properties": {
-        "archetype": { "type": "string" },
-        "rhythm_hz": { "type": "number", "minimum": 0.05, "maximum": 4 },
-        "attack": { "type": "number", "minimum": 0, "maximum": 1 },
-        "settling": { "type": "number", "minimum": 0, "maximum": 1 },
-        "drift": { "type": "number", "minimum": 0, "maximum": 1 },
-        "collapse_tendency": { "type": "number", "minimum": 0, "maximum": 1 }
+        "archetype": {
+          "type": "string"
+        },
+        "rhythm_hz": {
+          "type": "number",
+          "minimum": 0.05,
+          "maximum": 4
+        },
+        "attack": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "settling": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "drift": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "collapse_tendency": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
       }
     },
     "optics": {
       "type": "object",
       "properties": {
-        "palette_mode": { "type": "string" },
-        "primary_colors": { "type": "array", "items": { "type": "string" } },
-        "secondary_colors": { "type": "array", "items": { "type": "string" } },
-        "glow_strength": { "type": "number", "minimum": 0, "maximum": 1 },
-        "luminance": { "type": "number", "minimum": 0, "maximum": 1 }
+        "palette_mode": {
+          "type": "string"
+        },
+        "primary_colors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "secondary_colors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "glow_strength": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "luminance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
       }
     },
     "field": {
       "type": "object",
       "properties": {
-        "coherence": { "type": "number", "minimum": 0, "maximum": 1 },
-        "turbulence": { "type": "number", "minimum": 0, "maximum": 1 },
-        "flow_magnitude": { "type": "number", "minimum": 0, "maximum": 1 },
-        "noise_level": { "type": "number", "minimum": 0, "maximum": 1 },
-        "vorticity": { "type": "number", "minimum": -1, "maximum": 1 }
+        "coherence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "turbulence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "flow_magnitude": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "noise_level": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "vorticity": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        }
       }
     },
     "constraints": {
       "type": "object",
       "properties": {
-        "max_targets": { "type": "integer", "minimum": 100 },
-        "max_particles": { "type": "integer", "minimum": 100 },
-        "max_energy": { "type": "number", "minimum": 0.1 },
-        "max_brightness": { "type": "number", "minimum": 0, "maximum": 1 }
+        "max_targets": {
+          "type": "integer",
+          "minimum": 100
+        },
+        "max_particles": {
+          "type": "integer",
+          "minimum": 100
+        },
+        "max_energy": {
+          "type": "number",
+          "minimum": 0.1
+        },
+        "max_brightness": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
       }
     },
     "safety": {
       "type": "object",
       "properties": {
-        "max_targets": { "type": "integer", "minimum": 100 },
-        "max_particle_energy": { "type": "number", "minimum": 0.1 }
+        "max_targets": {
+          "type": "integer",
+          "minimum": 100
+        },
+        "max_particle_energy": {
+          "type": "number",
+          "minimum": 0.1
+        }
+      }
+    },
+    "particle_control": {
+      "type": "object",
+      "required": [
+        "velocity",
+        "turbulence",
+        "cohesion",
+        "flow_direction",
+        "glow_intensity",
+        "flicker",
+        "attractor"
+      ],
+      "properties": {
+        "velocity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "turbulence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "cohesion": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "flow_direction": {
+          "type": "string"
+        },
+        "glow_intensity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "flicker": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "attractor": {
+          "type": "string"
+        },
+        "rhythm_hz": {
+          "type": "number",
+          "minimum": 0.05,
+          "maximum": 4
+        }
       }
     }
   }

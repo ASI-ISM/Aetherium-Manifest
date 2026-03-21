@@ -22,10 +22,13 @@ export interface FormationAnnotation {
   id: string;
   semanticTags?: string[];
   preferredFamilies?: string[];
-  forceBias?: number;
-  flowBias?: number;
-  noiseBias?: number;
-  coherenceStart?: number;
+  velocity?: number;
+  flowDirection?: string;
+  turbulence?: number;
+  cohesion?: number;
+  glowIntensity?: number;
+  flicker?: number;
+  attractor?: string;
   notes?: string;
 }
 
@@ -127,12 +130,15 @@ export function mergeRetrievedFormation(
   return {
     ...lcl,
     retrieved_formation: retrieved.reference,
-    runtime_bias: {
-      forceBias: annotation?.forceBias ?? 0.8,
-      flowBias: annotation?.flowBias ?? 0.7,
-      noiseBias: annotation?.noiseBias ?? 0.6,
-      coherenceStart: annotation?.coherenceStart ?? 0.12,
-      archetypePhrase: annotation?.notes ?? retrieved.reference.title,
+    particle_control: {
+      ...lcl.particle_control,
+      velocity: annotation?.velocity ?? lcl.particle_control.velocity,
+      flow_direction: annotation?.flowDirection ?? lcl.particle_control.flow_direction,
+      turbulence: annotation?.turbulence ?? lcl.particle_control.turbulence,
+      cohesion: annotation?.cohesion ?? lcl.particle_control.cohesion,
+      glow_intensity: annotation?.glowIntensity ?? lcl.particle_control.glow_intensity,
+      flicker: annotation?.flicker ?? lcl.particle_control.flicker,
+      attractor: annotation?.attractor ?? lcl.particle_control.attractor,
     },
   };
 }
