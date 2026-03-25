@@ -46,41 +46,41 @@ Manifest is the visual language of Aetherium intelligence.
 
 ## System Architecture
 
-The current prototype architecture is centered on runtime state semantics and the telemetry database structure, with one mutation authority and a closed feedback loop back to rendering:
+The current prototype architecture is centered on runtime state semantics and the runtime database structure, with the Governor as the single mutation authority and telemetry/state-sync stores modeled explicitly:
 
 ```text
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                          STATE CONTRACT (Schema = ABI)                      │
-│  versioned payloads + evolution rules + shared meaning across FE/BE         │
-└────────────────────────────────┬─────────────────────────────────────────────┘
-                                 │ validated envelopes
-                                 ▼
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                     GOVERNOR (single mutation authority)                    │
-│                 the only runtime path allowed to mutate state               │
-└───────────────┬───────────────────────────────────────────────┬──────────────┘
-                │                                               │
-                │ state updates                                 │ telemetry points
-                ▼                                               ▼
-┌─────────────────────────────────────────────┐   ┌─────────────────────────────┐
-│ FRONTEND RUNTIME / HUD / SCENE GRAPH       │   │ TELEMETRY INGEST API         │
-│ consumes canonical state, renders meaning   │   │ TelemetryPoint validate/trim │
-└──────────────────────────┬──────────────────┘   └──────────────┬──────────────┘
-                           │                                     │ partition by metric
-                           │                                     ▼
-                           │                ┌────────────────────────────────────┐
-                           │                │ TELEMETRY_TS_DB (in-memory)        │
-                           │                │ dict[str, list[point]] max 2500    │
-                           │                └────────────────┬───────────────────┘
-                           │                                 │ query window
-                           │                                 ▼
-                           │                ┌────────────────────────────────────┐
-                           │                │ Query + Aggregation Layer          │
-                           │                │ count / mean / p95 / latest        │
-                           │                └────────────────┬───────────────────┘
-                           │                                 │ operator + runtime signals
-                           └─────────────────────────────────┴─────────────────────────────►
-                                     telemetry-driven visual modulation / alerts / replay
+┌──────────────────────────────────────────────────────────────────────────────────────────────┐
+│                              AI PARTICLE CONTROL CONTRACT (Schema = ABI)                    │
+│                  versioned envelopes for intent_state + renderer_controls                    │
+└──────────────────────────────────────────────┬───────────────────────────────────────────────┘
+                                               │ validate + normalize
+                                               ▼
+┌──────────────────────────────────────────────────────────────────────────────────────────────┐
+│                           RUNTIME GOVERNOR (canonical middleware)                            │
+│              schema check • state profile map • clamp • fallback • policy block             │
+└───────────────────────┬─────────────────────────────────────────────┬────────────────────────┘
+                        │ accepted canonical state                     │ telemetry events
+                        ▼                                              ▼
+┌───────────────────────────────────────────────┐        ┌─────────────────────────────────────┐
+│ FRONTEND RUNTIME (Manifest / HUD / Renderer) │        │ TELEMETRY INGEST + QUERY API        │
+│ consumes governor-approved state only          │        │ validate points + aggregate windows  │
+└───────────────────────┬───────────────────────┘        └──────────────┬──────────────────────┘
+                        │ websocket state updates                        │
+                        │                                                │ writes/reads
+                        ▼                                                ▼
+         ┌─────────────────────────────────────┐          ┌─────────────────────────────────────┐
+         │ STATE_SYNC_ROOMS (in-memory)       │          │ TELEMETRY_TS_DB (in-memory TSDB)   │
+         │ dict[room_id, StateSyncRoom]       │          │ dict[metric, list[point]]          │
+         │ version + shared_state + user_state│          │ trim latest 2500 points / metric   │
+         └──────────────────┬──────────────────┘          └──────────────────┬──────────────────┘
+                            │ snapshots / broadcast                           │
+                            ▼                                                 ▼
+                  ┌──────────────────────────────┐                 ┌──────────────────────────────┐
+                  │ /ws/state-sync/{room_id}    │                 │ /api/v1/telemetry/query      │
+                  │ multi-user state visibility │                 │ count / mean / p95 / latest  │
+                  └──────────────────────────────┘                 └──────────────┬───────────────┘
+                                                                                   ▼
+                                                                  telemetry-driven HUD + alerts
 ```
 
 This diagram aligns with the current implementation documented under **Runtime Database Structure (Current)**:
@@ -555,23 +555,6 @@ Future directions only:
 - **Runtime Anomaly Detection**  
   Detect outlier combinations such as `fps` collapse + `policy_block_count` spikes and publish operator-facing alerts.
 
-### AI Agent Implementable Extension Proposals
-
-- **Telemetry Metric Taxonomy Normalizer**
-  - Add an agent-managed normalization layer for metric names and `tags` so ingestion remains consistent across frontend builds, test fixtures, and future workers.
-- **Retention and Downsampling Planner**
-  - Generate per-metric retention/downsampling policies and verify them against the current `window_seconds` query contract before rollout.
-- **Scene Health Anomaly Detector**
-  - Build a detector that correlates `fps`, `dropped_frames`, `particle_count`, `average_velocity`, and `policy_block_count` into actionable HUD warnings.
-- **Telemetry Session Replay Packager**
-  - Produce replay bundles that combine telemetry slices, event bookmarks, and last accepted command context for incident review.
-- **Operator Dashboard Query Preset Manager**
-  - Manage named telemetry presets, export/import them, and align preset schemas with API query semantics.
-- **Adaptive Runtime Governor Hook**
-  - Trigger bounded automated actions when telemetry thresholds are crossed, such as lowering particle budgets or forcing safer palette modes.
-- **Documentation Drift Sync Agent**
-  - Compare runtime telemetry fields and endpoint behavior against `README.md`/`docs` and open automated updates when implementation drift is detected.
-
 ---
 
 ## AM-UI Color System
@@ -670,13 +653,7 @@ Gateway: `http://localhost:8000` (เอกสาร API ที่ `/docs`)
 ### แนวทางต่อยอด
 รายละเอียดแผนระยะถัดไปถูกรวมไว้เพียงจุดเดียวในส่วน **Research & Engineering Roadmap** ด้านภาษาอังกฤษ เพื่อลดข้อมูลซ้ำซ้อนและให้มีแหล่งอ้างอิงเดียวของระบบ.
 
-### รายการฟังก์ชัน/แนวทางขยายที่ AI Agent สามารถทำต่อได้
-- ตัวจำแนก metric และสร้างแท็กอัตโนมัติ เพื่อ normalize `tags` ตามแหล่งที่มา/ฉากทดสอบ/รุ่นอุปกรณ์ก่อนจัดเก็บลง telemetry
-- ระบบ downsampling และ retention tiers สำหรับ query window หลายระดับ เพื่อเตรียมย้ายจาก in-memory ไปสู่ persistent TSDB โดยไม่เปลี่ยนสัญญา API
-- Scene anomaly detector ที่อ่าน `fps`, `dropped_frames`, `average_velocity` และ `policy_block_count` เพื่อแจ้งเตือนความผิดปกติบน HUD แบบ proactive
-- Telemetry session replay package ที่รวมช่วงเวลา metric + event bookmark เพื่อย้อนดูพฤติกรรมของ intent และ renderer หลังเกิด incident
-- Query preset manager สำหรับ operator dashboard เช่น latency-health, motion-stability, safety-watch พร้อมแชร์ preset ข้าม session
-- Agent orchestration hook สำหรับสั่ง action อัตโนมัติเมื่อค่า telemetry ข้าม threshold เช่น ลด particle budget, สลับ safe palette, หรือเปิดโหมด low-power
-- Runtime/README schema sync bot ที่เปรียบเทียบ field telemetry ในโค้ดกับเอกสาร แล้วเปิด PR เมื่อพบ drift
+### หมายเหตุการจัดการข้อเสนอแนะ
+รายการ “ข้อเสนอแนะที่ทำเสร็จแล้ว” ถูกลบออกจาก README ทั้งภาษาอังกฤษและภาษาไทยแล้ว เพื่อแยกงานที่ปิดแล้วออกจาก roadmap ที่ยังดำเนินการอยู่.
 
 ---
