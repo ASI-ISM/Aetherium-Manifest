@@ -356,6 +356,11 @@ SCALAR_PATHS = [
 SAFE_SENSOR_STATES = {"LISTENING", "SENSOR_ACTIVE"}
 MAX_SHADER_UNIFORMS = 16
 MAX_TELEMETRY_EVENTS = 2048
+PSYCHO_SAFETY_LIMITS = {
+    "flicker": 0.12,
+    "glow_intensity": 0.72,
+    "velocity": 0.50,
+}
 
 
 def _utc_now() -> datetime:
@@ -416,7 +421,8 @@ class RuntimeGovernor:
 
     Pipeline:
         validate -> transition -> profile_map -> clamp -> fallback
-        -> policy_block -> capability_gate -> telemetry_log
+        -> psycho_safety_gate -> validate_schema -> policy_block
+        -> capability_gate -> telemetry_log
 
     Notes:
     - This V1 accepts partial payloads and normalizes them into a full contract.
@@ -500,6 +506,14 @@ class RuntimeGovernor:
             log("fallback", "mutated", count=len(fallback_note))
         else:
             log("fallback", "ok")
+
+        # 5.5) psycho_safety_gate
+        psycho_note = self._apply_psycho_safety_gate(work, ctx)
+        if psycho_note:
+            mutations.extend(psycho_note)
+            log("psycho_safety_gate", "mutated", count=len(psycho_note))
+        else:
+            log("psycho_safety_gate", "ok")
 
         # Full schema validation after normalization
         schema_errors = self._validate_against_schema(work)
@@ -685,6 +699,29 @@ class RuntimeGovernor:
         if original_duration != normalized_duration:
             notes.append(f"intent_state.state_duration_ms: {original_duration!r} -> {normalized_duration}")
         intent["state_duration_ms"] = normalized_duration
+
+        return notes
+
+    def _apply_psycho_safety_gate(self, payload: Dict[str, Any], ctx: GovernorContext) -> List[str]:
+        _ = ctx
+        notes: List[str] = []
+        intent = payload["intent_state"]
+        renderer = payload["renderer_controls"]
+
+        if intent.get("flicker", 0.0) > PSYCHO_SAFETY_LIMITS["flicker"]:
+            original = intent.get("flicker", 0.0)
+            intent["flicker"] = PSYCHO_SAFETY_LIMITS["flicker"]
+            notes.append(f"psycho_safety_gate intent_state.flicker: {original} -> {intent['flicker']}")
+
+        if intent.get("glow_intensity", 0.0) > PSYCHO_SAFETY_LIMITS["glow_intensity"]:
+            original = intent.get("glow_intensity", 0.0)
+            intent["glow_intensity"] = PSYCHO_SAFETY_LIMITS["glow_intensity"]
+            notes.append(f"psycho_safety_gate intent_state.glow_intensity: {original} -> {intent['glow_intensity']}")
+
+        if renderer.get("velocity", 0.0) > PSYCHO_SAFETY_LIMITS["velocity"]:
+            original = renderer.get("velocity", 0.0)
+            renderer["velocity"] = PSYCHO_SAFETY_LIMITS["velocity"]
+            notes.append(f"psycho_safety_gate renderer_controls.velocity: {original} -> {renderer['velocity']}")
 
         return notes
 

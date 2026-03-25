@@ -487,6 +487,11 @@ export const SCALAR_PATHS: readonly ScalarPath[] = [
 export const SAFE_SENSOR_STATES = new Set<GovernorState>(["LISTENING", "SENSOR_ACTIVE"]);
 export const MAX_SHADER_UNIFORMS = 16;
 export const MAX_TELEMETRY_EVENTS = 2048;
+export const PSYCHO_SAFETY_LIMITS = {
+  flicker: 0.12,
+  glow_intensity: 0.72,
+  velocity: 0.5,
+} as const;
 
 function deepCopy<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -640,6 +645,14 @@ export class RuntimeGovernor {
       log("fallback", "mutated", { count: fallbackNotes.length });
     } else {
       log("fallback", "ok");
+    }
+
+    const psychoNotes = this.applyPsychoSafetyGate(normalizedWork, ctx);
+    if (psychoNotes.length) {
+      mutations.push(...psychoNotes);
+      log("psycho_safety_gate", "mutated", { count: psychoNotes.length });
+    } else {
+      log("psycho_safety_gate", "ok");
     }
 
     const schemaErrors = this.validateAgainstSchema(normalizedWork);
@@ -849,6 +862,32 @@ export class RuntimeGovernor {
       notes.push(`intent_state.state_duration_ms: ${JSON.stringify(originalDuration)} -> ${normalizedDuration}`);
     }
     intent.state_duration_ms = normalizedDuration;
+
+    return notes;
+  }
+
+  applyPsychoSafetyGate(payload: Required<ParticleControlContract>, _ctx: Required<GovernorContext>): string[] {
+    const notes: string[] = [];
+    const intent = payload.intent_state;
+    const renderer = payload.renderer_controls;
+
+    if ((intent.flicker ?? 0) > PSYCHO_SAFETY_LIMITS.flicker) {
+      const original = Number(intent.flicker ?? 0);
+      intent.flicker = PSYCHO_SAFETY_LIMITS.flicker;
+      notes.push(`psycho_safety_gate intent_state.flicker: ${original} -> ${intent.flicker}`);
+    }
+
+    if ((intent.glow_intensity ?? 0) > PSYCHO_SAFETY_LIMITS.glow_intensity) {
+      const original = Number(intent.glow_intensity ?? 0);
+      intent.glow_intensity = PSYCHO_SAFETY_LIMITS.glow_intensity;
+      notes.push(`psycho_safety_gate intent_state.glow_intensity: ${original} -> ${intent.glow_intensity}`);
+    }
+
+    if ((renderer.velocity ?? 0) > PSYCHO_SAFETY_LIMITS.velocity) {
+      const original = Number(renderer.velocity ?? 0);
+      renderer.velocity = PSYCHO_SAFETY_LIMITS.velocity;
+      notes.push(`psycho_safety_gate renderer_controls.velocity: ${original} -> ${renderer.velocity}`);
+    }
 
     return notes;
   }
