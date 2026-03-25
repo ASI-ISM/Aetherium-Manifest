@@ -46,44 +46,48 @@ Manifest is the visual language of Aetherium intelligence.
 
 ## System Architecture
 
-The current prototype architecture centers on the runtime telemetry database shape that connects the frontend scene, API gateway, and query path:
+The current prototype architecture is centered on runtime state semantics and the telemetry database structure, with one mutation authority and a closed feedback loop back to rendering:
 
 ```text
-┌──────────────────────────────────────────────────────────────────────┐
-│                         AETHERIUM MANIFEST                          │
-│      Frontend runtime / HUD / particle scene / voice controls       │
-│   emits fps, dropped_frames, particle_count, average_velocity,      │
-│              last_ai_command, policy_block_count                    │
-└───────────────────────────────┬──────────────────────────────────────┘
-                                │ POST /api/v1/telemetry/ingest
-                                ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│                      API GATEWAY TELEMETRY LAYER                    │
-│      TelemetryPoint { metric, value, ts, tags } validation          │
-│               async lock + append/trim ingestion path               │
-└───────────────────────────────┬──────────────────────────────────────┘
-                                │ partition by metric
-                                ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│                 TELEMETRY_TS_DB (in-memory prototype)               │
-│          dict[str, list[dict[str, Any]]] time-series store          │
-│   metric -> [ {metric, value, ts, tags}, ... latest 2500 points ]   │
-└───────────────────────────────┬──────────────────────────────────────┘
-                                │ GET /api/v1/telemetry/query
-                                ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│                  Query + Aggregation Response Layer                 │
-│               count / mean / p95 / latest by window                 │
-└───────────────────────────────┬──────────────────────────────────────┘
-                                │
-                                ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│            Manifest HUD / operators / future TSDB adapters          │
-│      dashboarding, alerting, replay, feedback-loop modulation       │
-└──────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                          STATE CONTRACT (Schema = ABI)                      │
+│  versioned payloads + evolution rules + shared meaning across FE/BE         │
+└────────────────────────────────┬─────────────────────────────────────────────┘
+                                 │ validated envelopes
+                                 ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                     GOVERNOR (single mutation authority)                    │
+│                 the only runtime path allowed to mutate state               │
+└───────────────┬───────────────────────────────────────────────┬──────────────┘
+                │                                               │
+                │ state updates                                 │ telemetry points
+                ▼                                               ▼
+┌─────────────────────────────────────────────┐   ┌─────────────────────────────┐
+│ FRONTEND RUNTIME / HUD / SCENE GRAPH       │   │ TELEMETRY INGEST API         │
+│ consumes canonical state, renders meaning   │   │ TelemetryPoint validate/trim │
+└──────────────────────────┬──────────────────┘   └──────────────┬──────────────┘
+                           │                                     │ partition by metric
+                           │                                     ▼
+                           │                ┌────────────────────────────────────┐
+                           │                │ TELEMETRY_TS_DB (in-memory)        │
+                           │                │ dict[str, list[point]] max 2500    │
+                           │                └────────────────┬───────────────────┘
+                           │                                 │ query window
+                           │                                 ▼
+                           │                ┌────────────────────────────────────┐
+                           │                │ Query + Aggregation Layer          │
+                           │                │ count / mean / p95 / latest        │
+                           │                └────────────────┬───────────────────┘
+                           │                                 │ operator + runtime signals
+                           └─────────────────────────────────┴─────────────────────────────►
+                                     telemetry-driven visual modulation / alerts / replay
 ```
 
-This diagram reflects the implementation now documented under **Runtime Database Structure (Current)**, where telemetry is buffered in memory before being queried, surfaced to the HUD, or swapped behind a future persistent adapter.
+This diagram aligns with the current implementation documented under **Runtime Database Structure (Current)**:
+- **State before feature:** runtime semantics are defined before effects.
+- **Governor is the only mutate point:** state mutation is centralized.
+- **Schema is ABI:** payload versioning and evolution rules protect FE/BE contract parity.
+- **Telemetry is feedback, not only logs:** query results can drive HUD and render modulation.
 
 ### System Layers
 
@@ -516,7 +520,7 @@ python3 tools/benchmarks/runtime_semantic_benchmark.py --input tools/benchmarks/
 
 ## Research & Engineering Roadmap
 
-Future directions only (completed suggestion items have been removed from both the English and Thai sections to keep this roadmap focused on active follow-on work):
+Future directions only:
 
 - **Distributed Runtime State**  
   Move mutable runtime state to Redis for multi-worker consistency.
@@ -664,7 +668,7 @@ Gateway: `http://localhost:8000` (เอกสาร API ที่ `/docs`)
 โครงสร้างนี้เหมาะกับการพัฒนา/ทดสอบแบบ deterministic และสามารถย้ายไปใช้ TSDB จริงใน production โดยคงสัญญา API เดิมได้.
 
 ### แนวทางต่อยอด
-รายละเอียดแผนระยะถัดไปถูกรวมไว้เพียงจุดเดียวในส่วน **Research & Engineering Roadmap** ด้านภาษาอังกฤษ เพื่อลดข้อมูลซ้ำซ้อนและให้มีแหล่งอ้างอิงเดียวของระบบ โดยตัดรายการข้อเสนอที่ทำเสร็จแล้วออกจากทั้งสองภาษาเพื่อไม่ให้ปะปนกับงานที่ยังอยู่ระหว่างดำเนินการ.
+รายละเอียดแผนระยะถัดไปถูกรวมไว้เพียงจุดเดียวในส่วน **Research & Engineering Roadmap** ด้านภาษาอังกฤษ เพื่อลดข้อมูลซ้ำซ้อนและให้มีแหล่งอ้างอิงเดียวของระบบ.
 
 ### รายการฟังก์ชัน/แนวทางขยายที่ AI Agent สามารถทำต่อได้
 - ตัวจำแนก metric และสร้างแท็กอัตโนมัติ เพื่อ normalize `tags` ตามแหล่งที่มา/ฉากทดสอบ/รุ่นอุปกรณ์ก่อนจัดเก็บลง telemetry
