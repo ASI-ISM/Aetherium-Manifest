@@ -58,29 +58,24 @@ The current prototype architecture is centered on runtime state semantics and th
 ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
 │                           RUNTIME GOVERNOR (canonical middleware)                            │
 │              schema check • state profile map • clamp • fallback • policy block             │
-└───────────────────────┬─────────────────────────────────────────────┬────────────────────────┘
-                        │ accepted canonical state                     │ telemetry events
-                        ▼                                              ▼
-┌───────────────────────────────────────────────┐        ┌─────────────────────────────────────┐
-│ FRONTEND RUNTIME (Manifest / HUD / Renderer) │        │ TELEMETRY INGEST + QUERY API        │
-│ consumes governor-approved state only          │        │ validate points + aggregate windows  │
-└───────────────────────┬───────────────────────┘        └──────────────┬──────────────────────┘
-                        │ websocket state updates                        │
-                        │                                                │ writes/reads
-                        ▼                                                ▼
-         ┌─────────────────────────────────────┐          ┌─────────────────────────────────────┐
-         │ STATE_SYNC_ROOMS (in-memory)       │          │ TELEMETRY_TS_DB (in-memory TSDB)   │
-         │ dict[room_id, StateSyncRoom]       │          │ dict[metric, list[point]]          │
-         │ version + shared_state + user_state│          │ trim latest 2500 points / metric   │
-         └──────────────────┬──────────────────┘          └──────────────────┬──────────────────┘
-                            │ snapshots / broadcast                           │
-                            ▼                                                 ▼
-                  ┌──────────────────────────────┐                 ┌──────────────────────────────┐
-                  │ /ws/state-sync/{room_id}    │                 │ /api/v1/telemetry/query      │
-                  │ multi-user state visibility │                 │ count / mean / p95 / latest  │
-                  └──────────────────────────────┘                 └──────────────┬───────────────┘
-                                                                                   ▼
-                                                                  telemetry-driven HUD + alerts
+└──────────────────────────────┬──────────────────────────────────────────────┬────────────────┘
+                               │ canonical visual + control envelope           │ telemetry emit
+                               ▼                                               ▼
+┌───────────────────────────────────────────────────────────────┐  ┌─────────────────────────────┐
+│ FRONTEND RUNTIME (Manifest / HUD / Renderer)                 │  │ TELEMETRY API               │
+│ consumes governor-approved state only                         │  │ ingest + query windows       │
+└──────────────────────────────┬────────────────────────────────┘  └──────────────┬──────────────┘
+                               │ websocket state sync                           writes/reads
+                               ▼                                                    ▼
+┌───────────────────────────────────────────────────────────────┐  ┌─────────────────────────────┐
+│ STATE_SYNC_ROOMS (in-memory)                                 │  │ TELEMETRY_TS_DB (in-memory) │
+│ dict[room_id, StateSyncRoom]                                 │  │ dict[metric, list[point]]   │
+│ room = {version, shared_state, user_state, updated_at}       │  │ point={metric,value,ts,tags}│
+│ endpoint: /ws/state-sync/{room_id}                           │  │ trim to latest 2500/metric  │
+└──────────────────────────────┬────────────────────────────────┘  └──────────────┬──────────────┘
+                               │ snapshots / broadcast                            │ aggregates
+                               ▼                                                  ▼
+                multi-user visibility + replay hooks             /api/v1/telemetry/query (count/mean/p95/latest)
 ```
 
 This diagram aligns with the current implementation documented under **Runtime Database Structure (Current)**:
@@ -337,6 +332,37 @@ Then applies deterministic AM-UI mapping for:
 - HUD accent
 
 See `docs/10_AMUI_COLOR_SYSTEM.md` for palette tables, state mapping, and shader binding contracts.
+
+### Canonical Visual States (MVP v1)
+
+Manifest MVP locks seven canonical visual states as the center of runtime semantics:
+
+- `IDLE`
+- `LISTENING`
+- `THINKING`
+- `RESPONDING`
+- `WARNING`
+- `ERROR`
+- `NIRODHA`
+
+```ts
+export type VisualState =
+  | "IDLE"
+  | "LISTENING"
+  | "THINKING"
+  | "RESPONDING"
+  | "WARNING"
+  | "ERROR"
+  | "NIRODHA";
+```
+
+Governor and renderer rules for v1:
+- `WARNING`, `ERROR`, `NIRODHA` are reserved semantics and must keep their core palette meaning.
+- `LISTENING` must be triggerable from voice/sensor events.
+- `THINKING -> RESPONDING` should transition smoothly (no hard-cut flicker).
+- `ERROR` semantics override aesthetic renderer/plugin preferences.
+
+Non-canonical overlays should remain separate from the core state machine (examples: `SENSOR_ACTIVE`, `LOW_POWER`, `NETWORK_DEGRADED`, `HUMAN_OVERRIDE`, `MUTED`).
 
 ### Voice Interaction Pipeline
 Simulated voice interface including:
@@ -652,8 +678,5 @@ Gateway: `http://localhost:8000` (เอกสาร API ที่ `/docs`)
 
 ### แนวทางต่อยอด
 รายละเอียดแผนระยะถัดไปถูกรวมไว้เพียงจุดเดียวในส่วน **Research & Engineering Roadmap** ด้านภาษาอังกฤษ เพื่อลดข้อมูลซ้ำซ้อนและให้มีแหล่งอ้างอิงเดียวของระบบ.
-
-### หมายเหตุการจัดการข้อเสนอแนะ
-รายการ “ข้อเสนอแนะที่ทำเสร็จแล้ว” ถูกลบออกจาก README ทั้งภาษาอังกฤษและภาษาไทยแล้ว เพื่อแยกงานที่ปิดแล้วออกจาก roadmap ที่ยังดำเนินการอยู่.
 
 ---
