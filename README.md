@@ -500,6 +500,39 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 - Frontend: `http://localhost:4173`
 - Gateway: `http://localhost:8000` (OpenAPI docs at `/docs`)
 
+### TypeScript Governor Schema Validation (Ajv)
+
+The Manifest runtime is intentionally positioned as a visualization runtime that consumes transport-level signals (API/WebSocket). To preserve that contract boundary, place schema validation in the Governor path before state is released to the renderer.
+
+Core helper APIs in `ajv_validator.ts`:
+- `createParticleControlAjv()`
+- `compileParticleControlValidator()`
+- `validateParticleControlPayload()`
+- `createGovernorSchemaValidator()`
+- `createAjvGovernor()`
+- `assertParticleControlSchemaCompiles()`
+
+Install required packages:
+
+```bash
+npm install ajv ajv-formats
+```
+
+`ajv-formats` is required because Ajv v7+ separates format validators (for example `date-time`) from the core package.
+
+Example:
+
+```ts
+import { createAjvGovernor } from "./ajv_validator";
+
+const governor = createAjvGovernor();
+
+const decision = governor.process(payload, {
+  previous_state: "THINKING",
+  device_tier: "MID",
+});
+```
+
 ---
 
 ## Project Structure
