@@ -532,7 +532,6 @@ const decision = governor.process(payload, {
   device_tier: "MID",
 });
 ```
-
 ---
 
 ## Project Structure
@@ -573,7 +572,12 @@ python3 tools/contracts/contract_fuzz.py
 
 # release benchmark gates (performance + semantics)
 python3 tools/benchmarks/runtime_semantic_benchmark.py --input tools/benchmarks/runtime_semantic_samples.sample.json
+
+# TypeScript psycho-safety parity test (run via tsx)
+npx --yes tsx --test test_runtime_governor_psycho_safety.test.ts
 ```
+
+> Verification note: `node --test test_runtime_governor_psycho_safety.test.ts` currently fails in this repo because Node ESM resolution does not resolve extensionless imports in `governor.ts`. Use the `tsx` command above for this test without changing runtime implementation.
 
 ---
 
