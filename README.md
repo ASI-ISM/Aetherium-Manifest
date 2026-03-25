@@ -579,7 +579,7 @@ python3 tools/benchmarks/runtime_semantic_benchmark.py --input tools/benchmarks/
 
 ## Research & Engineering Roadmap
 
-Future directions only:
+Future directions only (completed recommendations have been removed from this section):
 
 - **Distributed Runtime State**  
   Move mutable runtime state to Redis for multi-worker consistency.
@@ -710,6 +710,6 @@ Gateway: `http://localhost:8000` (เอกสาร API ที่ `/docs`)
 โครงสร้างนี้เหมาะกับการพัฒนา/ทดสอบแบบ deterministic และสามารถย้ายไปใช้ TSDB จริงใน production โดยคงสัญญา API เดิมได้.
 
 ### แนวทางต่อยอด
-รายละเอียดแผนระยะถัดไปถูกรวมไว้เพียงจุดเดียวในส่วน **Research & Engineering Roadmap** ด้านภาษาอังกฤษ เพื่อลดข้อมูลซ้ำซ้อนและให้มีแหล่งอ้างอิงเดียวของระบบ.
+รายละเอียดแผนระยะถัดไปถูกรวมไว้เพียงจุดเดียวในส่วน **Research & Engineering Roadmap** ด้านภาษาอังกฤษ โดยตัดรายการ “ข้อเสนอแนะที่ทำเสร็จแล้ว” ออกแล้ว เพื่อลดข้อมูลซ้ำซ้อนและให้มีแหล่งอ้างอิงเดียวของระบบ.
 
 ---
