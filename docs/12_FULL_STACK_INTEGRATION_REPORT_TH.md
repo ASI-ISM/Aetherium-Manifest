@@ -2,7 +2,7 @@
 
 **เอกสาร:** Full-Stack Integration Report (Official)  
 **ขอบเขต:** Runtime, Contract, Transport, Telemetry, Governance, Operations  
-**วันที่อ้างอิง:** 2026-03-28 (UTC)  
+**วันที่อ้างอิง:** 2024-03-28 (UTC)  
 **สถานะ:** Draft for Maintainer Review
 
 ---
