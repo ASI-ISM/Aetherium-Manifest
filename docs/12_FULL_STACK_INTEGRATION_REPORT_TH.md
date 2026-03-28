@@ -12,7 +12,7 @@
 เอกสารฉบับนี้จัดทำขึ้นเพื่อเป็นกรอบทางการสำหรับการเชื่อมต่อระบบ Aetherium ทั้งส่วนภายในและภายนอก โดยยึดหลักสำคัญของโครงการดังนี้:
 
 1. **Runtime Governor เป็น canonical mutation boundary เพียงจุดเดียว**  
-   `validate → transition → profile_map → clamp → fallback → policy_block → capability_gate → telemetry_log`
+   `validate → transition → profile_map → clamp → fallback → psycho_safety_gate → validate_schema → policy_block → capability_gate → telemetry_log`
 2. **Contract-first เสมอ:** การเปลี่ยน schema คือ ABI change และต้องมี versioning + compatibility checks
 3. **State-first semantics:** renderer และ transport ต้องไม่ละเมิด semantic state contract
 4. **Deterministic observability:** replay/benchmark/telemetry ต้องสอดคล้องกันในเส้นเวลาเดียวกัน
