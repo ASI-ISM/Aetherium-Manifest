@@ -49,33 +49,32 @@ Manifest is the visual language of Aetherium intelligence.
 The current prototype architecture is centered on runtime state semantics and the runtime database structure, with the Governor as the single mutation authority and telemetry/state-sync stores modeled explicitly:
 
 ```text
-┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-│                              AI PARTICLE CONTROL CONTRACT (Schema = ABI)                    │
-│                  versioned envelopes for intent_state + renderer_controls                    │
-└──────────────────────────────────────────────┬───────────────────────────────────────────────┘
-                                               │ validate + normalize
-                                               ▼
-┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-│                           RUNTIME GOVERNOR (canonical middleware)                            │
-│              schema check • state profile map • clamp • fallback • policy block             │
-└──────────────────────────────┬──────────────────────────────────────────────┬────────────────┘
-                               │ canonical visual + control envelope           │ telemetry emit
-                               ▼                                               ▼
-┌───────────────────────────────────────────────────────────────┐  ┌─────────────────────────────┐
-│ FRONTEND RUNTIME (Manifest / HUD / Renderer)                 │  │ TELEMETRY API               │
-│ consumes governor-approved state only                         │  │ ingest + query windows       │
-└──────────────────────────────┬────────────────────────────────┘  └──────────────┬──────────────┘
-                               │ websocket state sync                           writes/reads
-                               ▼                                                    ▼
-┌───────────────────────────────────────────────────────────────┐  ┌─────────────────────────────┐
-│ STATE_SYNC_ROOMS (in-memory)                                 │  │ TELEMETRY_TS_DB (in-memory) │
-│ dict[room_id, StateSyncRoom]                                 │  │ dict[metric, list[point]]   │
-│ room = {version, shared_state, user_state, updated_at}       │  │ point={metric,value,ts,tags}│
-│ endpoint: /ws/state-sync/{room_id}                           │  │ trim to latest 2500/metric  │
-└──────────────────────────────┬────────────────────────────────┘  └──────────────┬──────────────┘
-                               │ snapshots / broadcast                            │ aggregates
-                               ▼                                                  ▼
-                multi-user visibility + replay hooks             /api/v1/telemetry/query (count/mean/p95/latest)
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                           AI PARTICLE CONTROL CONTRACT (Schema = ABI, versioned)                            │
+│                 payload envelope: intent_state + renderer_controls + optional metadata                       │
+└──────────────────────────────────────────────────┬───────────────────────────────────────────────────────────┘
+                                                   │ validate + normalize
+                                                   ▼
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                     RUNTIME GOVERNOR (single mutable control boundary / canonical path)                     │
+│ validate → transition → profile_map → clamp → fallback → policy_block → capability_gate → telemetry_log    │
+└──────────────────────────────┬───────────────────────────────────────────────────────────────┬───────────────┘
+                               │ governor-approved state envelope                              │ telemetry events
+                               ▼                                                                ▼
+┌────────────────────────────────────────────────────────────────────────────┐   ┌─────────────────────────────────┐
+│ FRONTEND RUNTIME (Manifest/HUD/Renderer)                                  │   │ TELEMETRY INGEST + QUERY API    │
+│ consumes state-first contract only                                         │   │ /api/v1/telemetry/ingest|query  │
+└──────────────────────────────┬─────────────────────────────────────────────┘   └─────────────────┬───────────────┘
+                               │ websocket sync / snapshots                                  writes + retention
+                               ▼                                                                      ▼
+┌────────────────────────────────────────────────────────────────────────────┐   ┌─────────────────────────────────┐
+│ STATE_SYNC_ROOMS (in-memory room store)                                   │   │ TELEMETRY_TS_DB (in-memory TSDB)│
+│ dict[room_id, StateSyncRoom]                                               │   │ dict[str, list[point]]          │
+│ StateSyncRoom = {                                                           │   │ point={metric,value,ts,tags}    │
+│   version:int, shared_state:dict, user_state:dict, updated_at:datetime     │   │ partition key: metric           │
+│ }                                                                           │   │ retention: keep latest 2500/metric
+│ endpoint: /ws/state-sync/{room_id}                                          │   │ query window: count/mean/p95/latest
+└────────────────────────────────────────────────────────────────────────────┘   └─────────────────────────────────┘
 ```
 
 This diagram aligns with the current implementation documented under **Runtime Database Structure (Current)**:
@@ -474,6 +473,11 @@ Collaborative sessions are available via:
 
 allowing multiple users to observe and interact with shared cognitive state.
 
+
+### Policy Documents
+- Security policy: `SECURITY.md`
+- Copyright notice: `COPYRIGHT.md`
+
 ---
 
 ## Developer Quick Start
@@ -583,7 +587,7 @@ npx --yes tsx --test test_runtime_governor_psycho_safety.test.ts
 
 ## Research & Engineering Roadmap
 
-Future directions only (completed recommendations have been removed from this section):
+Future directions only (completed recommendations have been removed from this section in both English and Thai):
 
 - **Distributed Runtime State**  
   Move mutable runtime state to Redis for multi-worker consistency.
@@ -617,6 +621,18 @@ Future directions only (completed recommendations have been removed from this se
 
 - **Runtime Anomaly Detection**  
   Detect outlier combinations such as `fps` collapse + `policy_block_count` spikes and publish operator-facing alerts.
+
+- **Psycho-Safety Gate Hardening**  
+  Add dedicated psycho-safety metrics (flicker cadence, luminance drift budget, consent mode flags) and enforce deny-by-default mutation for high-risk render transitions.
+
+- **State-Sync Persistence Adapter**  
+  Introduce optional snapshot persistence for `STATE_SYNC_ROOMS` (Redis/Postgres adapter) while preserving websocket contract and room version semantics.
+
+- **Governance Audit Trail Ledger**  
+  Record schema/version approvals, compatibility decisions, and rollout exceptions with trace IDs for incident replay and compliance review.
+
+- **Edge Runtime Degradation Profiles**  
+  Add deterministic low-power profiles that couple renderer quality, telemetry sampling rate, and policy thresholds for constrained devices.
 
 ---
 
@@ -713,7 +729,22 @@ Gateway: `http://localhost:8000` (เอกสาร API ที่ `/docs`)
 
 โครงสร้างนี้เหมาะกับการพัฒนา/ทดสอบแบบ deterministic และสามารถย้ายไปใช้ TSDB จริงใน production โดยคงสัญญา API เดิมได้.
 
-### แนวทางต่อยอด
-รายละเอียดแผนระยะถัดไปถูกรวมไว้เพียงจุดเดียวในส่วน **Research & Engineering Roadmap** ด้านภาษาอังกฤษ โดยตัดรายการ “ข้อเสนอแนะที่ทำเสร็จแล้ว” ออกแล้ว เพื่อลดข้อมูลซ้ำซ้อนและให้มีแหล่งอ้างอิงเดียวของระบบ.
+### แนวทางต่อยอด (ภาษาไทย)
+> หมายเหตุ: ตัดรายการ “ข้อเสนอแนะที่ทำเสร็จแล้ว” ออกจากทั้งภาษาอังกฤษและภาษาไทยแล้ว เพื่อไม่ให้ปะปนกับงานที่ปิดไปแล้ว
+
+- **เสริม Psycho-Safety Gate เชิงรุก**  
+  เพิ่มตัวชี้วัด cadence/flicker/luminance drift พร้อม consent mode (`low-sensory`, `no-flicker`, `monochrome`) และบังคับ deny-by-default สำหรับการเปลี่ยนค่าสี/แสงที่มีความเสี่ยง
+
+- **เพิ่มตัวเลือก Persistent Store ให้ State Sync**  
+  รองรับ adapter แบบ Redis/Postgres สำหรับ snapshot ของห้อง (`STATE_SYNC_ROOMS`) โดยยังคง contract ของ websocket และ room version เดิม
+
+- **สร้าง Governance Audit Trail แบบตรวจสอบย้อนหลังได้**  
+  บันทึกการอนุมัติ schema/version, ผล compatibility check, และ rollout exception ผูกกับ trace ID เพื่อช่วย incident replay และ compliance review
+
+- **Edge Degradation Profiles สำหรับอุปกรณ์ทรัพยากรจำกัด**  
+  ผูกการลดคุณภาพ renderer, อัตรา sampling telemetry, และ policy thresholds เข้าด้วยกันแบบ deterministic เพื่อคงเสถียรภาพการรับรู้
+
+- **Spatial Extension Contract สำหรับ AR/VR**  
+  เพิ่มสัญญาเสริมด้าน anchor/depth/occlusion แยกจาก `intent_state` หลัก เพื่อรองรับ WebXR/OpenXR โดยไม่กระทบ ABI ปัจจุบัน
 
 ---
