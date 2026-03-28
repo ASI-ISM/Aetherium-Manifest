@@ -4,14 +4,24 @@ on:
   pull_request:
     branches: ["**"]
 
+concurrency:
+  group: contract-runtime-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   contract-checker:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: api_gateway/requirements.txt
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -23,11 +33,14 @@ jobs:
 
   runtime-quality:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: api_gateway/requirements.txt
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -41,4 +54,4 @@ jobs:
       - name: Creative stress scenarios
         run: python tools/benchmarks/creative_stress_scenarios.py
       - name: Runtime unit tests
-        run: python -m unittest api_gateway.test_aetherbus_extreme api_gateway.test_runtime_quality
+        run: python -m unittest api_gateway.test_api api_gateway.test_aetherbus_extreme api_gateway.test_runtime_quality

@@ -1,2 +1,29 @@
-- name: SSH Remote Commands
-  uses: appleboy/ssh-action@v1.2.5
+name: Workflow Hygiene
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - "scripts/**"
+  push:
+    branches: ["main", "master", "develop"]
+    paths:
+      - ".github/workflows/**"
+  workflow_dispatch:
+
+concurrency:
+  group: workflow-hygiene-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint-workflows:
+    name: Lint GitHub Workflow Files
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run actionlint
+        uses: rhysd/actionlint@v1

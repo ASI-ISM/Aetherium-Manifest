@@ -66,6 +66,19 @@
         "model_name": "gpt-4o",
         "temperature": 0.3,
         "max_tokens": 1500
+      },
+      "governor_context": {
+        "human_override": {
+          "allow_runtime_governor_bypass": false,
+          "force_safe_mode": false
+        },
+        "device_capability": {
+          "max_particle_count": 20000,
+          "supports_motion_sensors": true,
+          "motion_sensor_permission": "granted",
+          "low_power_mode": false,
+          "gpu_tier": 3
+        }
       }
     }
   },
@@ -99,6 +112,19 @@
         "model_name": "gpt-4o",
         "temperature": 0.2,
         "max_tokens": 256
+      },
+      "governor_context": {
+        "human_override": {
+          "allow_runtime_governor_bypass": false,
+          "force_safe_mode": false
+        },
+        "device_capability": {
+          "max_particle_count": 20000,
+          "supports_motion_sensors": true,
+          "motion_sensor_permission": "granted",
+          "low_power_mode": false,
+          "gpu_tier": 3
+        }
       }
     }
   },
@@ -133,6 +159,19 @@
         "model_name": "gpt-4o",
         "temperature": 0.2,
         "max_tokens": 256
+      },
+      "governor_context": {
+        "human_override": {
+          "allow_runtime_governor_bypass": false,
+          "force_safe_mode": false
+        },
+        "device_capability": {
+          "max_particle_count": 20000,
+          "supports_motion_sensors": true,
+          "motion_sensor_permission": "granted",
+          "low_power_mode": false,
+          "gpu_tier": 3
+        }
       }
     }
   },
@@ -201,6 +240,19 @@
         "model_name": "gpt-4o",
         "temperature": 0.2,
         "max_tokens": 256
+      },
+      "governor_context": {
+        "human_override": {
+          "allow_runtime_governor_bypass": false,
+          "force_safe_mode": false
+        },
+        "device_capability": {
+          "max_particle_count": 20000,
+          "supports_motion_sensors": true,
+          "motion_sensor_permission": "granted",
+          "low_power_mode": false,
+          "gpu_tier": 3
+        }
       }
     }
   }

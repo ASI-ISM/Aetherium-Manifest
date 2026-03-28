@@ -13,15 +13,21 @@ concurrency:
   group: sdlc-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   lint-and-typecheck:
     name: Lint + Typecheck (Python)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: api_gateway/requirements.txt
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -36,11 +42,14 @@ jobs:
     name: Contracts + Runtime Quality
     runs-on: ubuntu-latest
     needs: lint-and-typecheck
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: api_gateway/requirements.txt
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -58,6 +67,7 @@ jobs:
     name: Frontend JS Tests
     runs-on: ubuntu-latest
     needs: lint-and-typecheck
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -71,11 +81,14 @@ jobs:
     runs-on: ubuntu-latest
     needs: contract-runtime-quality
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: api_gateway/requirements.txt
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -93,6 +106,7 @@ jobs:
     name: Container Build Smoke Test
     runs-on: ubuntu-latest
     needs: contract-runtime-quality
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - name: Build API gateway image

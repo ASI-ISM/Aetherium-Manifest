@@ -227,3 +227,16 @@ def test_emit_returns_governor_result(client: TestClient) -> None:
     assert payload["governor_result"]["telemetry_logging"]["state_entered_at"]
     assert payload["governor_result"]["telemetry_logging"]["state_duration_ms"] >= 0
     assert payload["governor_result"]["telemetry_logging"]["transition_reason"]
+
+
+def test_emit_rejects_missing_governor_context(client: TestClient) -> None:
+    payload = _valid_emit_payload()
+    payload.pop("governor_context")
+
+    response = client.post(
+        "/api/v1/cognitive/emit",
+        json=payload,
+        headers={"X-API-Key": "test-key", "X-Model-Provider": "openai", "X-Model-Version": "2026-03"},
+    )
+
+    assert response.status_code == 422
