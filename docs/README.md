@@ -26,6 +26,7 @@ Aetherium-Manifest UI (embodiment + cognition)
 - `09_MAERI_LIFESTATE_GENUI_TH.md` — สถาปัตยกรรม MAE-RI, Emotional LifeState, Adaptive GenUI
 - `10_AMUI_COLOR_SYSTEM.md` — Thermodynamic color subsystem, palette canon, state mapping, shader contract
 - `11_PLATFORM_WORK_PLAN.md` — platform workstreams, backlog, rollout/rollback, and production DoD
+- `12_FULL_STACK_INTEGRATION_REPORT_TH.md` — รายงานทางการเต็มรูปแบบสำหรับการเชื่อมต่อระบบภายในและภายนอก
 - `ops/` — production operations package (dashboards, alerts, runbooks, security/privacy checks)
 - `schemas/` — versioned ABI JSON
 - `appendices/` — glossary, state machine, roadmap
