@@ -128,7 +128,7 @@ AETHERIUM ถูกออกแบบเป็น **Governed Real-time Control L
 | Interface | Input (ย่อ) | Output (ย่อ) | Guarantees | Failure Modes | Handling |
 |---|---|---|---|---|---|
 | `IntentIngress.v1` | `intent_id, actor_id, utterance, locale, ts` | `normalized_intent` | at-least-once ingest + idempotency key | duplicate submit, invalid schema | dedup by `intent_id`; 422 contract error |
-| `GenesisPlan.v1` | `normalized_intent, context_refs` | `visual_plan, scene_graph, demands` | deterministic plan per `plan_seed` | missing context, planner timeout | fallback template + retry(1) |
+| `GenesisPlan.v1` | `normalized_intent, context_refs` | `visual_plan, scene_graph, demands` | deterministic plan per `plan_seed` | missing context, planner timeout | fallback template + retry (exp. backoff) |
 | `VisualContract.Resolve.v1` | `manifest_id, device_caps` | `render_profile, shader_pack` | backward-compatible minor version | incompatible contract | compatibility downgrade / reject |
 | `BioVision.EnvState.v1` | `sensor_frame/meta` | `env_delta, confidence, motion_vec` | ordered per source clock | camera jitter, low confidence | confidence gating + smoothing |
 | `Governor.Evaluate.v1` | `plan + env_delta + geo/time` | `safety_envelope` | hard safety upper bounds | policy service unavailable | fail-closed to safe preset |
