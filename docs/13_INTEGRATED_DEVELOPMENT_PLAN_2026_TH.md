@@ -288,7 +288,7 @@ AETHERIUM ถูกออกแบบเป็น **Governed Real-time Control L
 
 **Exit Criteria**
 - public-safe profile ใช้งานได้ในพื้นที่จำกัด
-- reconnect reconcile < 3s P95
+- reconnect reconcile < 2s P95
 
 **Metrics**
 - policy decision latency P95 < 80ms
