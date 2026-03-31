@@ -51,20 +51,30 @@ class ModelResponse(BaseModel):
     trace_id: str
     reasoning_trace: str
     intent_vector: IntentVector
+    particle_control: ParticleControlContract
     visual_manifestation: VisualManifestation
-
 
 class ModelMetadata(BaseModel):
     model_name: str
     temperature: float = Field(ge=0.0, le=2.0)
     max_tokens: int = Field(gt=0)
 
-
 class CognitiveEmitRequest(BaseModel):
     session_id: str
     model_response: ModelResponse
     model_metadata: ModelMetadata
+    governor_context: GovernorContext
 
+class GenerateRequest(BaseModel):
+    prompt: str
+    model: str = Field(default="gemini-1.5-pro")
+    temperature: float = Field(default=0.7, ge=0.0, le=2.0)
+
+class GenerateResponse(BaseModel):
+    text: str
+    model: str
+    trace_id: str
+    provider: str
 
 class ValidationResult(BaseModel):
     status: Literal["success", "failed"]
@@ -76,10 +86,121 @@ class Metrics(BaseModel):
     total_dsl_submissions: int = 0
     successful_renders: int = 0
     validation_failures: int = 0
+    generative_requests: int = 0
 
+class TelemetryPoint(BaseModel):
+    metric: str
+    value: float
+    ts: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    tags: dict[str, str] = Field(default_factory=dict)
+
+class TelemetryIngestRequest(BaseModel):
+    points: list[TelemetryPoint]
+
+
+class PipelineExecutionMetrics(BaseModel):
+    intent_to_semantic_ms: float
+    semantic_to_morphogenesis_ms: float
+    morphogenesis_to_compiler_ms: float
+    compiler_to_runtime_ms: float
+    total_pipeline_ms: float
+
+
+class ContainmentMode(str, Enum):
+    SOFT_CLAMP = "soft_clamp"
+    DETERMINISTIC_ANCHOR_REPLAY = "deterministic_anchor_replay"
+    HARD_ROLLBACK_LEGACY = "hard_rollback_legacy"
+
+
+class DriftMetrics(BaseModel):
+    semantic_coherence_score: float = Field(ge=0.0, le=1.0)
+    topology_divergence_index: float = Field(ge=0.0, le=1.0)
+    temporal_instability_ratio: float = Field(ge=0.0, le=1.0)
+
+
+class ContainmentDecision(BaseModel):
+    activated: bool
+    mode: ContainmentMode | None = None
+    activation_latency_ms: float = 0.0
+    anchor_replay_package: str | None = None
+
+
+class RuntimeGuardResult(BaseModel):
+    metrics: DriftMetrics
+    divergence_detected: bool
+    containment: ContainmentDecision
+
+
+class PipelineExecutionResult(BaseModel):
+    semantic_field: SemanticField
+    morphogenesis_plan: MorphogenesisPlan
+    compiled_program: CompiledLightProgram
+    visual_manifestation: "VisualManifestation"
+    metrics: PipelineExecutionMetrics
+    runtime_guard: RuntimeGuardResult | None = None
+    governor_result: GovernorResult | None = None
+
+
+# --- In-memory State and Concurrency --- 
 
 METRICS = Metrics()
+TELEMETRY_TS_DB: dict[str, list[dict[str, Any]]] = {}
+STATE_SYNC_ROOMS: dict[str, StateSyncRoom] = {}
 
+METRICS_LOCK = asyncio.Lock()
+TELEMETRY_LOCK = asyncio.Lock()
+ROOMS_LOCK = asyncio.Lock()
+RELIABILITY_LOCK = asyncio.Lock()
+PROXY_SIGNATURE_LOCK = asyncio.Lock()
+PROXY_SIGNATURE_NONCES: dict[str, float] = {}
+
+DRIFT_EVENT_TOTAL = 0
+DRIFT_EVENT_DETECTED = 0
+CONTAINMENT_LATENCIES_MS: list[float] = []
+REPLAY_REPRO_BY_PACKAGE: dict[str, bool] = {}
+
+SEV1_INCIDENT_PACKAGES = [
+    name for name, package in INCIDENT_REPLAY_PACKAGES.items() if package.get("severity") == "sev1"
+]
+
+# --- State Synchronization Room ---
+
+class StateSyncRoom:
+    def __init__(self) -> None:
+        self.version = 0
+        self.shared_state: dict[str, Any] = {}
+        self.user_states: dict[str, dict[str, Any]] = {}
+        self.clients: list[WebSocket] = []
+        self.lock = asyncio.Lock()
+
+    def apply_delta(self, delta: dict[str, Any], user_id: str | None, user_delta: dict[str, Any]) -> dict[str, Any]:
+        self.version += 1
+        self.shared_state.update(delta)
+        if user_id and user_delta:
+            current = self.user_states.setdefault(user_id, {})
+            current.update(user_delta)
+        return self.snapshot(user_id)
+
+    def snapshot(self, user_id: str | None) -> dict[str, Any]:
+        return {
+            "version": self.version,
+            "shared_state": self.shared_state,
+            "user_state": self.user_states.get(user_id or "", {}),
+        }
+
+    async def broadcast_json(self, message: dict[str, Any]) -> None:
+        if not self.clients:
+            return
+        disconnected_clients: list[WebSocket] = []
+        for client in self.clients:
+            try:
+                await client.send_json(message)
+            except RuntimeError:
+                disconnected_clients.append(client)
+        if disconnected_clients:
+            self.clients = [client for client in self.clients if client not in disconnected_clients]
+
+# --- DSL Validation ---
 
 class FirmaValidator:
     @staticmethod

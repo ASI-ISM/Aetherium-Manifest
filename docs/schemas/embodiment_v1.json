@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EmbodimentContractV1",
+  "type": "object",
+  "required": [
+    "contract_type",
+    "input_signal",
+    "intent",
+    "cognitive_state",
+    "temporal_state",
+    "visual_manifestation"
+  ],
+  "properties": {
+    "contract_type": {
+      "type": "string",
+      "const": "EMBODIMENT_V1"
+    },
+    "input_signal": {
+      "type": "object",
+      "required": [
+        "source_model",
+        "latency_ms",
+        "reasoning_depth"
+      ],
+      "properties": {
+        "source_model": {
+          "type": "string"
+        },
+        "latency_ms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "reasoning_depth": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "intent": {
+      "type": "object",
+      "required": [
+        "category",
+        "confidence"
+      ],
+      "properties": {
+        "category": {
+          "type": "string"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "cognitive_state": {
+      "type": "object",
+      "required": [
+        "certainty"
+      ],
+      "properties": {
+        "certainty": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "complexity": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "temporal_state": {
+      "type": "object",
+      "required": [
+        "phase",
+        "stability"
+      ],
+      "properties": {
+        "phase": {
+          "type": "string"
+        },
+        "stability": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "visual_manifestation": {
+      "type": "object",
+      "required": [
+        "core_shape",
+        "particle_velocity",
+        "turbulence",
+        "chromatic_aberration",
+        "cadence"
+      ],
+      "properties": {
+        "core_shape": {
+          "type": "string"
+        },
+        "particle_velocity": {
+          "type": "number"
+        },
+        "turbulence": {
+          "type": "number"
+        },
+        "chromatic_aberration": {
+          "type": "number"
+        },
+        "cadence": {
+          "type": "object",
+          "required": [
+            "bpm",
+            "phase",
+            "jitter"
+          ],
+          "properties": {
+            "bpm": {
+              "type": "number",
+              "minimum": 20,
+              "maximum": 240
+            },
+            "phase": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "jitter": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "color_semantics": {
+          "type": "object",
+          "description": "Optional AM-UI color hint; frontend palette remains canonical source of truth.",
+          "properties": {
+            "color_mode": {
+              "type": "string",
+              "enum": [
+                "THERMODYNAMIC",
+                "DEFAULT"
+              ]
+            },
+            "palette_key": {
+              "type": "string"
+            },
+            "gradient_key": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false,
+  "x-field-evolution": {
+    "introduced_in": "1.0.0",
+    "supersedes": "none",
+    "compatibility_adapter": "native",
+    "required_evolution_sections": [
+      "visual_manifestation"
+    ]
+  }
+}

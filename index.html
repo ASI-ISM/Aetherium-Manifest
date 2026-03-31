@@ -3,225 +3,257 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AETHERIUM MANIFEST: Living Interface</title>
+  <title>AETHERIUM Light UI</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;700&family=Sarabun:wght@300;500&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap');
 
     :root {
-      --void-bg: #050505;
-      --color-perception: #00ffff;
-      --color-empathy: #bc13fe;
-      --color-decay: #a0522d;
-      --color-manifest: #ffd700;
-      --glass-panel: rgba(20, 20, 20, 0.7);
-      --border-light: rgba(255, 255, 255, 0.15);
+      --void-bg: #020204;
+      --panel-bg: rgba(10, 10, 14, 0.78);
+      --panel-border: rgba(255, 255, 255, 0.08);
+      --text: #eef2ff;
+      --muted: #8b93a7;
+      --cyan: #00e5ff;
+      --pink: #ff3d81;
+      --gold: #ffd166;
+      --shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
     }
 
-    html,
-    body {
+    * { box-sizing: border-box; }
+
+    html, body {
       margin: 0;
-      padding: 0;
       width: 100%;
       height: 100%;
       overflow: hidden;
       background: var(--void-bg);
-      color: #e0e0e0;
-      font-family: 'JetBrains Mono', 'Sarabun', monospace;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
     }
 
-    canvas#nervous-system {
+    body {
+      position: relative;
+      user-select: none;
+      touch-action: manipulation;
+    }
+
+    #display-layer {
       position: absolute;
       inset: 0;
       width: 100%;
       height: 100%;
+      display: block;
       z-index: 1;
+      background: radial-gradient(circle at 50% 42%, rgba(32, 41, 82, 0.18), transparent 40%), #020204;
     }
 
-    #hud-overlay {
+    /*
+      memory-layer ยังเก็บไว้เพื่อใช้เป็น canvas ช่วยคอมไพล์ข้อความเป็น field ของอนุภาค
+      แต่จะไม่แสดงผลให้ผู้ใช้เห็นโดยตรง
+    */
+    #memory-layer,
+    #file-input {
+      display: none;
+    }
+
+    .ambient-label {
       position: absolute;
-      top: 20px;
-      left: 20px;
-      z-index: 10;
-      width: 280px;
-      padding: 15px;
-      border-radius: 8px;
-      border: 1px solid var(--border-light);
-      background: var(--glass-panel);
-      backdrop-filter: blur(8px);
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 3;
+      font-size: 10px;
+      letter-spacing: 0.32em;
+      color: rgba(255,255,255,0.42);
+      text-transform: uppercase;
+      pointer-events: none;
+      text-shadow: 0 0 12px rgba(255,255,255,0.08);
+    }
+
+    .bottom-shell {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 5;
+      padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+      background: linear-gradient(to top, rgba(2,2,4,0.88), rgba(2,2,4,0.22) 60%, transparent);
       pointer-events: none;
     }
 
-    .stat-row {
-      margin-bottom: 12px;
-    }
-
-    .stat-label {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 4px;
-      color: #888;
-      font-size: 0.75rem;
-    }
-
-    .progress-bar-container {
-      height: 4px;
-      border-radius: 2px;
-      overflow: hidden;
-      background: rgba(255, 255, 255, 0.05);
-    }
-
-    .progress-bar {
-      width: 100%;
-      height: 100%;
-      background: var(--color-perception);
-      box-shadow: 0 0 10px currentColor;
-      transition: width 0.5s ease, background-color 1s ease;
-    }
-
-    .system-msg {
-      margin-top: 10px;
-      color: var(--color-perception);
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      font-size: 0.7rem;
-    }
-
-    #input-deck {
-      position: absolute;
-      bottom: 30px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 20;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      width: 90%;
-      max-width: 600px;
+    .chat-bar {
+      width: min(980px, 100%);
+      margin: 0 auto;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
       padding: 10px;
-      border: 1px solid var(--border-light);
-      border-radius: 16px;
-      background: rgba(10, 10, 10, 0.8);
-      backdrop-filter: blur(12px);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-      transition: all 0.3s ease;
+      pointer-events: auto;
     }
 
-    #input-deck:focus-within {
-      border-color: var(--color-perception);
-      box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+    .chat-top {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+    }
+
+    .icon-btn,
+    .send-btn {
+      border: 0;
+      outline: none;
+      appearance: none;
+      cursor: pointer;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+    }
+
+    .icon-btn:hover,
+    .send-btn:hover {
+      transform: translateY(-1px);
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255,255,255,0.14);
     }
 
     .icon-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 8px;
-      border: none;
+      width: 44px;
+      height: 44px;
       border-radius: 50%;
-      background: transparent;
-      color: #888;
-      cursor: pointer;
-      transition: color 0.3s, background 0.3s;
     }
 
-    .icon-btn:hover {
-      color: var(--color-perception);
-      background: rgba(255, 255, 255, 0.05);
+    .icon-btn svg,
+    .send-btn svg {
+      width: 18px;
+      height: 18px;
+      display: block;
     }
 
-    .icon-btn svg {
-      width: 20px;
-      height: 20px;
-      fill: currentColor;
+    .composer-wrap {
+      flex: 1 1 auto;
+      min-width: 0;
+      background: rgba(255,255,255,0.035);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 18px;
+      padding: 10px 12px;
     }
 
     #chat-input {
-      flex-grow: 1;
-      border: none;
+      width: 100%;
+      min-height: 24px;
+      max-height: 120px;
+      resize: none;
+      overflow-y: auto;
+      border: 0;
       outline: none;
       background: transparent;
-      color: #fff;
-      font-size: 1rem;
-      padding: 8px;
-      font-family: 'Sarabun', sans-serif;
+      color: var(--text);
+      font: inherit;
+      font-size: 14px;
+      line-height: 1.45;
     }
 
     #chat-input::placeholder {
-      color: #555;
-      font-style: italic;
+      color: var(--muted);
     }
 
-    .voice-active {
-      color: var(--color-empathy) !important;
-      animation: pulse-voice 1.5s infinite;
-    }
-
-    @keyframes pulse-voice {
-      0% {
-        box-shadow: 0 0 0 0 rgba(188, 19, 254, 0.4);
-      }
-      70% {
-        box-shadow: 0 0 0 10px rgba(188, 19, 254, 0);
-      }
-      100% {
-        box-shadow: 0 0 0 0 rgba(188, 19, 254, 0);
-      }
-    }
-
-    #file-preview {
-      position: absolute;
-      bottom: 70px;
-      left: 0;
+    .chat-bottom {
       display: flex;
-      gap: 10px;
-      padding: 0 10px;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-top: 8px;
+      padding: 0 2px;
+    }
+
+    .status-line {
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .action-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 0 0 auto;
+    }
+
+    .send-btn {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(0,229,255,0.22), rgba(255,61,129,0.24));
+      border-color: rgba(255,255,255,0.14);
+      box-shadow: 0 0 22px rgba(0, 229, 255, 0.12);
+    }
+
+    .send-btn:hover {
+      box-shadow: 0 0 28px rgba(255, 61, 129, 0.18);
+    }
+
+    .recording {
+      border-color: rgba(255, 61, 129, 0.48) !important;
+      background: rgba(255, 61, 129, 0.12) !important;
+      box-shadow: 0 0 18px rgba(255, 61, 129, 0.22);
     }
 
     .file-chip {
-      display: flex;
+      display: none;
+      margin-top: 10px;
+      padding: 8px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      font-size: 11px;
+      color: #dbe8ff;
       align-items: center;
-      gap: 5px;
-      padding: 5px 10px;
-      border: 1px solid var(--color-perception);
-      border-radius: 4px;
-      background: rgba(255, 255, 255, 0.1);
-      color: var(--color-perception);
-      font-size: 0.8rem;
+      justify-content: space-between;
+      gap: 12px;
     }
 
-    #hologram-display {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      text-align: center;
-      pointer-events: none;
-      z-index: 5;
-      opacity: 0;
-      transition: opacity 1s ease;
+    .file-chip.active {
+      display: flex;
     }
 
-    #hologram-text {
-      color: var(--color-manifest);
-      text-shadow: 0 0 20px var(--color-manifest);
-      letter-spacing: 4px;
-      font-size: 2rem;
-      font-weight: 700;
+    .file-remove {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      cursor: pointer;
+      padding: 0;
     }
 
-    .loading-light {
-      width: 50px;
-      height: 50px;
-      margin: 0 auto 20px;
-      border: 2px solid rgba(255, 255, 255, 0.1);
-      border-top: 2px solid var(--color-manifest);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
+    @media (max-width: 640px) {
+      .bottom-shell {
+        padding-inline: 10px;
+      }
 
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
+      .chat-bar {
+        border-radius: 20px;
+        padding: 8px;
+      }
+
+      .icon-btn,
+      .send-btn {
+        width: 42px;
+        height: 42px;
+      }
+
+      #chat-input {
+        font-size: 13px;
+      }
     }
 
     .floating-button {
@@ -406,559 +438,500 @@
       <div class="stat-label"><span>ENERGY (METABOLISM)</span> <span id="val-energy">100%</span></div>
       <div class="progress-bar-container"><div class="progress-bar" id="bar-energy"></div></div>
     </div>
-    <div class="stat-row">
-      <div class="stat-label"><span>ENTROPY (CHAOS)</span> <span id="val-entropy">10%</span></div>
-      <div class="progress-bar-container"><div class="progress-bar" id="bar-entropy" style="background: var(--color-decay); width: 10%"></div></div>
-    </div>
-    <div class="system-msg" id="sys-msg">SYSTEM: AWAITING INTENT</div>
-  </div>
-
-  <div id="hologram-display">
-    <div class="loading-light" id="manifest-loader" style="display: none"></div>
-    <div id="hologram-text"></div>
-  </div>
-
-  <div id="input-deck">
-    <input type="file" id="file-upload" hidden multiple accept=".pdf,image/*" />
-    <div id="file-preview"></div>
-
-    <button class="icon-btn" id="btn-attach" title="แนบเอกสาร/รูปภาพ">
-      <svg viewBox="0 0 24 24"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5a2.5 2.5 0 0 0 5 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z" /></svg>
-    </button>
-
-    <input type="text" id="chat-input" placeholder="ส่งข้อความหรือเจตจำนง..." />
-
-    <button class="icon-btn" id="btn-voice" title="สนทนาด้วยเสียง">
-      <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" /><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" /></svg>
-    </button>
-
-    <button class="icon-btn" id="btn-send" title="ส่งข้อมูล">
-      <svg viewBox="0 0 24 24" style="fill: var(--color-perception)"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" /></svg>
-    </button>
   </div>
 
   <script>
-    const canvas = document.getElementById('nervous-system');
-    const ctx = canvas.getContext('2d');
+    const display = document.getElementById('display-layer');
+    const ctx = display.getContext('2d', { alpha: false });
+    const memCanvas = document.getElementById('memory-layer');
+    const memCtx = memCanvas.getContext('2d', { willReadFrequently: true });
 
-    const state = {
-      energy: 100,
-      entropy: 10,
-      mode: 'IDLE'
+    const chatInput = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('send-btn');
+    const attachBtn = document.getElementById('attach-btn');
+    const voiceBtn = document.getElementById('voice-btn');
+    const settingsBtn = document.getElementById('settings-btn');
+    const fileInput = document.getElementById('file-input');
+    const fileChip = document.getElementById('file-chip');
+    const fileNameEl = document.getElementById('file-name');
+    const fileRemoveBtn = document.getElementById('file-remove');
+    const statusLine = document.getElementById('status-line');
+
+    let W = 0;
+    let H = 0;
+    let CX = 0;
+    let CY = 0;
+    let renderTime = 0;
+    let selectedFile = null;
+    let learnedImageMemory = null;
+    let recording = false;
+    let lastInteractionTime = performance.now();
+    let fadingOut = false;
+    let visibilityStrength = 1;
+    let targetField = [];
+
+    const NUM_PHOTONS = 2600;
+    const PARTICLE_SPEED = 4.0;
+    const IMAGE_MEMORY_TTL_MS = 60 * 60 * 1000;
+    const photons = [];
+    const touchBursts = [];
+
+    const THEMES = {
+      idle: { palette: ['#031b44', '#0b4fd9', '#00b7ff', '#d8f6ff'], force: 0.021, noise: 0.08, trail: 0.08 },
+      sent: { palette: ['#00e5ff', '#ff3d81', '#ffd166'], force: 0.036, noise: 0.14, trail: 0.2 },
+      voice: { palette: ['#ff3d81', '#ffd166', '#ffffff'], force: 0.03, noise: 0.16, trail: 0.16 }
     };
+    let theme = 'idle';
 
-    const config = {
-      particleCount: 200,
-      baseSpeed: 0.8,
-      colors: {
-        IDLE: '#00FFFF',
-        LISTENING: '#BC13FE',
-        PROCESSING: '#FFD700',
-        MANIFESTING: '#FFFFFF'
-      }
-    };
-
-    let width;
-    let height;
-    let particles = [];
-    let center = { x: 0, y: 0 };
+    function setStatus(text) { statusLine.textContent = text; }
+    function setTheme(nextTheme) { theme = nextTheme; }
+    function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 
     function resize() {
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
-      center = { x: width / 2, y: height / 2 };
+      W = display.width = window.innerWidth;
+      H = display.height = window.innerHeight;
+      memCanvas.width = W;
+      memCanvas.height = H;
+      CX = W * 0.5;
+      CY = H * 0.5;
     }
 
-    class Particle {
-      constructor() {
-        this.reset();
-      }
+    function autoResizeTextarea() {
+      chatInput.style.height = '24px';
+      chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+    }
 
-      reset() {
-        this.x = Math.random() * width;
-        this.y = Math.random() * height;
-        this.vx = (Math.random() - 0.5) * config.baseSpeed;
-        this.vy = (Math.random() - 0.5) * config.baseSpeed;
-        this.size = Math.random() * 2 + 0.5;
-      }
+    function markInteraction(reasonText) {
+      lastInteractionTime = performance.now();
+      fadingOut = false;
+      visibilityStrength = Math.min(1, visibilityStrength + 0.14);
+      if (reasonText) setStatus(reasonText);
+    }
 
-      update() {
-        if (state.mode === 'MANIFESTING') {
-          const dx = center.x - this.x;
-          const dy = center.y - this.y;
-          this.vx += dx * 0.005;
-          this.vy += dy * 0.005;
-          this.vx *= 0.9;
-          this.vy *= 0.9;
-        } else if (state.mode === 'PROCESSING') {
-          const dx = this.x - center.x;
-          const dy = this.y - center.y;
-          this.vx += -dy * 0.001;
-          this.vy += dx * 0.001;
-        } else {
-          this.vx += (Math.random() - 0.5) * 0.1;
-          this.vy += (Math.random() - 0.5) * 0.1;
-        }
-
-        const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-        if (speed > 5) {
-          this.vx *= 0.9;
-          this.vy *= 0.9;
-        }
-
-        this.x += this.vx;
-        this.y += this.vy;
-
-        if (state.mode !== 'MANIFESTING') {
-          if (this.x < 0) this.x = width;
-          if (this.x > width) this.x = 0;
-          if (this.y < 0) this.y = height;
-          if (this.y > height) this.y = 0;
-        }
-      }
-
-      draw() {
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fillStyle = config.colors[state.mode] || '#fff';
-        ctx.fill();
+    function initPhotons() {
+      photons.length = 0;
+      for (let i = 0; i < NUM_PHOTONS; i++) {
+        photons.push({
+          x: CX + (Math.random() - 0.5) * W * 0.25,
+          y: CY + (Math.random() - 0.5) * H * 0.25,
+          vx: (Math.random() - 0.5) * 0.8,
+          vy: (Math.random() - 0.5) * 0.8
+        });
       }
     }
 
-    window.addEventListener('resize', resize);
-    resize();
-    for (let i = 0; i < config.particleCount; i += 1) particles.push(new Particle());
+    function hexToRgb(hex) {
+      const v = hex.replace('#', '');
+      const full = v.length === 3 ? v.split('').map(s => s + s).join('') : v;
+      return [parseInt(full.slice(0, 2), 16), parseInt(full.slice(2, 4), 16), parseInt(full.slice(4, 6), 16)];
+    }
 
-    const fileInput = document.getElementById('file-upload');
-    const attachBtn = document.getElementById('btn-attach');
-    const voiceBtn = document.getElementById('btn-voice');
-    const sendBtn = document.getElementById('btn-send');
-    const chatInput = document.getElementById('chat-input');
-    const sysMsg = document.getElementById('sys-msg');
-    const hologram = document.getElementById('hologram-display');
-    const holoText = document.getElementById('hologram-text');
-    const loader = document.getElementById('manifest-loader');
-    const freezeBtn = document.getElementById('freeze-btn');
-    const saveBtn = document.getElementById('save-btn');
-    const eraseBtn = document.getElementById('erase-btn');
-    const penBtn = document.getElementById('pen-btn');
+    function paletteColor(t, palette) {
+      const a = hexToRgb(palette[Math.floor(t * palette.length) % palette.length]);
+      const b = hexToRgb(palette[(Math.floor(t * palette.length) + 1) % palette.length]);
+      const m = (Math.sin(t * Math.PI * 2) + 1) * 0.5;
+      return [a[0] + (b[0] - a[0]) * m, a[1] + (b[1] - a[1]) * m, a[2] + (b[2] - a[2]) * m];
+    }
 
-    class LightDocument {
-      constructor() {
-        this.currentSnapshot = null;
-        this.currentFormat = 'PNG';
-        this.ui = this.createDocumentUI();
+    function getStandbyTarget(index) {
+      const t = index / NUM_PHOTONS;
+      const angle = t * Math.PI * 16 + renderTime * 0.95;
+      const radius = Math.min(W, H) * (0.05 + t * 0.3);
+      return {
+        x: CX + Math.cos(angle) * radius,
+        y: CY + Math.sin(angle) * radius * 0.86,
+        color: paletteColor(t, THEMES.idle.palette)
+      };
+    }
+
+    function addTouchBurst(x, y) {
+      touchBursts.push({ x, y, bornAt: renderTime, life: 1.15, strength: 1.2 });
+      if (touchBursts.length > 6) touchBursts.shift();
+    }
+
+    function applyTouchBursts(photon) {
+      let fx = 0;
+      let fy = 0;
+      for (const burst of touchBursts) {
+        const age = renderTime - burst.bornAt;
+        if (age > burst.life) continue;
+        const dx = photon.x - burst.x;
+        const dy = photon.y - burst.y;
+        const dist = Math.hypot(dx, dy) || 1;
+        const ageFactor = 1 - age / burst.life;
+        const falloff = Math.max(0, 1 - dist / 170) * ageFactor * burst.strength;
+        fx += (dx / dist) * falloff;
+        fy += (dy / dist) * falloff;
+      }
+      return { fx, fy };
+    }
+
+    function pruneTouchBursts() {
+      for (let i = touchBursts.length - 1; i >= 0; i--) {
+        if (renderTime - touchBursts[i].bornAt > touchBursts[i].life) touchBursts.splice(i, 1);
+      }
+    }
+
+    function buildMessageField(text) {
+      const value = (text || '').trim();
+      if (!value) {
+        targetField = [];
+        return;
+      }
+      memCtx.clearRect(0, 0, W, H);
+      const fontSize = clamp(Math.floor(Math.min(W * 0.08, H * 0.14)), 34, 94);
+      memCtx.fillStyle = '#fff';
+      memCtx.textAlign = 'center';
+      memCtx.textBaseline = 'middle';
+      memCtx.font = `700 ${fontSize}px "JetBrains Mono", monospace`;
+      memCtx.fillText(value.slice(0, 72), CX, CY);
+
+      const img = memCtx.getImageData(0, 0, W, H).data;
+      const points = [];
+      const step = Math.max(4, Math.floor(Math.min(W, H) / 160));
+      for (let y = 0; y < H; y += step) {
+        for (let x = 0; x < W; x += step) {
+          const alpha = img[(y * W + x) * 4 + 3];
+          if (alpha > 80) points.push({ x, y });
+        }
+      }
+      targetField = points.length ? points : [];
+    }
+
+    function rememberImagePattern(pattern) {
+      learnedImageMemory = {
+        ...pattern,
+        learnedAt: Date.now(),
+        expiresAt: Date.now() + IMAGE_MEMORY_TTL_MS
+      };
+    }
+
+    function getImagePatternMemory() {
+      if (!learnedImageMemory) return null;
+      if (Date.now() > learnedImageMemory.expiresAt) {
+        learnedImageMemory = null;
+        return null;
+      }
+      return learnedImageMemory;
+    }
+
+    function buildFieldFromImage(imageBitmap) {
+      memCtx.clearRect(0, 0, W, H);
+      const fit = Math.min(W / imageBitmap.width, H / imageBitmap.height);
+      const drawW = Math.max(1, Math.floor(imageBitmap.width * fit));
+      const drawH = Math.max(1, Math.floor(imageBitmap.height * fit));
+      const offsetX = Math.floor((W - drawW) * 0.5);
+      const offsetY = Math.floor((H - drawH) * 0.5);
+      memCtx.drawImage(imageBitmap, offsetX, offsetY, drawW, drawH);
+
+      const img = memCtx.getImageData(0, 0, W, H).data;
+      const points = [];
+      const step = Math.max(2, Math.floor(Math.min(W, H) / 220));
+      for (let y = 0; y < H; y += step) {
+        for (let x = 0; x < W; x += step) {
+          const idx = (y * W + x) * 4;
+          const alpha = img[idx + 3];
+          if (alpha < 24) continue;
+          const r = img[idx];
+          const g = img[idx + 1];
+          const b = img[idx + 2];
+          const brightness = (r + g + b) / 3;
+          if (brightness < 12) continue;
+          points.push({ x, y, color: [r, g, b] });
+        }
       }
 
-      createDocumentUI() {
-        const docUI = document.createElement('div');
-        docUI.className = 'document-save-ui';
-        docUI.innerHTML = `
-          <div class="save-header">
-            <h3>💾 Save Frozen Light</h3>
-            <div class="close-btn" data-action="close">✕</div>
-          </div>
-          <div class="format-options">
-            <div class="format-option selected" data-format="PNG"><div>🖼️ PNG</div></div>
-            <div class="format-option" data-format="PDF"><div>📄 PDF</div></div>
-          </div>
-          <div class="save-options">
-            <input type="text" class="filename-input" value="frozen-light" />
-            <button class="save-button">บันทึกไฟล์</button>
-          </div>
-        `;
-        docUI.style.display = 'none';
-        document.body.appendChild(docUI);
+      if (!points.length) return null;
 
-        docUI.querySelector('[data-action="close"]').addEventListener('click', () => {
-          docUI.style.display = 'none';
-        });
+      const average = points.reduce((acc, p) => {
+        acc[0] += p.color[0];
+        acc[1] += p.color[1];
+        acc[2] += p.color[2];
+        return acc;
+      }, [0, 0, 0]);
+      const n = points.length;
 
-        docUI.querySelectorAll('.format-option').forEach((option) => {
-          option.addEventListener('click', () => {
-            docUI.querySelectorAll('.format-option').forEach((e) => e.classList.remove('selected'));
-            option.classList.add('selected');
-            this.currentFormat = option.dataset.format;
-          });
-        });
+      return {
+        targetField: points,
+        averageColor: average.map(v => Math.round(v / n)),
+        structure: { width: imageBitmap.width, height: imageBitmap.height, sampled_points: points.length }
+      };
+    }
 
-        docUI.querySelector('.save-button').addEventListener('click', () => {
-          const baseName = docUI.querySelector('.filename-input').value.trim() || 'frozen-light';
-          if (this.currentFormat === 'PDF') {
-            this.exportAsPDF(`${baseName}.pdf`);
-          } else {
-            this.exportAsPNG(`${baseName}.png`);
+    async function analyzeAttachedImage(file) {
+      if (!file || !file.type.startsWith('image/')) return null;
+      try {
+        const bitmap = await createImageBitmap(file);
+        const pattern = buildFieldFromImage(bitmap);
+        bitmap.close();
+        if (!pattern) return null;
+        rememberImagePattern(pattern);
+        return pattern;
+      } catch (error) {
+        console.warn('[AETHERIUM][image-analysis-failed]', error);
+        return null;
+      }
+    }
+
+    async function deliverMessage(message) {
+      const traceId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : `trace-${Date.now()}`;
+      const sessionId = `homepage-${Date.now()}`;
+      const payload = {
+        session_id: sessionId,
+        model_response: {
+          trace_id: traceId,
+          reasoning_trace: message,
+          intent_vector: {
+            category: 'user_message',
+            emotional_valence: 0,
+            energy_level: 0.5
+          },
+          particle_control: {
+            intent_state: {
+              state: 'LISTENING',
+              shape: 'orb',
+              state_duration_ms: 0,
+              transition_reason: 'frontend_message_submit',
+              particle_density: 0.4,
+              velocity: 0.3,
+              turbulence: 0.2,
+              cohesion: 0.6,
+              flow_direction: 'forward',
+              glow_intensity: 0.4,
+              flicker: 0.1,
+              attractor: 'message_center',
+              palette: {
+                mode: 'duotone',
+                primary: '#6EE7F9',
+                secondary: '#A78BFA'
+              }
+            },
+            renderer_controls: {
+              base_shape: 'orb',
+              chromatic_mode: 'balanced',
+              particle_count: 900,
+              flow_field: 'laminar',
+              shader_uniforms: { cadence_hz: 2.5 },
+              runtime_profile: 'standard'
+            }
+          },
+          visual_manifestation: {
+            base_shape: 'orb',
+            transition_type: 'ease',
+            color_palette: {
+              primary: '#6EE7F9',
+              secondary: '#A78BFA'
+            },
+            particle_physics: {
+              turbulence: 0.2,
+              flow_direction: 'forward',
+              luminance_mass: 0.4,
+              particle_count: 900
+            },
+            chromatic_mode: 'balanced',
+            device_tier: 2
           }
-        });
-
-        return docUI;
-      }
-
-      showSaveUI(snapshot) {
-        this.currentSnapshot = snapshot;
-        this.ui.style.display = 'block';
-      }
-
-      renderFrozenToCanvas(scale = 1) {
-        const renderCanvas = document.createElement('canvas');
-        renderCanvas.width = Math.floor(width * scale);
-        renderCanvas.height = Math.floor(height * scale);
-        const renderCtx = renderCanvas.getContext('2d');
-
-        const gradient = renderCtx.createLinearGradient(0, 0, renderCanvas.width, renderCanvas.height);
-        gradient.addColorStop(0, '#03030c');
-        gradient.addColorStop(1, '#0b1120');
-        renderCtx.fillStyle = gradient;
-        renderCtx.fillRect(0, 0, renderCanvas.width, renderCanvas.height);
-
-        if (!this.currentSnapshot?.points?.length) return renderCanvas;
-
-        this.currentSnapshot.points.forEach((point) => {
-          renderCtx.beginPath();
-          renderCtx.fillStyle = point.color || '#99f6ff';
-          renderCtx.globalAlpha = 0.92;
-          renderCtx.arc(point.x * scale, point.y * scale, (point.size + 0.8) * scale, 0, Math.PI * 2);
-          renderCtx.fill();
-        });
-
-        renderCtx.globalAlpha = 1;
-        renderCtx.fillStyle = 'rgba(255,255,255,0.8)';
-        renderCtx.font = `${14 * scale}px JetBrains Mono`;
-        renderCtx.fillText(`Aetherium Freeze • ${new Date(this.currentSnapshot.timestamp).toLocaleString()}`, 20 * scale, 30 * scale);
-        return renderCanvas;
-      }
-
-      triggerDownload(href, filename) {
-        const anchor = document.createElement('a');
-        anchor.href = href;
-        anchor.download = filename;
-        anchor.click();
-      }
-
-      exportAsPNG(filename = 'frozen-light.png') {
-        const imgCanvas = this.renderFrozenToCanvas(2);
-        this.triggerDownload(imgCanvas.toDataURL('image/png'), filename);
-        sysMsg.innerText = `SYSTEM: SAVED ${filename}`;
-      }
-
-      exportAsPDF(filename = 'frozen-light.pdf') {
-        const pdfCanvas = this.renderFrozenToCanvas(2);
-        const imageData = pdfCanvas.toDataURL('image/png');
-        const pdfShell = `<!doctype html><html><head><title>${filename}</title><style>body{margin:0;background:#10131f;display:flex;justify-content:center;align-items:center;height:100vh;}img{max-width:95vw;max-height:95vh;}</style></head><body><img src="${imageData}" alt="Frozen light"></body></html>`;
-        const blob = new Blob([pdfShell], { type: 'text/html' });
-        this.triggerDownload(URL.createObjectURL(blob), filename.replace(/\.pdf$/i, '.html'));
-        sysMsg.innerText = 'SYSTEM: PDF fallback exported as printable HTML snapshot';
-      }
-    }
-
-    class LightPen {
-      constructor() {
-        this.isActive = false;
-        this.isDrawing = false;
-        this.brushSize = 2;
-        this.currentColor = '#00ffff';
-        this.ui = this.createPenUI();
-        this.target = null;
-      }
-
-      createPenUI() {
-        const ui = document.createElement('div');
-        ui.className = 'light-pen-ui';
-        ui.style.display = 'none';
-        const palette = ['#ff0000', '#00ff88', '#00aaff', '#ffd700', '#ffffff', '#ff00dd', '#00ffff', '#ff8844', '#b68cff', '#7fffd4'];
-        ui.innerHTML = `
-          <div class="pen-header"><h3>🖌️ Light Pen</h3><div class="close-btn" data-action="close">✕</div></div>
-          <div class="color-palette">${palette.map((color, i) => `<div class="color-option ${i===6 ? 'selected' : ''}" data-color="${color}" style="background:${color}"></div>`).join('')}</div>
-          <div class="brush-controls"><label for="brush-size">Brush</label><input id="brush-size" type="range" min="1" max="8" value="2" /></div>
-          <div class="pen-actions"><button class="undo-btn">↶ Undo</button><button class="finish-btn">✅ เสร็จสิ้น</button></div>`;
-        document.body.appendChild(ui);
-
-        ui.querySelectorAll('.color-option').forEach((node) => {
-          node.addEventListener('click', () => {
-            ui.querySelectorAll('.color-option').forEach((e) => e.classList.remove('selected'));
-            node.classList.add('selected');
-            this.currentColor = node.dataset.color;
-          });
-        });
-        ui.querySelector('#brush-size').addEventListener('input', (e) => { this.brushSize = Number(e.target.value); });
-        ui.querySelector('.finish-btn').addEventListener('click', () => this.finish());
-        ui.querySelector('[data-action="close"]').addEventListener('click', () => this.finish());
-        ui.querySelector('.undo-btn').addEventListener('click', () => this.undo());
-        return ui;
-      }
-
-      activate(targetSnapshot) {
-        this.target = targetSnapshot;
-        this.isActive = true;
-        this.ui.style.display = 'block';
-        canvas.classList.add('draw-mode');
-      }
-
-      drawAt(x, y) {
-        if (!this.isActive || !this.target) return;
-        if (!this.target.history) this.target.history = [];
-        const point = { x, y, size: this.brushSize, color: this.currentColor, drawn: true };
-        this.target.points.push(point);
-        this.target.history.push(point);
-      }
-
-      undo() {
-        if (!this.target?.history?.length) return;
-        const lastPoint = this.target.history.pop();
-        const idx = this.target.points.lastIndexOf(lastPoint);
-        if (idx >= 0) this.target.points.splice(idx, 1);
-      }
-
-      finish() {
-        this.isActive = false;
-        this.isDrawing = false;
-        canvas.classList.remove('draw-mode');
-        this.ui.style.display = 'none';
-      }
-    }
-
-    class LightErase {
-      constructor() {
-        this.radius = 32;
-        this.isActive = false;
-      }
-
-      toggle(active) {
-        this.isActive = active;
-        canvas.classList.toggle('erase-mode', active);
-      }
-
-      eraseAt(snapshot, x, y) {
-        if (!snapshot?.points?.length) return;
-        snapshot.points = snapshot.points.filter((point) => {
-          const dx = point.x - x;
-          const dy = point.y - y;
-          return Math.sqrt(dx * dx + dy * dy) > this.radius;
-        });
-      }
-    }
-
-    class LightCrystallizer {
-      constructor() {
-        this.frozenStructures = [];
-        this.currentFrozenIndex = -1;
-      }
-
-      startFreeze() {
-        const snapshot = {
-          timestamp: Date.now(),
-          points: particles.map((p) => ({ x: p.x, y: p.y, size: p.size + 0.4, color: config.colors[state.mode] || '#99f6ff' })),
-          metadata: { mode: state.mode, entropy: state.entropy }
+        },
+        model_metadata: {
+          model_name: 'Tiny Reasoning',
+          temperature: 0.4,
+          max_tokens: 256
+        },
+        governor_context: {
+          human_override: {
+            allow_runtime_governor_bypass: false,
+            force_safe_mode: false
+          },
+          device_capability: {
+            supports_motion_sensors: true,
+            motion_sensor_permission: 'prompt',
+            low_power_mode: false,
+            gpu_tier: 2
+          }
+        }
+      };
+      try {
+        const headers = {
+          'Content-Type': 'application/json',
+          'X-Model-Provider': window.AETHERIUM_MODEL_PROVIDER || 'frontend-sim',
+          'X-Model-Version': window.AETHERIUM_MODEL_VERSION || 'tiny-reasoning-v1'
         };
-        this.frozenStructures.push(snapshot);
-        this.currentFrozenIndex = this.frozenStructures.length - 1;
-        saveBtn.style.display = 'flex';
-        eraseBtn.style.display = 'flex';
-        penBtn.style.display = 'flex';
-        sysMsg.innerText = 'SYSTEM: LIGHT CRYSTALLIZED';
-        return snapshot;
-      }
+        if (window.AETHERIUM_API_KEY) {
+          headers['X-API-Key'] = window.AETHERIUM_API_KEY;
+        }
 
-      getCurrentFrozen() {
-        return this.frozenStructures[this.currentFrozenIndex] || null;
-      }
-
-      drawFrozen(ctxRef) {
-        this.frozenStructures.forEach((snapshot) => {
-          snapshot.points.forEach((point) => {
-            ctxRef.beginPath();
-            ctxRef.fillStyle = point.color || '#99f6ff';
-            ctxRef.globalAlpha = 0.9;
-            ctxRef.arc(point.x, point.y, point.size, 0, Math.PI * 2);
-            ctxRef.fill();
-          });
+        const response = await fetch('/api/v1/cognitive/emit', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(payload)
         });
-        ctxRef.globalAlpha = 1;
-      }
-
-      setupVoiceCommands(commands) {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) return;
-        this.speechRecognizer = new SpeechRecognition();
-        this.speechRecognizer.lang = 'th-TH';
-        this.speechRecognizer.continuous = true;
-        this.speechRecognizer.interimResults = false;
-        this.speechRecognizer.onresult = (event) => {
-          const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
-          Object.entries(commands).forEach(([keyword, action]) => {
-            if (transcript.includes(keyword)) action();
-          });
-        };
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return { ok: true };
+      } catch (err) {
+        console.warn('[AETHERIUM][deliver-fallback]', err);
+        return { ok: false };
       }
     }
 
-    const lightDocument = new LightDocument();
-    const lightPen = new LightPen();
-    const lightErase = new LightErase();
-    const lightCrystallizer = new LightCrystallizer();
+    async function submitMessage() {
+      const text = chatInput.value.trim();
+      if (!text && !selectedFile) {
+        setStatus('โปรดพิมพ์ข้อความหรือแนบไฟล์ก่อนส่ง');
+        markInteraction();
+        return;
+      }
 
-    const freezeVoiceCommands = {
-      'แช่แข็ง': () => freezeBtn.click(),
-      'หยุดนิ่ง': () => freezeBtn.click(),
-      freeze: () => freezeBtn.click(),
-      'บันทึก': () => saveBtn.click(),
-      save: () => saveBtn.click(),
-      'ลบ': () => eraseBtn.click(),
-      erase: () => eraseBtn.click(),
-      'วาด': () => penBtn.click(),
-      draw: () => penBtn.click()
-    };
-    lightCrystallizer.setupVoiceCommands(freezeVoiceCommands);
+      sendBtn.disabled = true;
+      setTheme(recording ? 'voice' : 'sent');
+      setStatus('กำลังส่งข้อความ...');
+      markInteraction();
 
-    attachBtn.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', (event) => {
-      const file = event.target.files[0];
-      if (!file) return;
-      const preview = document.getElementById('file-preview');
-      preview.innerHTML = `<div class="file-chip">📎 ${file.name}</div>`;
-      sysMsg.innerText = `SYSTEM: FILE BUFFERED [${file.type}]`;
-    });
-
-    let isListening = false;
-    voiceBtn.addEventListener('click', () => {
-      isListening = !isListening;
-      if (isListening) {
-        voiceBtn.classList.add('voice-active');
-        state.mode = 'LISTENING';
-        sysMsg.innerText = 'SYSTEM: LISTENING TO VOICE FREQUENCY...';
-        chatInput.placeholder = 'กำลังฟัง...';
+      const imageMemory = getImagePatternMemory();
+      if (imageMemory?.targetField?.length) {
+        targetField = imageMemory.targetField;
       } else {
-        voiceBtn.classList.remove('voice-active');
-        state.mode = 'IDLE';
-        sysMsg.innerText = 'SYSTEM: AWAITING INTENT';
-        chatInput.placeholder = 'ส่งข้อความหรือเจตจำนง...';
+        buildMessageField(text || 'FILE');
       }
-    });
+      const result = await deliverMessage(text || '[file-only]');
 
-    freezeBtn.addEventListener('click', () => {
-      lightCrystallizer.startFreeze();
-      freezeBtn.classList.add('mode-active');
-      setTimeout(() => freezeBtn.classList.remove('mode-active'), 600);
-    });
-
-    saveBtn.addEventListener('click', () => {
-      const frozen = lightCrystallizer.getCurrentFrozen();
-      if (!frozen) return;
-      lightDocument.showSaveUI(frozen);
-    });
-
-    eraseBtn.addEventListener('click', () => {
-      const willActivate = !lightErase.isActive;
-      lightErase.toggle(willActivate);
-      eraseBtn.classList.toggle('mode-active', willActivate);
-      if (willActivate) {
-        lightPen.finish();
-        penBtn.classList.remove('mode-active');
-        sysMsg.innerText = 'SYSTEM: ERASE MODE ACTIVE';
+      if (result.ok) {
+        setStatus('ส่งข้อความสำเร็จ');
       } else {
-        sysMsg.innerText = 'SYSTEM: ERASE MODE OFF';
+        setStatus('ส่งผ่าน API ไม่สำเร็จ แสดงผลในโหมดจำลองแทน');
       }
-    });
-
-    penBtn.addEventListener('click', () => {
-      const frozen = lightCrystallizer.getCurrentFrozen();
-      if (!frozen) return;
-      const willActivate = !lightPen.isActive;
-      penBtn.classList.toggle('mode-active', willActivate);
-      if (willActivate) {
-        lightErase.toggle(false);
-        eraseBtn.classList.remove('mode-active');
-        lightPen.activate(frozen);
-        sysMsg.innerText = 'SYSTEM: LIGHT PEN ACTIVE';
-      } else {
-        lightPen.finish();
-        sysMsg.innerText = 'SYSTEM: LIGHT PEN OFF';
-      }
-    });
-
-    canvas.addEventListener('mousedown', (event) => {
-      const frozen = lightCrystallizer.getCurrentFrozen();
-      if (!frozen) return;
-      if (lightErase.isActive) {
-        lightErase.eraseAt(frozen, event.clientX, event.clientY);
-      }
-      if (lightPen.isActive) {
-        lightPen.isDrawing = true;
-        lightPen.drawAt(event.clientX, event.clientY);
-      }
-    });
-
-    canvas.addEventListener('mousemove', (event) => {
-      if (!lightPen.isActive || !lightPen.isDrawing) return;
-      lightPen.drawAt(event.clientX, event.clientY);
-    });
-
-    window.addEventListener('mouseup', () => {
-      lightPen.isDrawing = false;
-    });
-
-    function processIntent() {
-      const text = chatInput.value.toLowerCase().trim();
-      const hasFile = fileInput.files.length > 0;
-      if (!text && !hasFile) return;
-
-      state.mode = 'PROCESSING';
-      sysMsg.innerText = 'SYSTEM: ANALYZING INTENT VECTORS...';
-      hologram.style.opacity = 1;
-      loader.style.display = 'block';
-      holoText.innerText = '';
 
       chatInput.value = '';
-      document.getElementById('file-preview').innerHTML = '';
+      autoResizeTextarea();
+      selectedFile = null;
+      fileInput.value = '';
+      fileChip.classList.remove('active');
 
-      setTimeout(() => {
-        state.mode = 'MANIFESTING';
-        loader.style.display = 'none';
-
-        if (text.includes('ทะเล') || text.includes('น้ำตก') || text.includes('ภูเขา') || text.includes('sea')) {
-          holoText.innerText = `MANIFESTING: "${text.toUpperCase()}"`;
-          sysMsg.innerText = 'SYSTEM: CONSTRUCTING VISUAL REALITY FROM DATA';
-        } else if (hasFile) {
-          holoText.innerText = 'DOCUMENT RECEIVED';
-          sysMsg.innerText = 'SYSTEM: PARSING PDF STRUCTURE...';
-        } else {
-          holoText.innerText = 'UNDERSTOOD';
-          sysMsg.innerText = 'SYSTEM: INTENT ACKNOWLEDGED';
-        }
-
-        setTimeout(() => {
-          state.mode = 'IDLE';
-          hologram.style.opacity = 0;
-          sysMsg.innerText = 'SYSTEM: AWAITING NEW INTENT';
-          particles.forEach((p) => p.reset());
-        }, 4000);
-      }, 2000);
+      window.setTimeout(() => {
+        if (!recording) setTheme('idle');
+      }, 1800);
+      sendBtn.disabled = false;
     }
 
-    sendBtn.addEventListener('click', processIntent);
-    chatInput.addEventListener('keypress', (event) => {
-      if (event.key === 'Enter') processIntent();
+    function tick(ts) {
+      renderTime = ts * 0.001;
+      const cfg = THEMES[theme] || THEMES.idle;
+
+      const idleMs = performance.now() - lastInteractionTime;
+      if (idleMs > 5000) fadingOut = true;
+      visibilityStrength = clamp(visibilityStrength + (fadingOut ? -0.008 : 0.01), 0.08, 1);
+      getImagePatternMemory();
+
+      ctx.fillStyle = `rgba(2, 2, 5, ${cfg.trail})`;
+      ctx.fillRect(0, 0, W, H);
+
+      for (let i = 0; i < photons.length; i++) {
+        const p = photons[i];
+        const target = targetField.length ? targetField[i % targetField.length] : getStandbyTarget(i);
+
+        const dx = target.x - p.x;
+        const dy = target.y - p.y;
+        const dist = Math.hypot(dx, dy) || 1;
+        const force = cfg.force + (dist > 80 ? 0.005 : 0);
+        p.vx += (dx / dist) * force;
+        p.vy += (dy / dist) * force;
+
+        const burst = applyTouchBursts(p);
+        p.vx += burst.fx * 0.2;
+        p.vy += burst.fy * 0.2;
+
+        p.vx += (Math.random() - 0.5) * cfg.noise;
+        p.vy += (Math.random() - 0.5) * cfg.noise;
+
+        p.vx *= 0.91;
+        p.vy *= 0.91;
+        p.x += p.vx * PARTICLE_SPEED;
+        p.y += p.vy * PARTICLE_SPEED;
+
+        if (p.x < -20) p.x = W + 20;
+        else if (p.x > W + 20) p.x = -20;
+        if (p.y < -20) p.y = H + 20;
+        else if (p.y > H + 20) p.y = -20;
+
+        const [r, g, b] = target.color || paletteColor((i / NUM_PHOTONS) + renderTime * 0.01, cfg.palette);
+        ctx.fillStyle = `rgba(${r|0}, ${g|0}, ${b|0}, ${0.18 + visibilityStrength * 0.72})`;
+        ctx.fillRect(p.x, p.y, 1.8, 1.8);
+      }
+
+      pruneTouchBursts();
+      requestAnimationFrame(tick);
+    }
+
+    attachBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', async () => {
+      selectedFile = fileInput.files?.[0] || null;
+      if (selectedFile) {
+        fileNameEl.textContent = `${selectedFile.name} · ${Math.max(1, Math.round(selectedFile.size / 1024))} KB`;
+        fileChip.classList.add('active');
+        const imagePattern = await analyzeAttachedImage(selectedFile);
+        if (imagePattern?.targetField?.length) {
+          targetField = imagePattern.targetField;
+          const [r, g, b] = imagePattern.averageColor;
+          markInteraction(`วิเคราะห์ภาพแล้ว · โครงสร้าง ${imagePattern.structure.sampled_points} จุด · สีเฉลี่ย rgb(${r}, ${g}, ${b}) · จำ 1 ชม.`);
+        } else {
+          markInteraction('แนบไฟล์แล้ว พร้อมส่ง');
+        }
+      } else {
+        fileChip.classList.remove('active');
+      }
     });
 
-    function animate() {
-      ctx.fillStyle = 'rgba(5, 5, 5, 0.2)';
-      ctx.fillRect(0, 0, width, height);
+    fileRemoveBtn.addEventListener('click', () => {
+      selectedFile = null;
+      fileInput.value = '';
+      fileChip.classList.remove('active');
+      learnedImageMemory = null;
+      markInteraction('ลบไฟล์แนบแล้ว');
+    });
 
-      particles.forEach((p) => {
-        p.update();
-        p.draw();
-      });
+    voiceBtn.addEventListener('click', () => {
+      recording = !recording;
+      voiceBtn.classList.toggle('recording', recording);
+      setTheme(recording ? 'voice' : 'idle');
+      markInteraction(recording ? 'โหมดเสียงพร้อมใช้งาน' : 'ปิดโหมดเสียง');
+    });
+
+    settingsBtn.addEventListener('click', () => {
+      markInteraction('ตั้งค่าจะพร้อมใช้งานในเวอร์ชันถัดไป');
+    });
+
+    sendBtn.addEventListener('click', submitMessage);
 
       lightCrystallizer.drawFrozen(ctx);
 
       document.getElementById('bar-energy').style.width = `${state.energy}%`;
       document.getElementById('bar-energy').style.backgroundColor = config.colors[state.mode];
       document.getElementById('bar-entropy').style.width = `${state.entropy}%`;
+    chatInput.addEventListener('input', () => {
+      autoResizeTextarea();
+      markInteraction();
+    });
 
-      requestAnimationFrame(animate);
-    }
+    chatInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        submitMessage();
+      }
+    });
 
-    animate();
+    display.addEventListener('pointerdown', (event) => {
+      addTouchBurst(event.clientX, event.clientY);
+      markInteraction('ปลุกแสงแล้ว');
+    });
+
+    window.addEventListener('resize', resize);
+
+    resize();
+    autoResizeTextarea();
+    initPhotons();
+    setStatus('SPHERE STANDBY · พิมพ์ข้อความแล้วกดส่งได้ทันที');
+    requestAnimationFrame(tick);
   </script>
 </body>
 </html>

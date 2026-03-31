@@ -1,0 +1,23 @@
+{
+  "ipw_type": "IPW_V1",
+  "predictions": [
+    {
+      "action_id": "manifest_wave.soften",
+      "p": 0.64
+    },
+    {
+      "action_id": "manifest_core.focus",
+      "p": 0.36
+    }
+  ],
+  "collapse_threshold": 0.61,
+  "probability_policy": {
+    "requires_normalization": true,
+    "epsilon": 0.0001,
+    "on_violation": "error"
+  },
+  "evidence": {
+    "interaction_velocity": 0.73,
+    "context_signature": "ctx-a7c33"
+  }
+}
