@@ -122,6 +122,18 @@ Operationally:
 ---
 
 
+## Cognitive DSL API Gateway (New)
+
+มีการเพิ่มโครงสร้าง API Gateway ตัวอย่างในโฟลเดอร์ `api_gateway/` เพื่อรองรับการรับ Cognitive DSL จากโมเดลภายนอกตาม success metrics:
+
+- `POST /api/v1/cognitive/emit`
+- `POST /api/v1/cognitive/validate`
+- `GET /health`
+- `WS /ws/cognitive-stream`
+
+พร้อมตัวอย่าง payload, startup script และ middleware validation ตามกฎ Firma.
+
+
 ## Prototype: Manifestation Deck (Implemented)
 
 A runnable prototype now exists in `index.html` with the interaction model requested in review:

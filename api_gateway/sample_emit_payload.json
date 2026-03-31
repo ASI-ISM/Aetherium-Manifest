@@ -1,0 +1,33 @@
+{
+  "session_id": "user_883920_session_001",
+  "model_response": {
+    "trace_id": "gen_883920_ax",
+    "reasoning_trace": "ผู้ใช้แสดงความเครียดและต้องการการปลอบประโลม",
+    "intent_vector": {
+      "category": "analysis_request_with_empathy",
+      "emotional_valence": -0.7,
+      "energy_level": 0.8
+    },
+    "visual_manifestation": {
+      "base_shape": "spiral_vortex",
+      "transition_type": "morph_fluid",
+      "color_palette": {
+        "primary": "#800080",
+        "secondary": "#00FFFF"
+      },
+      "particle_physics": {
+        "turbulence": 0.4,
+        "flow_direction": "centripetal",
+        "luminance_mass": 0.9,
+        "particle_count": 12000
+      },
+      "chromatic_mode": "BIT_24_RGB",
+      "device_tier": 3
+    }
+  },
+  "model_metadata": {
+    "model_name": "gpt-4o",
+    "temperature": 0.3,
+    "max_tokens": 1500
+  }
+}
