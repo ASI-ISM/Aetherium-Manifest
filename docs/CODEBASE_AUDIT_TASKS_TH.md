@@ -6,8 +6,8 @@
 
 **ปัญหาที่พบ**
 - ใน `api_gateway/README.md` มีประโยคภาษาอังกฤษพิมพ์ตกคำ:
-  - `For an environment that closer resembles production, ...`
-- วลี `that closer` ควรเป็น `that is closer`
+  - `For an environment that is closer to production, ...`
+- ปรับให้ถ้อยคำสอดคล้องกับสำนวนอังกฤษมาตรฐาน และชี้ตรงกับคำแนะนำการใช้งานสคริปต์
 
 **งานที่เสนอ**
 - แก้เป็น:

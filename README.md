@@ -77,7 +77,7 @@ The current prototype architecture is centered on runtime state semantics and th
 └────────────────────────────────────────────────────────────────────────────┘   └─────────────────────────────────┘
 ```
 
-This diagram aligns with the current implementation documented under **Runtime Database Structure (Current)**:
+This diagram aligns with the target storage/control model documented under **Runtime Database Structure (Proposed)**:
 - **State before feature:** runtime semantics are defined before effects.
 - **Governor is the only mutate point:** state mutation is centralized.
 - **Schema is ABI:** payload versioning and evolution rules protect FE/BE contract parity.
@@ -419,14 +419,10 @@ The repository includes an experimental Cognitive DSL gateway in `api_gateway/`.
 - `GET  /health`
 - `WS   /ws/cognitive-stream`
 
-### Telemetry Endpoints
-- `POST /api/v1/telemetry/ingest`
-- `GET  /api/v1/telemetry/query`
+### Telemetry and State Sync
+Telemetry ingest/query and state-sync websocket routes are currently documented as roadmap/proposed interfaces; the prototype gateway in `api_gateway/main.py` presently exposes only the cognitive and health routes listed above.
 
-### State Sync Endpoint
-- `WS /ws/state-sync/{room_id}`
-
-These interfaces enable structured interaction with cognitive signals, telemetry ingestion/query, and collaborative state synchronization.
+These currently implemented interfaces enable structured interaction with cognitive signals and real-time cognitive stream inspection.
 
 ### AetherBusExtreme
 `api_gateway/aetherbus_extreme.py` provides high-performance transport primitives:
@@ -546,19 +542,19 @@ const decision = governor.process(payload, {
 - `tools/benchmarks/`: latency and stress benchmark helpers
 - `docs/`: architecture, interfaces, schemas, safety/governance, and roadmap references
 
-### Runtime Database Structure (Current)
+### Runtime Database Structure (Proposed)
 
-The prototype gateway currently uses an in-memory time-series structure for telemetry:
+This section describes the proposed telemetry/state-sync storage model for upcoming gateway expansion:
 
 - Store: `TELEMETRY_TS_DB: dict[str, list[dict[str, Any]]]`
 - Partition key: `metric` (each metric name maps to one series)
 - Point shape: `{"metric": str, "value": float, "ts": datetime, "tags": dict[str, str]}`
 - Retention guard: each series is trimmed to the latest `2500` points on ingest
-- Access APIs:
+- Proposed access APIs:
   - `POST /api/v1/telemetry/ingest`
   - `GET /api/v1/telemetry/query?metric=...&window_seconds=...`
 
-This structure is designed for deterministic local/runtime testing. For production durability, move to a persistent TSDB backend while preserving endpoint contracts.
+When these routes are enabled in the gateway, this structure is designed for deterministic local/runtime testing. For production durability, move to a persistent TSDB backend while preserving endpoint contracts.
 
 Current frontend/kernel runtime telemetry mirrors the proposed control-plane observability fields and now tracks `fps`, `dropped_frames`, `particle_count`, `average_velocity`, `last_ai_command`, and `policy_block_count` before forwarding or persisting samples.
 
@@ -716,7 +712,7 @@ This project is released under the MIT License.
 - **Freeze Light System:** floating controls for Freeze/Save/Erase/Light Pen, voice-trigger keywords (`แช่แข็ง`, `freeze`, `บันทึก`, `ลบ`, `วาด`), frozen-point editing, and export UI for PNG plus printable PDF fallback.
 
 ### API Gateway (ต้นแบบ)
-โฟลเดอร์ `api_gateway/` มี Cognitive DSL gateway พร้อม endpoint สำหรับ emit/validate/health/websocket/telemetry/state-sync
+โฟลเดอร์ `api_gateway/` มี Cognitive DSL gateway พร้อม endpoint สำหรับ emit/validate/health และ websocket cognitive-stream
 
 ### วิธีรัน Frontend + API Gateway
 ```bash
@@ -742,19 +738,19 @@ Gateway: `http://localhost:8000` (เอกสาร API ที่ `/docs`)
 - `tools/benchmarks/`: สคริปต์ benchmark สำหรับ latency/stress
 - `docs/`: เอกสารสถาปัตยกรรม อินเทอร์เฟซ ความปลอดภัย และ roadmap
 
-### โครงสร้างฐานข้อมูล Runtime (ปัจจุบัน)
+### โครงสร้างฐานข้อมูล Runtime (ข้อเสนอเชิงสถาปัตยกรรม)
 
-ต้นแบบใน `api_gateway` ใช้ time-series database แบบ in-memory สำหรับ telemetry:
+เอกสารส่วนนี้อธิบายโครงสร้าง telemetry/state-sync ที่เสนอไว้เชิงสถาปัตยกรรมสำหรับการขยายระบบ:
 
 - โครงสร้างหลัก: `TELEMETRY_TS_DB: dict[str, list[dict[str, Any]]]`
 - คีย์แบ่งชุดข้อมูล: `metric`
 - โครงสร้างข้อมูลจุด: `metric`, `value`, `ts`, `tags`
 - การคุมขนาดข้อมูล: ตัดข้อมูลให้เหลือ `2500` จุดล่าสุดต่อ metric ทุกครั้งที่ ingest
-- API ที่เกี่ยวข้อง:
+- API ที่เสนอไว้:
   - `POST /api/v1/telemetry/ingest`
   - `GET /api/v1/telemetry/query`
 
-โครงสร้างนี้เหมาะกับการพัฒนา/ทดสอบแบบ deterministic และสามารถย้ายไปใช้ TSDB จริงใน production โดยคงสัญญา API เดิมได้.
+เมื่อเปิดใช้ endpoint เหล่านี้ โครงสร้างนี้จะเหมาะกับการพัฒนา/ทดสอบแบบ deterministic และสามารถย้ายไปใช้ TSDB จริงใน production โดยคงสัญญา API เดิมได้.
 
 ### แนวทางต่อยอด (ภาษาไทย)
 > หมายเหตุ: ตัดรายการ “ข้อเสนอแนะที่ทำเสร็จแล้ว” ออกจากทั้งภาษาอังกฤษและภาษาไทยแล้ว เพื่อไม่ให้ปะปนกับงานที่ปิดไปแล้ว

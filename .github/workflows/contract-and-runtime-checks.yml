@@ -50,11 +50,16 @@ jobs:
         with:
           python-version: "3.11"
           cache: "pip"
-          cache-dependency-path: api_gateway/requirements.txt
+          cache-dependency-path: |
+            api_gateway/requirements.txt
+            api_gateway/requirements-dev.txt
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r api_gateway/requirements.txt
+          pip install -r api_gateway/requirements-dev.txt
+      - name: Pytest dependency smoke check (collect only)
+        run: python -m pytest --collect-only -q api_gateway/test_api.py
       - name: Deterministic replay lockstep check
         run: python -m api_gateway.deterministic_replay --seed 777 --event-log tools/benchmarks/replay_event_log.sample.json --nodes 3
       - name: Latency perception benchmark

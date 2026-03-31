@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+from enum import Enum
 from datetime import datetime, timezone
 from typing import Any, Literal
 
@@ -158,6 +160,7 @@ DRIFT_EVENT_TOTAL = 0
 DRIFT_EVENT_DETECTED = 0
 CONTAINMENT_LATENCIES_MS: list[float] = []
 REPLAY_REPRO_BY_PACKAGE: dict[str, bool] = {}
+INCIDENT_REPLAY_PACKAGES: dict[str, dict[str, Any]] = {}
 
 SEV1_INCIDENT_PACKAGES = [
     name for name, package in INCIDENT_REPLAY_PACKAGES.items() if package.get("severity") == "sev1"
