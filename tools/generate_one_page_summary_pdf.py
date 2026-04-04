@@ -10,6 +10,8 @@ OUTPUT = Path("docs/aetherium_manifest_one_page_summary.pdf")
 
 
 def _escape_pdf_text(text: str) -> str:
+    # Map common non-ASCII characters to ASCII equivalents for standard PDF fonts
+    text = text.replace("\u2014", "-").replace("\u2019", "'").replace("\u2013", "-")
     return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
 
 
