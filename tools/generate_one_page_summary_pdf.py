@@ -30,11 +30,9 @@ def markdown_to_lines(text: str) -> list[str]:
             lines.append(s[3:].strip())
             continue
         if s.startswith("- `") and s.endswith("`"):
-            s = "• " + s[3:-1]
+            s = "* " + s[3:-1]
         elif s.startswith("- "):
-            s = "• " + s[2:]
-        elif s[0].isdigit() and s[1:3] == ". ":
-            s = s
+            s = "* " + s[2:]
 
         wrapped = textwrap.wrap(s, width=95, break_long_words=False, break_on_hyphens=False)
         if wrapped:
