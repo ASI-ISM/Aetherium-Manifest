@@ -314,6 +314,43 @@ def health_check() -> dict[str, Any]:
     }
 
 
+@app.post("/api/v1/telemetry/ingest")
+async def ingest_telemetry(
+    request: TelemetryIngestRequest,
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+) -> dict[str, Any]:
+    if x_api_key is not None and not x_api_key.strip():
+        raise HTTPException(status_code=401, detail="invalid X-API-Key")
+
+    inserted = 0
+    async with TELEMETRY_LOCK:
+        for point in request.points:
+            TELEMETRY_TS_DB.setdefault(point.metric, []).append(point.model_dump(mode="json"))
+            inserted += 1
+    return {"status": "success", "inserted": inserted}
+
+
+@app.get("/api/v1/telemetry/query")
+async def query_telemetry(
+    metric: str,
+    window_seconds: int = 3600,
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+) -> dict[str, Any]:
+    if x_api_key is not None and not x_api_key.strip():
+        raise HTTPException(status_code=401, detail="invalid X-API-Key")
+    if window_seconds <= 0:
+        raise HTTPException(status_code=400, detail="window_seconds must be positive")
+
+    cutoff = datetime.now(timezone.utc).timestamp() - window_seconds
+    async with TELEMETRY_LOCK:
+        points = TELEMETRY_TS_DB.get(metric, [])
+        filtered = [
+            point for point in points
+            if datetime.fromisoformat(point["ts"]).timestamp() >= cutoff
+        ]
+    return {"status": "success", "metric": metric, "points": filtered}
+
+
 @app.websocket("/ws/cognitive-stream")
 async def cognitive_stream(websocket: WebSocket) -> None:
     await websocket.accept()

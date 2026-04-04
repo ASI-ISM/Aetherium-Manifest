@@ -309,6 +309,12 @@
       box-shadow: 0 0 16px rgba(182, 140, 255, 0.4);
     }
 
+    #share-btn {
+      top: 236px;
+      border-color: #ffd166;
+      box-shadow: 0 0 16px rgba(255, 209, 102, 0.4);
+    }
+
     .mode-active {
       outline: 2px solid #fff;
     }
@@ -505,6 +511,7 @@
   <div class="floating-button" id="save-btn">💾 <span>Save</span></div>
   <div class="floating-button" id="erase-btn">🗑️ <span>Erase</span></div>
   <div class="floating-button" id="pen-btn">🖌️ <span>Light Pen</span></div>
+  <div class="floating-button" id="share-btn">🔗 <span>Share</span></div>
 
   <div id="hud-overlay">
     <div class="stat-row">
@@ -574,6 +581,7 @@
     const saveBtn = document.getElementById('save-btn');
     const eraseBtn = document.getElementById('erase-btn');
     const penBtn = document.getElementById('pen-btn');
+    const shareBtn = document.getElementById('share-btn');
 
     let W = 0;
     let H = 0;
@@ -590,6 +598,7 @@
     let compileState = 'idle';
     let compileExpireAt = 0;
     let isFrozen = false;
+    let lastSubmittedMessage = '';
 
     const NUM_PHOTONS = 2000;
     const PARTICLE_SPEED = 4.0;
@@ -608,6 +617,58 @@
     function setStatus(text) { statusLine.textContent = text; }
     function setTheme(nextTheme) { theme = nextTheme; }
     function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+    function toIsoTs() {
+      return new Date().toISOString();
+    }
+
+    async function trackUxEvent(eventName, tags = {}) {
+      const payload = {
+        points: [{
+          metric: 'ux_event',
+          value: 1,
+          ts: toIsoTs(),
+          tags: {
+            event: eventName,
+            surface: 'homepage',
+            ...tags
+          }
+        }]
+      };
+      try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (window.AETHERIUM_API_KEY) headers['X-API-Key'] = window.AETHERIUM_API_KEY;
+        await fetch('/api/v1/telemetry/ingest', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(payload)
+        });
+      } catch (error) {
+        console.debug('[AETHERIUM][ux-event-dropped]', eventName, error);
+      }
+    }
+
+    function buildShareUrl() {
+      const shareText = (chatInput.value.trim() || lastSubmittedMessage || '').slice(0, 140);
+      const url = new URL(window.location.href);
+      if (shareText) {
+        url.searchParams.set('manifest', shareText);
+      } else {
+        url.searchParams.delete('manifest');
+      }
+      return url.toString();
+    }
+
+    function applySharedManifestFromUrl() {
+      const manifest = new URLSearchParams(window.location.search).get('manifest');
+      if (!manifest) return;
+      const normalizedManifest = manifest.slice(0, 140);
+      chatInput.value = normalizedManifest;
+      autoResizeTextarea();
+      buildMessageField(normalizedManifest);
+      markInteraction(`เปิดลิงก์ Manifest แล้ว · "${normalizedManifest}"`);
+      trackUxEvent('share_link_opened', { has_manifest: 'true' });
+    }
 
     function resize() {
       W = display.width = window.innerWidth;
@@ -924,6 +985,8 @@
 
       if (result.ok) {
         setStatus('ส่งข้อความสำเร็จ');
+        lastSubmittedMessage = text || lastSubmittedMessage;
+        trackUxEvent('message_sent', { has_file: String(Boolean(selectedFile)) });
       } else {
         setStatus('ส่งผ่าน API ไม่สำเร็จ แสดงผลในโหมดจำลองแทน');
       }
@@ -1094,10 +1157,34 @@
       markInteraction('Pen module ready · เตรียมเส้นทางวาดอนุภาค');
     });
 
+    shareBtn.addEventListener('click', async () => {
+      const shareUrl = buildShareUrl();
+      const sharePayload = {
+        title: 'AETHERIUM Light Manifest',
+        text: 'ดู Light Manifest ที่ฉันสร้างใน Aetherium',
+        url: shareUrl
+      };
+
+      try {
+        if (navigator.share) {
+          await navigator.share(sharePayload);
+        } else if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(shareUrl);
+        } else {
+          throw new Error('share-unavailable');
+        }
+        markInteraction('แชร์ Manifest แล้ว · ส่งลิงก์ให้เพื่อนได้ทันที');
+        trackUxEvent('share_clicked', { has_manifest: String(shareUrl.includes('manifest=')) });
+      } catch (error) {
+        markInteraction('แชร์ไม่สำเร็จ · ลองอีกครั้ง');
+      }
+    });
+
     window.addEventListener('resize', resize);
 
     resize();
     autoResizeTextarea();
+    applySharedManifestFromUrl();
     initPhotons();
     setStatus('SPHERE STANDBY · พิมพ์ข้อความแล้วกดส่งได้ทันที');
     requestAnimationFrame(tick);
