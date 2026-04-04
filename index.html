@@ -9,7 +9,7 @@
 
     :root {
       --void-bg: #020204;
-      --panel-bg: rgba(10, 10, 14, 0.78);
+      --panel-bg: rgba(10, 12, 20, 0.72);
       --panel-border: rgba(255, 255, 255, 0.08);
       --border-light: rgba(255, 255, 255, 0.16);
       --color-manifest: #ffd166;
@@ -18,7 +18,7 @@
       --cyan: #00e5ff;
       --pink: #ff3d81;
       --gold: #ffd166;
-      --shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+      --shadow: 0 18px 58px rgba(0, 0, 0, 0.52);
     }
 
     * { box-sizing: border-box; }
@@ -46,7 +46,11 @@
       height: 100%;
       display: block;
       z-index: 1;
-      background: radial-gradient(circle at 50% 42%, rgba(32, 41, 82, 0.18), transparent 40%), #020204;
+      background:
+        radial-gradient(circle at 50% 32%, rgba(109, 40, 217, 0.16), transparent 36%),
+        radial-gradient(circle at 72% 44%, rgba(0, 229, 255, 0.12), transparent 30%),
+        radial-gradient(circle at 28% 68%, rgba(255, 61, 129, 0.1), transparent 32%),
+        #020204;
     }
 
     /*
@@ -79,7 +83,7 @@
       bottom: 0;
       z-index: 5;
       padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
-      background: linear-gradient(to top, rgba(2,2,4,0.88), rgba(2,2,4,0.22) 60%, transparent);
+      background: linear-gradient(to top, rgba(2,2,4,0.9), rgba(2,2,4,0.22) 60%, transparent);
       pointer-events: none;
     }
 
@@ -90,8 +94,8 @@
       border: 1px solid var(--panel-border);
       border-radius: 24px;
       box-shadow: var(--shadow);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
+      backdrop-filter: blur(26px) saturate(125%);
+      -webkit-backdrop-filter: blur(26px) saturate(125%);
       padding: 10px;
       pointer-events: auto;
     }
@@ -141,8 +145,8 @@
     .composer-wrap {
       flex: 1 1 auto;
       min-width: 0;
-      background: rgba(255,255,255,0.035);
-      border: 1px solid rgba(255,255,255,0.06);
+      background: linear-gradient(140deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+      border: 1px solid rgba(255,255,255,0.12);
       border-radius: 18px;
       padding: 10px 12px;
     }
@@ -291,21 +295,18 @@
       top: 74px;
       border-color: #00ff88;
       box-shadow: 0 0 16px rgba(0, 255, 136, 0.4);
-      display: none;
     }
 
     #erase-btn {
       top: 128px;
       border-color: #ff6688;
       box-shadow: 0 0 16px rgba(255, 102, 136, 0.4);
-      display: none;
     }
 
     #pen-btn {
       top: 182px;
       border-color: #b68cff;
       box-shadow: 0 0 16px rgba(182, 140, 255, 0.4);
-      display: none;
     }
 
     .mode-active {
@@ -432,7 +433,7 @@
       top: 56px;
       z-index: 6;
       width: min(320px, calc(100% - 32px));
-      background: rgba(8, 10, 16, 0.58);
+      background: linear-gradient(165deg, rgba(17, 20, 34, 0.78), rgba(9, 11, 20, 0.56));
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 14px;
       padding: 12px;
@@ -462,6 +463,16 @@
       height: 100%;
       background: linear-gradient(90deg, #00e5ff, #7dd3fc);
       box-shadow: 0 0 18px rgba(0, 229, 255, 0.36);
+    }
+
+    .hud-mode {
+      margin-top: 8px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      color: #c6d4ff;
+      text-transform: uppercase;
     }
 
     .home-tips {
@@ -499,6 +510,7 @@
     <div class="stat-row">
       <div class="stat-label"><span>ENERGY (METABOLISM)</span> <span id="val-energy">100%</span></div>
       <div class="progress-bar-container"><div class="progress-bar" id="bar-energy"></div></div>
+      <div class="hud-mode"><span>SYSTEM MODE</span><span id="energy-state">Stable</span></div>
     </div>
   </div>
 
@@ -557,6 +569,11 @@
     const statusLine = document.getElementById('status-line');
     const energyBar = document.getElementById('bar-energy');
     const energyValue = document.getElementById('val-energy');
+    const energyState = document.getElementById('energy-state');
+    const freezeBtn = document.getElementById('freeze-btn');
+    const saveBtn = document.getElementById('save-btn');
+    const eraseBtn = document.getElementById('erase-btn');
+    const penBtn = document.getElementById('pen-btn');
 
     let W = 0;
     let H = 0;
@@ -570,16 +587,20 @@
     let fadingOut = false;
     let visibilityStrength = 1;
     let targetField = [];
+    let compileState = 'idle';
+    let compileExpireAt = 0;
+    let isFrozen = false;
 
-    const NUM_PHOTONS = 2600;
+    const NUM_PHOTONS = 2000;
     const PARTICLE_SPEED = 4.0;
     const IMAGE_MEMORY_TTL_MS = 60 * 60 * 1000;
+    const MESSAGE_COMPILE_HOLD_MS = 3200;
     const photons = [];
     const touchBursts = [];
 
     const THEMES = {
       idle: { palette: ['#031b44', '#0b4fd9', '#00b7ff', '#d8f6ff'], force: 0.021, noise: 0.08, trail: 0.08 },
-      sent: { palette: ['#00e5ff', '#ff3d81', '#ffd166'], force: 0.036, noise: 0.14, trail: 0.2 },
+      sent: { palette: ['#00e5ff', '#ff3d81', '#ffd166'], force: 0.036, noise: 0.14, trail: 0.16 },
       voice: { palette: ['#ff3d81', '#ffd166', '#ffffff'], force: 0.03, noise: 0.16, trail: 0.16 }
     };
     let theme = 'idle';
@@ -697,6 +718,8 @@
         }
       }
       targetField = points.length ? points : [];
+      compileState = targetField.length ? 'compiled' : 'idle';
+      compileExpireAt = performance.now() + MESSAGE_COMPILE_HOLD_MS;
     }
 
     function rememberImagePattern(pattern) {
@@ -892,6 +915,8 @@
       const imageMemory = getImagePatternMemory();
       if (imageMemory?.targetField?.length) {
         targetField = imageMemory.targetField;
+        compileState = 'compiled';
+        compileExpireAt = performance.now() + MESSAGE_COMPILE_HOLD_MS;
       } else {
         buildMessageField(text || 'FILE');
       }
@@ -916,19 +941,29 @@
     }
 
     function tick(ts) {
-      renderTime = ts * 0.001;
+      const nowMs = performance.now();
+      if (!isFrozen) {
+        renderTime = ts * 0.001;
+      }
       const cfg = THEMES[theme] || THEMES.idle;
 
       const idleMs = performance.now() - lastInteractionTime;
       if (idleMs > 5000) fadingOut = true;
       visibilityStrength = clamp(visibilityStrength + (fadingOut ? -0.008 : 0.01), 0.08, 1);
       getImagePatternMemory();
+      if (compileState === 'compiled' && nowMs >= compileExpireAt) {
+        targetField = [];
+        compileState = 'idle';
+      }
 
-      ctx.fillStyle = `rgba(2, 2, 5, ${cfg.trail})`;
+      const trailStrength = isFrozen ? 0.04 : cfg.trail;
+      ctx.fillStyle = `rgba(2, 2, 5, ${trailStrength})`;
       ctx.fillRect(0, 0, W, H);
       const uiEnergy = Math.max(18, Math.round(visibilityStrength * 100));
       energyBar.style.width = `${uiEnergy}%`;
       energyValue.textContent = `${uiEnergy}%`;
+      energyState.textContent = uiEnergy > 42 ? 'Stable' : 'Nirodha';
+      energyState.style.color = uiEnergy > 42 ? '#9fe8ff' : '#ffd166';
 
       for (let i = 0; i < photons.length; i++) {
         const p = photons[i];
@@ -938,20 +973,28 @@
         const dy = target.y - p.y;
         const dist = Math.hypot(dx, dy) || 1;
         const force = cfg.force + (dist > 80 ? 0.005 : 0);
-        p.vx += (dx / dist) * force;
-        p.vy += (dy / dist) * force;
+        if (!isFrozen) {
+          p.vx += (dx / dist) * force;
+          p.vy += (dy / dist) * force;
+        }
 
         const burst = applyTouchBursts(p);
-        p.vx += burst.fx * 0.2;
-        p.vy += burst.fy * 0.2;
+        if (!isFrozen) {
+          p.vx += burst.fx * 0.2;
+          p.vy += burst.fy * 0.2;
+        }
 
-        p.vx += (Math.random() - 0.5) * cfg.noise;
-        p.vy += (Math.random() - 0.5) * cfg.noise;
+        if (!isFrozen) {
+          p.vx += (Math.random() - 0.5) * cfg.noise;
+          p.vy += (Math.random() - 0.5) * cfg.noise;
+        }
 
-        p.vx *= 0.91;
-        p.vy *= 0.91;
-        p.x += p.vx * PARTICLE_SPEED;
-        p.y += p.vy * PARTICLE_SPEED;
+        if (!isFrozen) {
+          p.vx *= 0.91;
+          p.vy *= 0.91;
+          p.x += p.vx * PARTICLE_SPEED;
+          p.y += p.vy * PARTICLE_SPEED;
+        }
 
         if (p.x < -20) p.x = W + 20;
         else if (p.x > W + 20) p.x = -20;
@@ -963,7 +1006,7 @@
         ctx.fillRect(p.x, p.y, 1.8, 1.8);
       }
 
-      pruneTouchBursts();
+      if (!isFrozen) pruneTouchBursts();
       requestAnimationFrame(tick);
     }
 
@@ -1022,6 +1065,33 @@
     display.addEventListener('pointerdown', (event) => {
       addTouchBurst(event.clientX, event.clientY);
       markInteraction('ปลุกแสงแล้ว');
+    });
+
+    freezeBtn.addEventListener('click', () => {
+      isFrozen = !isFrozen;
+      freezeBtn.classList.toggle('mode-active', isFrozen);
+      freezeBtn.querySelector('span').textContent = isFrozen ? 'Unfreeze' : 'Freeze';
+      markInteraction(isFrozen ? 'หยุดเวลาอนุภาคแล้ว' : 'คืนการไหลของอนุภาคแล้ว');
+    });
+
+    eraseBtn.addEventListener('click', () => {
+      targetField = [];
+      compileState = 'idle';
+      learnedImageMemory = null;
+      eraseBtn.classList.add('mode-active');
+      setTimeout(() => eraseBtn.classList.remove('mode-active'), 180);
+      markInteraction('ล้างฟิลด์เจตจำนงแล้ว');
+    });
+
+    saveBtn.addEventListener('click', () => {
+      saveBtn.classList.add('mode-active');
+      setTimeout(() => saveBtn.classList.remove('mode-active'), 180);
+      markInteraction('Save module ready · กำลังรอการเชื่อมต่อพื้นที่จัดเก็บ');
+    });
+
+    penBtn.addEventListener('click', () => {
+      penBtn.classList.toggle('mode-active');
+      markInteraction('Pen module ready · เตรียมเส้นทางวาดอนุภาค');
     });
 
     window.addEventListener('resize', resize);
