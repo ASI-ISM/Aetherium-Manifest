@@ -11,6 +11,8 @@
       --void-bg: #020204;
       --panel-bg: rgba(10, 10, 14, 0.78);
       --panel-border: rgba(255, 255, 255, 0.08);
+      --border-light: rgba(255, 255, 255, 0.16);
+      --color-manifest: #ffd166;
       --text: #eef2ff;
       --muted: #8b93a7;
       --cyan: #00e5ff;
@@ -423,10 +425,70 @@
     canvas.draw-mode {
       cursor: cell;
     }
+
+    #hud-overlay {
+      position: fixed;
+      left: 16px;
+      top: 56px;
+      z-index: 6;
+      width: min(320px, calc(100% - 32px));
+      background: rgba(8, 10, 16, 0.58);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      padding: 12px;
+      backdrop-filter: blur(8px);
+    }
+
+    .stat-row { display: flex; flex-direction: column; gap: 8px; }
+
+    .stat-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      color: #dbe8ff;
+    }
+
+    .progress-bar-container {
+      width: 100%;
+      height: 6px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, #00e5ff, #7dd3fc);
+      box-shadow: 0 0 18px rgba(0, 229, 255, 0.36);
+    }
+
+    .home-tips {
+      margin: 8px auto 0;
+      width: min(980px, 100%);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      pointer-events: auto;
+    }
+
+    .home-tip {
+      font-size: 10px;
+      color: #c8d3f0;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 999px;
+      padding: 4px 10px;
+    }
   </style>
 </head>
 <body>
-  <canvas id="nervous-system"></canvas>
+  <canvas id="display-layer"></canvas>
+  <canvas id="memory-layer"></canvas>
+  <input type="file" id="file-input" accept="image/*" />
+
+  <div class="ambient-label">AETHERIUM GENESIS · หน้าแรกพร้อมใช้งาน</div>
 
   <div class="floating-button" id="freeze-btn">❄️ <span>Freeze</span></div>
   <div class="floating-button" id="save-btn">💾 <span>Save</span></div>
@@ -437,6 +499,43 @@
     <div class="stat-row">
       <div class="stat-label"><span>ENERGY (METABOLISM)</span> <span id="val-energy">100%</span></div>
       <div class="progress-bar-container"><div class="progress-bar" id="bar-energy"></div></div>
+    </div>
+  </div>
+
+  <div class="bottom-shell">
+    <div class="chat-bar">
+      <div class="chat-top">
+        <button class="icon-btn" id="attach-btn" aria-label="แนบไฟล์">
+          📎
+        </button>
+        <button class="icon-btn" id="voice-btn" aria-label="เปิดโหมดเสียง">
+          🎙️
+        </button>
+        <div class="composer-wrap">
+          <textarea id="chat-input" placeholder="พิมพ์ข้อความที่ต้องการให้ Aetherium ประมวลผล..."></textarea>
+        </div>
+        <button class="icon-btn" id="settings-btn" aria-label="ตั้งค่า">
+          ⚙️
+        </button>
+        <button class="send-btn" id="send-btn" aria-label="ส่งข้อความ">
+          ➤
+        </button>
+      </div>
+
+      <div id="file-chip" class="file-chip">
+        <span id="file-name"></span>
+        <button id="file-remove" class="file-remove" type="button">ลบ</button>
+      </div>
+
+      <div class="chat-bottom">
+        <div class="status-line" id="status-line">กำลังเตรียมระบบ...</div>
+      </div>
+    </div>
+    <div class="home-tips" aria-hidden="true">
+      <div class="home-tip">Enter เพื่อส่ง</div>
+      <div class="home-tip">Shift+Enter ขึ้นบรรทัดใหม่</div>
+      <div class="home-tip">แนบภาพเพื่อสกัดโครงสร้างแสง</div>
+      <div class="home-tip">แตะพื้นที่ว่างเพื่อปลุกอนุภาค</div>
     </div>
   </div>
 
@@ -456,6 +555,8 @@
     const fileNameEl = document.getElementById('file-name');
     const fileRemoveBtn = document.getElementById('file-remove');
     const statusLine = document.getElementById('status-line');
+    const energyBar = document.getElementById('bar-energy');
+    const energyValue = document.getElementById('val-energy');
 
     let W = 0;
     let H = 0;
@@ -825,6 +926,9 @@
 
       ctx.fillStyle = `rgba(2, 2, 5, ${cfg.trail})`;
       ctx.fillRect(0, 0, W, H);
+      const uiEnergy = Math.max(18, Math.round(visibilityStrength * 100));
+      energyBar.style.width = `${uiEnergy}%`;
+      energyValue.textContent = `${uiEnergy}%`;
 
       for (let i = 0; i < photons.length; i++) {
         const p = photons[i];
@@ -903,11 +1007,6 @@
 
     sendBtn.addEventListener('click', submitMessage);
 
-      lightCrystallizer.drawFrozen(ctx);
-
-      document.getElementById('bar-energy').style.width = `${state.energy}%`;
-      document.getElementById('bar-energy').style.backgroundColor = config.colors[state.mode];
-      document.getElementById('bar-entropy').style.width = `${state.entropy}%`;
     chatInput.addEventListener('input', () => {
       autoResizeTextarea();
       markInteraction();
