@@ -30,6 +30,8 @@ Aetherium-Manifest UI (embodiment + cognition)
 - `ops/` — production operations package (dashboards, alerts, runbooks, security/privacy checks)
   - `ops/websocket_scaling_1m_blueprint.md` — blueprint for scaling event-driven websocket/state-sync to 1M CCU (implementation-phased, non-claiming)
   - `ops/production_multi_region_architecture.md` — proposed AWS+Cloudflare multi-region production target with explicit separation between current-repo reality vs rollout plan
+  - `ops/k8s/` — concrete Kubernetes manifests + autoscale + disruption-budget blueprint aligned to Governor-first constraints
+  - `ops/messaging/nats/` and `ops/messaging/kafka/` — reference NATS JetStream and Kafka production bootstrap configs
 - `schemas/` — versioned ABI JSON
 - `appendices/` — glossary, state machine, roadmap
 

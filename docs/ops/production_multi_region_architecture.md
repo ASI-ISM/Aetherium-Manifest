@@ -188,3 +188,12 @@ State updates should be atomic (`INCR version` + apply delta) via transaction/sc
 - EKS deployment diagram (pods/services/ingress/HPA per region)
 - Terraform modules (Cloudflare + AWS baseline)
 - 1M concurrent WS load profile and chaos test matrix
+
+## 17) Repository reference package
+
+The repo now includes a production blueprint package under:
+- `docs/ops/k8s/` (namespaces, deployments/services, ingress split, HPA, PDB)
+- `docs/ops/messaging/nats/` (server config + JetStream bootstrap)
+- `docs/ops/messaging/kafka/` (broker baseline + topic bootstrap)
+
+These files are implementation-oriented references and remain non-claims for current runtime status.
