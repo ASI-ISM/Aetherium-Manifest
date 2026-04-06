@@ -97,7 +97,7 @@ Redis is a **control plane** for:
 | Data type | Strategy |
 |---|---|
 | Session | regional-local |
-| Room collaboration | primary region ownership |
+| Room collaboration | primary region ownership with global metadata sync |
 | Identity/security claims | global source of truth |
 | Telemetry | async global aggregation |
 
