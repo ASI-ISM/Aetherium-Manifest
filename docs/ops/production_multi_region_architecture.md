@@ -142,7 +142,7 @@ State updates should be atomic (`INCR version` + apply delta) via transaction/sc
 
 ### Recommended hybrid
 - route simple intent transforms to regional path
-- route heavy reasoning/planning to central cluster
+- route heavy reasoning/planning to multi-region inference clusters
 
 ## 10) Security baseline
 
