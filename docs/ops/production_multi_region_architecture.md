@@ -27,7 +27,7 @@ Recommended initial regions:
 ## 2) Edge layer design
 
 ### 2.1 Cloudflare Workers
-- latency-based regional routing
+- latency-based regional routing with regulatory affinity
 - request pre-validation and envelope sanity checks
 - trace header injection (`trace_id`, `region_hint`, `edge_pop`)
 
