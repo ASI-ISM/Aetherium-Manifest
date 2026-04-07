@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "aetherium-manifest.fullname" . }}-governor
+  labels:
+    {{- include "aetherium-manifest.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.governor.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "aetherium-manifest.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: governor
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "aetherium-manifest.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: governor
+      annotations:
+        checksum/governor-schema: {{ .Files.Get "files/governor/particle-control.schema.json" | sha256sum }}
+    spec:
+      containers:
+        - name: governor
+          image: "{{ .Values.governor.image.repository }}:{{ .Values.governor.image.tag }}"
+          imagePullPolicy: {{ .Values.governor.image.pullPolicy }}
+          ports:
+            - containerPort: 8090
+              name: http
+          env:
+            - name: PARTICLE_CONTRACT_SCHEMA_PATH
+              value: {{ .Values.governor.contract.schemaPath | quote }}
+            - name: GOVERNOR_POLICY_STRICT
+              value: {{ .Values.governor.policy.strict | quote }}
+            - name: NATS_URL
+              value: {{ .Values.governor.messaging.natsUrl | quote }}
+            - name: KAFKA_BROKERS
+              value: {{ .Values.governor.messaging.kafkaBrokers | quote }}
+          volumeMounts:
+            - name: governor-schema
+              mountPath: {{ .Values.governor.contract.mountDir | quote }}
+              readOnly: true
+      volumes:
+        - name: governor-schema
+          configMap:
+            name: {{ include "aetherium-manifest.fullname" . }}-governor-schema
+            items:
+              - key: particle-control.schema.json
+                path: particle-control.schema.json

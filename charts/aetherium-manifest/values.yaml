@@ -23,3 +23,18 @@ kafka:
 
 clickhouse:
   enabled: false
+
+governor:
+  replicaCount: 2
+  image:
+    repository: ghcr.io/aetherium/governor
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  contract:
+    mountDir: /app/contracts
+    schemaPath: /app/contracts/particle-control.schema.json
+  policy:
+    strict: "true"
+  messaging:
+    natsUrl: nats://nats.messaging.svc.cluster.local:4222
+    kafkaBrokers: kafka-0.kafka-headless.messaging.svc.cluster.local:9092,kafka-1.kafka-headless.messaging.svc.cluster.local:9092,kafka-2.kafka-headless.messaging.svc.cluster.local:9092
