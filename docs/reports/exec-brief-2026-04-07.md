@@ -28,7 +28,7 @@
 
 ---
 
-# Helm packaging, autoscaling policy, and release automation
+## Helm packaging, autoscaling policy, and release automation
 
 **Owner highlights**
 - **CNR-CRN** established an umbrella Helm chart, then iteratively added HPA templates, ingress split, and environment overlays for dev/prod; CI checks were expanded to validate autoscaling defaults and SDLC policy flows. [#106](https://github.com/Aetherium-Syndicate-Inspectra/Aetherium-Manifest/pull/106), [#109](https://github.com/Aetherium-Syndicate-Inspectra/Aetherium-Manifest/pull/109), [#110](https://github.com/Aetherium-Syndicate-Inspectra/Aetherium-Manifest/pull/110), [#111](https://github.com/Aetherium-Syndicate-Inspectra/Aetherium-Manifest/pull/111), [#104](https://github.com/Aetherium-Syndicate-Inspectra/Aetherium-Manifest/pull/104)
