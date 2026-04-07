@@ -3,7 +3,8 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: api-gateway-hpa
-  namespace: aetherium
+  labels:
+    {{- include "aetherium-manifest.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
@@ -12,7 +13,7 @@ spec:
   minReplicas: {{ .Values.apiGateway.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.apiGateway.autoscaling.maxReplicas }}
   behavior:
-{{ toYaml .Values.apiGateway.autoscaling.behavior | indent 4 }}
+    {{- toYaml .Values.apiGateway.autoscaling.behavior | nindent 4 }}
   metrics:
-{{ toYaml .Values.apiGateway.autoscaling.metrics | indent 4 }}
+    {{- toYaml .Values.apiGateway.autoscaling.metrics | nindent 4 }}
 {{- end }}

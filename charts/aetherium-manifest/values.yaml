@@ -38,3 +38,104 @@ governor:
   messaging:
     natsUrl: nats://nats.messaging.svc.cluster.local:4222
     kafkaBrokers: kafka-0.kafka-headless.messaging.svc.cluster.local:9092,kafka-1.kafka-headless.messaging.svc.cluster.local:9092,kafka-2.kafka-headless.messaging.svc.cluster.local:9092
+  autoscaling:
+    enabled: true
+    minReplicas: 6
+    maxReplicas: 40
+    behavior:
+      scaleUp:
+        stabilizationWindowSeconds: 15
+        policies:
+          - type: Pods
+            value: 4
+            periodSeconds: 30
+      scaleDown:
+        stabilizationWindowSeconds: 180
+    metrics:
+      - type: Pods
+        pods:
+          metric:
+            name: governor_validation_latency_p95_ms
+          target:
+            type: AverageValue
+            averageValue: "80"
+      - type: Pods
+        pods:
+          metric:
+            name: governor_contracts_processed_per_second
+          target:
+            type: AverageValue
+            averageValue: "200"
+
+apiGateway:
+  autoscaling:
+    enabled: true
+    minReplicas: 4
+    maxReplicas: 30
+    behavior:
+      scaleUp:
+        stabilizationWindowSeconds: 30
+        policies:
+          - type: Percent
+            value: 100
+            periodSeconds: 30
+      scaleDown:
+        stabilizationWindowSeconds: 180
+        policies:
+          - type: Percent
+            value: 25
+            periodSeconds: 60
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 65
+      - type: Pods
+        pods:
+          metric:
+            name: http_requests_per_second
+          target:
+            type: AverageValue
+            averageValue: "150"
+
+wsGateway:
+  autoscaling:
+    enabled: true
+    minReplicas: 12
+    maxReplicas: 120
+    behavior:
+      scaleUp:
+        stabilizationWindowSeconds: 10
+        policies:
+          - type: Pods
+            value: 8
+            periodSeconds: 30
+      scaleDown:
+        stabilizationWindowSeconds: 300
+        policies:
+          - type: Percent
+            value: 15
+            periodSeconds: 60
+    metrics:
+      - type: Pods
+        pods:
+          metric:
+            name: websocket_active_connections
+          target:
+            type: AverageValue
+            averageValue: "35000"
+      - type: Pods
+        pods:
+          metric:
+            name: websocket_send_queue_depth_p95
+          target:
+            type: AverageValue
+            averageValue: "120"
+      - type: Resource
+        resource:
+          name: memory
+          target:
+            type: Utilization
+            averageUtilization: 70
