@@ -173,7 +173,7 @@ async def emit_cognitive_dsl(
     }
     await _publish_approved_envelope({
         "type": "governor.approved",
-        "trace_id": request_data.get("model_response", {}).get("trace_id"),
+        "trace_id": (request_data.get("model_response") or {}).get("trace_id"),
         "session_id": request_data.get("session_id"),
         "approved_command": governor_result["accepted_command"],
         "approved_at": datetime.now(timezone.utc).isoformat(),
