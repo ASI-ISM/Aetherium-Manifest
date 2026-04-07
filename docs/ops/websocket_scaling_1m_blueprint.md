@@ -125,6 +125,7 @@ This preserves state coherence and avoids slow-client amplification failures.
 ## In-repo implementation helpers
 - `api_gateway/ws_scaling.py` provides planner + shard/backpressure/reconnect primitives.
 - `api_gateway/test_ws_scaling.py` validates math and queue semantics.
+- `aetherbus_tachyon_go/` includes a production-skeleton WebSocket node and Phase-2 primitives (JetStream bridge, deterministic shard+sticky contract, reconnect replay semantics).
 
 ## Non-goals in this blueprint
 - This document does **not** claim that current repository runtime already supports 1M CCU.
