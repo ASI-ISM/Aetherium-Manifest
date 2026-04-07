@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Literal, Optional, Union
 from enum import Enum
 
-from fastapi import FastAPI, HTTPException, Header, WebSocket, WebSocketDisconnect, BackgroundTasks, Request, Query
+from fastapi import FastAPI, HTTPException, Header, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import redis.asyncio as redis
@@ -124,6 +124,21 @@ def _proxy_request_signature(method: str, path: str, body: str, timestamp: str, 
     message = f"{method}|{path}|{body}|{timestamp}|{nonce}"
     return hmac.new(secret.encode("utf-8"), message.encode("utf-8"), hashlib.sha256).hexdigest()
 
+
+async def _publish_approved_envelope(envelope: Dict[str, Any]) -> None:
+    subject = os.getenv("AETHERIUM_APPROVED_SUBJECT", "visual.commands.approved")
+    if nc and nc.is_connected:
+        try:
+            await nc.publish(subject, json.dumps(envelope).encode("utf-8"))
+        except Exception:
+            logger.exception("failed to publish approved envelope to nats")
+
+    if r:
+        try:
+            await r.lpush("kafka:approved_envelopes", json.dumps(envelope))
+        except Exception:
+            logger.exception("failed to queue approved envelope for kafka bridge")
+
 # --- Endpoints ---
 
 @app.post("/api/v1/cognitive/emit")
@@ -156,6 +171,13 @@ async def emit_cognitive_dsl(
             "transition_reason": "test"
         }
     }
+    await _publish_approved_envelope({
+        "type": "governor.approved",
+        "trace_id": request_data.get("model_response", {}).get("trace_id"),
+        "session_id": request_data.get("session_id"),
+        "approved_command": governor_result["accepted_command"],
+        "approved_at": datetime.now(timezone.utc).isoformat(),
+    })
     await incr_metric("successful_renders")
     return {
         "status": "success",
@@ -259,29 +281,3 @@ def health_check() -> dict[str, Any]:
             "nats": "connected" if nc and nc.is_connected else "disconnected",
         },
     }
-
-@app.websocket("/ws/cognitive-stream")
-async def cognitive_stream(websocket: WebSocket, api_key: Optional[str] = Query(None, alias="api_key"), x_api_key: Optional[str] = Header(None, alias="x-api-key")):
-    key = api_key or x_api_key
-    if not key:
-        await websocket.close(code=1008)
-        return
-    await websocket.accept()
-    try:
-        while True:
-            await websocket.receive_json()
-            await websocket.send_json({"status": "accepted"})
-    except WebSocketDisconnect: pass
-
-@app.websocket("/ws/state-sync/{room_id}")
-async def state_sync_stream(websocket: WebSocket, api_key: Optional[str] = Query(None, alias="api_key"), x_api_key: Optional[str] = Header(None, alias="x-api-key")):
-    key = api_key or x_api_key
-    if not key:
-        await websocket.close(code=1008)
-        return
-    await websocket.accept()
-    try:
-        while True:
-            await websocket.receive_json()
-            await websocket.send_json({"status": "accepted"})
-    except WebSocketDisconnect: pass

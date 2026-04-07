@@ -5,7 +5,6 @@ from datetime import datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
-from starlette.websockets import WebSocketDisconnect
 
 from .main import app, _proxy_request_signature
 
@@ -43,26 +42,6 @@ def test_validate_missing_api_key(client: TestClient) -> None:
     assert "missing X-API-Key" in response.text
 
 
-def test_websocket_stream_missing_key(client: TestClient) -> None:
-    with pytest.raises(WebSocketDisconnect):
-        with client.websocket_connect("/ws/cognitive-stream"):
-            pass
-
-
-def test_websocket_stream_with_query_key(client: TestClient) -> None:
-    with client.websocket_connect("/ws/cognitive-stream?api_key=test-key") as websocket:
-        websocket.send_json({"type": "dsl_submission", "payload": "..."})
-        response = websocket.receive_json()
-        assert response["status"] == "accepted"
-
-
-def test_websocket_stream_with_header_key(client: TestClient) -> None:
-    with client.websocket_connect("/ws/cognitive-stream", headers={"x-api-key": "test-key"}) as websocket:
-        websocket.send_json({"type": "dsl_submission", "payload": "..."})
-        response = websocket.receive_json()
-        assert response["status"] == "accepted"
-
-
 def test_proxy_fetch_supports_cors_preflight(client: TestClient) -> None:
     response = client.options(
         "/api/v1/proxy/fetch",
@@ -83,12 +62,6 @@ def test_generate_rejects_unsupported_model_with_400(client: TestClient) -> None
     )
     assert response.status_code == 400
     assert "Unsupported model" in response.text
-
-
-def test_state_sync_websocket_requires_api_key(client: TestClient) -> None:
-    with pytest.raises(WebSocketDisconnect):
-        with client.websocket_connect("/ws/state-sync/demo-room"):
-            pass
 
 
 def test_proxy_fetch_rejects_urls_with_credentials(client: TestClient) -> None:

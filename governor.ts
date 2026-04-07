@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import {
   VISUAL_STATE_ALIASES,
   type EasingType,
@@ -579,7 +582,7 @@ export class RuntimeGovernor {
   public psychoSafetySeries: Array<{ ts: number; cadence_hz: number; flicker_proxy: number; luminance_proxy: number }> = [];
 
   constructor(options: RuntimeGovernorOptions = {}) {
-    this.schemaValidator = options.schemaValidator;
+    this.schemaValidator = options.schemaValidator ?? loadRuntimeAbiSchemaValidator();
     this.nowFactory = options.now;
     this.idFactory = options.idFactory;
   }
@@ -1211,6 +1214,54 @@ export class RuntimeGovernor {
       policy_violations: input.policy_violations,
     };
   }
+}
+
+
+
+type JsonSchema = {
+  type?: string;
+  required?: string[];
+  properties?: Record<string, JsonSchema>;
+};
+
+let CACHED_RUNTIME_ABI_VALIDATOR: RuntimeGovernorOptions["schemaValidator"] | null | undefined;
+
+function loadRuntimeAbiSchemaValidator(): RuntimeGovernorOptions["schemaValidator"] | undefined {
+  if (CACHED_RUNTIME_ABI_VALIDATOR !== undefined) return CACHED_RUNTIME_ABI_VALIDATOR ?? undefined;
+  try {
+    const schemaPath = process.env.PARTICLE_CONTROL_SCHEMA_PATH ?? resolve(process.cwd(), "particle-control.schema.json");
+    const raw = readFileSync(schemaPath, "utf-8");
+    const schema = JSON.parse(raw) as JsonSchema;
+    CACHED_RUNTIME_ABI_VALIDATOR = makeNaiveRuntimeAbiValidator(schema);
+    return CACHED_RUNTIME_ABI_VALIDATOR;
+  } catch {
+    CACHED_RUNTIME_ABI_VALIDATOR = null;
+    return undefined;
+  }
+}
+
+function makeNaiveRuntimeAbiValidator(schema: JsonSchema): RuntimeGovernorOptions["schemaValidator"] {
+  return (payload) => {
+    const errors: string[] = [];
+    const rootRequired = schema.required ?? [];
+    for (const key of rootRequired) {
+      if ((payload as Record<string, unknown>)[key] == null) {
+        errors.push(`${key}: missing required field`);
+      }
+    }
+
+    for (const section of ["intent_state", "renderer_controls"] as const) {
+      const sectionSchema = schema.properties?.[section];
+      const sectionRequired = sectionSchema?.required ?? [];
+      const sectionValue = (payload as Record<string, any>)[section] ?? {};
+      for (const key of sectionRequired) {
+        if (sectionValue[key] == null) {
+          errors.push(`${section}.${key}: missing required field`);
+        }
+      }
+    }
+    return errors;
+  };
 }
 
 export function createGovernor(options?: RuntimeGovernorOptions): RuntimeGovernor {

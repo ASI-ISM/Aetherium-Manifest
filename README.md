@@ -417,10 +417,10 @@ The repository includes an experimental Cognitive DSL gateway in `api_gateway/`.
 - `POST /api/v1/cognitive/emit`
 - `POST /api/v1/cognitive/validate`
 - `GET  /health`
-- `WS   /ws/cognitive-stream`
+- `WS   /ws/cognitive-stream` (served by `ws_gateway` service)
 
 ### Telemetry and State Sync
-Telemetry ingest/query and state-sync websocket routes are currently documented as roadmap/proposed interfaces; the prototype gateway in `api_gateway/main.py` presently exposes only the cognitive and health routes listed above.
+Telemetry ingest/query remains queue-first and websocket/state-sync now runs as a dedicated `ws_gateway` service (`ws_gateway/main.py`) backed by Redis Streams for room event durability.
 
 These currently implemented interfaces enable structured interaction with cognitive signals and real-time cognitive stream inspection.
 
@@ -465,7 +465,7 @@ Supports runtime language switching.
 
 ### Multi-User State Synchronization
 Collaborative sessions are available via:
-- `/ws/state-sync/{room_id}`
+- `/ws/state-sync/{room_id}` (served by `ws_gateway` service)
 
 allowing multiple users to observe and interact with shared cognitive state.
 
