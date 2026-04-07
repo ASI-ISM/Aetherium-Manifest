@@ -554,7 +554,7 @@ This section describes the runtime data paths that are implemented in this repos
 - State sync websocket routes are live in `ws_gateway/main.py`:
   - `WS /ws/state-sync/{room_id}`
   - `WS /ws/cognitive-stream`
-  - Incoming room/cognitive events are appended to Redis Streams `state-sync:{room_id}` with `MAXLEN ~ 1000`
+  - Incoming room/cognitive events are appended to Redis Streams (state-sync:{room_id} or state-sync:cognitive) with MAXLEN ~ 1000
 
 Current frontend/kernel runtime telemetry tracks `fps`, `dropped_frames`, `particle_count`, `average_velocity`, `last_ai_command`, and `policy_block_count` before forwarding or persisting samples.
 
