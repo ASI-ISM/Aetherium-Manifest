@@ -34,7 +34,16 @@ func main() {
 	})
 
 	if natsURLs := os.Getenv("NATS_URLS"); natsURLs != "" {
-		bridge := NewJetStreamBridge(strings.Split(natsURLs, ","), "room.events", "visual.commands.>")
+		policy := DefaultJetStreamPolicy()
+		policy.RoomEventsStream = envOrDefault("AETHER_ROOM_EVENTS_STREAM", policy.RoomEventsStream)
+		policy.RoomEventsSubject = envOrDefault("AETHER_ROOM_EVENTS_SUBJECT", policy.RoomEventsSubject)
+		policy.CommandStream = envOrDefault("AETHER_VISUAL_COMMAND_STREAM", policy.CommandStream)
+		policy.CommandSubject = envOrDefault("AETHER_VISUAL_COMMAND_SUBJECT", policy.CommandSubject)
+		policy.DurableConsumer = envOrDefault("AETHER_VISUAL_COMMAND_CONSUMER", policy.DurableConsumer)
+		policy.MaxAckPending = envIntOrDefault("AETHER_VISUAL_COMMAND_MAX_ACK_PENDING", policy.MaxAckPending)
+		policy.Replicas = envIntOrDefault("AETHER_JETSTREAM_REPLICAS", policy.Replicas)
+
+		bridge := NewJetStreamBridge(strings.Split(natsURLs, ","), policy)
 		if err := bridge.Connect(); err != nil {
 			log.Fatalf("jetstream connect failed: %v", err)
 		}
