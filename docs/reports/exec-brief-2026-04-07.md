@@ -19,7 +19,7 @@
 ## Contract/governor/runtime alignment
 
 **Owner highlights**
-- **CNR-CRN** improved gateway and governor integration by splitting websocket service responsibilities, publishing approved envelopes, and loading runtime ABI paths through the canonical control boundary. [#103](https://github.com/Aetherium-Syndicate-Inspectra/Aetherium-Manifest/pull/103), [#105](https://github.com/Aetherium-Syndicate-Inspectra/Aetherium-Manifest/pull/105), [#108](https://github.com/Aetherium-Syndicate-Inspectra/Aetherium-Manifest/pull/108)
+- **CNR-CRN** improved gateway and governor integration by splitting websocket service responsibilities, publishing approved envelopes, and loading runtime ABI paths through the canonical control boundary. [#108](https://github.com/Aetherium-Syndicate-Inspectra/Aetherium-Manifest/pull/108), [#105](https://github.com/Aetherium-Syndicate-Inspectra/Aetherium-Manifest/pull/105), [#103](https://github.com/Aetherium-Syndicate-Inspectra/Aetherium-Manifest/pull/103)
 
 **Narrative**
 - This workstream reinforces the repository’s state-first and governor-first architecture: schema and runtime control are being wired into deployment/runtime paths instead of staying as docs-only assumptions.
