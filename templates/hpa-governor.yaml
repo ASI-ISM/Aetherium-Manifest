@@ -1,0 +1,18 @@
+{{- if .Values.governor.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: governor-hpa
+  namespace: aetherium
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: governor
+  minReplicas: {{ .Values.governor.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.governor.autoscaling.maxReplicas }}
+  behavior:
+{{ toYaml .Values.governor.autoscaling.behavior | indent 4 }}
+  metrics:
+{{ toYaml .Values.governor.autoscaling.metrics | indent 4 }}
+{{- end }}
