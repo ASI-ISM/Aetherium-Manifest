@@ -26,6 +26,13 @@ clickhouse:
 
 governor:
   replicaCount: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 1
+      memory: 1Gi
   image:
     repository: ghcr.io/aetherium/governor
     tag: "1.0.0"
@@ -67,40 +74,15 @@ governor:
             type: AverageValue
             averageValue: "200"
 
-apiGateway:
-  autoscaling:
-    enabled: true
-    minReplicas: 4
-    maxReplicas: 30
-    behavior:
-      scaleUp:
-        stabilizationWindowSeconds: 30
-        policies:
-          - type: Percent
-            value: 100
-            periodSeconds: 30
-      scaleDown:
-        stabilizationWindowSeconds: 180
-        policies:
-          - type: Percent
-            value: 25
-            periodSeconds: 60
-    metrics:
-      - type: Resource
-        resource:
-          name: cpu
-          target:
-            type: Utilization
-            averageUtilization: 65
-      - type: Pods
-        pods:
-          metric:
-            name: http_requests_per_second
-          target:
-            type: AverageValue
-            averageValue: "150"
-
 wsGateway:
+  replicaCount: 3
+  resources:
+    requests:
+      cpu: 300m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
   autoscaling:
     enabled: true
     minReplicas: 12
@@ -139,3 +121,71 @@ wsGateway:
           target:
             type: Utilization
             averageUtilization: 70
+
+apiGateway:
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 4
+    maxReplicas: 30
+    behavior:
+      scaleUp:
+        stabilizationWindowSeconds: 30
+        policies:
+          - type: Percent
+            value: 100
+            periodSeconds: 30
+      scaleDown:
+        stabilizationWindowSeconds: 180
+        policies:
+          - type: Percent
+            value: 25
+            periodSeconds: 60
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 65
+      - type: Pods
+        pods:
+          metric:
+            name: http_requests_per_second
+          target:
+            type: AverageValue
+            averageValue: "150"
+
+ingress:
+  className: nginx
+  http:
+    enabled: true
+    host: api.aetherium.example
+    path: /
+    pathType: Prefix
+    servicePort: 80
+    annotations:
+      nginx.ingress.kubernetes.io/proxy-body-size: 4m
+    tls:
+      enabled: false
+      secretName: aetherium-http-tls
+  ws:
+    enabled: true
+    host: ws.aetherium.example
+    path: /
+    pathType: Prefix
+    servicePort: 80
+    annotations:
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+      nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+      nginx.ingress.kubernetes.io/upstream-hash-by: "$arg_room_id"
+    tls:
+      enabled: false
+      secretName: aetherium-ws-tls
