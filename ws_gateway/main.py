@@ -35,8 +35,7 @@ async def _append_room_event(room_id: str, event: dict[str, Any]) -> None:
     if not r:
         return
     try:
-        await r.xadd(f"state-sync:{room_id}", {"payload": json.dumps(event)})
-        await r.expire(f"state-sync:{room_id}", 86400)
+        await r.xadd(f"state-sync:{room_id}", {"payload": json.dumps(event)}, maxlen=1000, approximate=True)
     except Exception:
         logger.exception("failed to append room event")
 
