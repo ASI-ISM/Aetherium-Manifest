@@ -31,7 +31,7 @@
 ## Helm packaging, autoscaling policy, and release automation
 
 **Owner highlights**
-- **CNR-CRN** established an umbrella Helm chart, then iteratively added HPA templates, ingress split, and environment overlays for dev/prod; CI checks were expanded to validate autoscaling defaults and SDLC policy flows. [#106](https://github.com/Aetherium-Syndicate-Inspectra/Aetherium-Manifest/pull/106), [#109](https://github.com/Aetherium-Syndicate-Inspectra/Aetherium-Manifest/pull/109), [#110](https://github.com/Aetherium-Syndicate-Inspectra/Aetherium-Manifest/pull/110), [#111](https://github.com/Aetherium-Syndicate-Inspectra/Aetherium-Manifest/pull/111), [#104](https://github.com/Aetherium-Syndicate-Inspectra/Aetherium-Manifest/pull/104)
+- **CNR-CRN** established an umbrella Helm chart, then iteratively added HPA templates, ingress split, and environment overlays for dev/prod; CI checks were expanded to validate autoscaling defaults and SDLC policy flows. [#111](https://github.com/Aetherium-Syndicate-Inspectra/Aetherium-Manifest/pull/111), [#110](https://github.com/Aetherium-Syndicate-Inspectra/Aetherium-Manifest/pull/110), [#109](https://github.com/Aetherium-Syndicate-Inspectra/Aetherium-Manifest/pull/109), [#106](https://github.com/Aetherium-Syndicate-Inspectra/Aetherium-Manifest/pull/106), [#104](https://github.com/Aetherium-Syndicate-Inspectra/Aetherium-Manifest/pull/104)
 
 **Narrative**
 - The chart work matured from scaffold to policy-aware deploy controls in less than a day: HPAs per service, ingress route separation, and value overlays indicate immediate operational intent rather than template-only setup.
