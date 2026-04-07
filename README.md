@@ -542,21 +542,21 @@ const decision = governor.process(payload, {
 - `tools/benchmarks/`: latency and stress benchmark helpers
 - `docs/`: architecture, interfaces, schemas, safety/governance, and roadmap references
 
-### Runtime Database Structure (Proposed)
+### Runtime Data Structure (Current Prototype)
 
-This section describes the proposed telemetry/state-sync storage model for upcoming gateway expansion:
+This section describes the runtime data paths that are implemented in this repository today:
 
-- Store: `TELEMETRY_TS_DB: dict[str, list[dict[str, Any]]]`
-- Partition key: `metric` (each metric name maps to one series)
-- Point shape: `{"metric": str, "value": float, "ts": datetime, "tags": dict[str, str]}`
-- Retention guard: each series is trimmed to the latest `2500` points on ingest
-- Proposed access APIs:
+- Telemetry ingestion route is live in `api_gateway/main.py`:
   - `POST /api/v1/telemetry/ingest`
-  - `GET /api/v1/telemetry/query?metric=...&window_seconds=...`
+  - Points are accepted as `TelemetryIngestRequest(points: list[TelemetryPoint])`
+  - Each point shape is `{"metric": str, "value": float, "ts": datetime, "tags": dict[str, str]}`
+  - Ingested points are queued to Redis list `telemetry:queue` for downstream workers
+- State sync websocket routes are live in `ws_gateway/main.py`:
+  - `WS /ws/state-sync/{room_id}`
+  - `WS /ws/cognitive-stream`
+  - Incoming room/cognitive events are appended to Redis Streams `state-sync:{room_id}` with `MAXLEN ~ 1000`
 
-When these routes are enabled in the gateway, this structure is designed for deterministic local/runtime testing. For production durability, move to a persistent TSDB backend while preserving endpoint contracts.
-
-Current frontend/kernel runtime telemetry mirrors the proposed control-plane observability fields and now tracks `fps`, `dropped_frames`, `particle_count`, `average_velocity`, `last_ai_command`, and `policy_block_count` before forwarding or persisting samples.
+Current frontend/kernel runtime telemetry tracks `fps`, `dropped_frames`, `particle_count`, `average_velocity`, `last_ai_command`, and `policy_block_count` before forwarding or persisting samples.
 
 The runtime governor also includes a `psycho_safety_gate` stage that now tracks cadence/flicker/luminance time-series samples, enforces a WCAG-aligned cadence ceiling (`<= 3` flashes/sec), applies IEEE 1789-inspired low-frequency flicker mitigation, and contains gradual frequency drift patterns before policy-block evaluation.
 
@@ -605,7 +605,7 @@ npx --yes tsx --test test_runtime_governor_psycho_safety.test.ts
 
 ## Research & Engineering Roadmap
 
-Future directions only (completed recommendations have been removed from this section in both English and Thai):
+Future directions:
 
 - **Distributed Runtime State**  
   Move mutable runtime state to Redis for multi-worker consistency.
@@ -738,22 +738,21 @@ Gateway: `http://localhost:8000` (เอกสาร API ที่ `/docs`)
 - `tools/benchmarks/`: สคริปต์ benchmark สำหรับ latency/stress
 - `docs/`: เอกสารสถาปัตยกรรม อินเทอร์เฟซ ความปลอดภัย และ roadmap
 
-### โครงสร้างฐานข้อมูล Runtime (ข้อเสนอเชิงสถาปัตยกรรม)
+### โครงสร้างข้อมูล Runtime (ต้นแบบปัจจุบัน)
 
-เอกสารส่วนนี้อธิบายโครงสร้าง telemetry/state-sync ที่เสนอไว้เชิงสถาปัตยกรรมสำหรับการขยายระบบ:
+ส่วนนี้สรุปโครงสร้างข้อมูล runtime ที่มีใช้งานจริงในรีโป:
 
-- โครงสร้างหลัก: `TELEMETRY_TS_DB: dict[str, list[dict[str, Any]]]`
-- คีย์แบ่งชุดข้อมูล: `metric`
-- โครงสร้างข้อมูลจุด: `metric`, `value`, `ts`, `tags`
-- การคุมขนาดข้อมูล: ตัดข้อมูลให้เหลือ `2500` จุดล่าสุดต่อ metric ทุกครั้งที่ ingest
-- API ที่เสนอไว้:
-  - `POST /api/v1/telemetry/ingest`
-  - `GET /api/v1/telemetry/query`
+- ฝั่ง telemetry (`api_gateway/main.py`)
+  - มี endpoint `POST /api/v1/telemetry/ingest`
+  - รับข้อมูลผ่าน `TelemetryIngestRequest(points)` โดยแต่ละจุดมี `metric`, `value`, `ts`, `tags`
+  - เมื่อ ingest แล้วจะถูกส่งเข้าคิว Redis list ชื่อ `telemetry:queue`
+- ฝั่ง state sync (`ws_gateway/main.py`)
+  - มี websocket `WS /ws/state-sync/{room_id}` และ `WS /ws/cognitive-stream`
+  - event ที่รับเข้าจะถูกเขียนลง Redis Streams `state-sync:{room_id}` พร้อมนโยบาย `MAXLEN ~ 1000`
 
-เมื่อเปิดใช้ endpoint เหล่านี้ โครงสร้างนี้จะเหมาะกับการพัฒนา/ทดสอบแบบ deterministic และสามารถย้ายไปใช้ TSDB จริงใน production โดยคงสัญญา API เดิมได้.
+สำหรับ production ควรเสริม persistence/retention/query layer เพิ่มเติม โดยไม่ทำลายสัญญา API และสัญญา websocket เดิม.
 
 ### แนวทางต่อยอด (ภาษาไทย)
-> หมายเหตุ: ตัดรายการ “ข้อเสนอแนะที่ทำเสร็จแล้ว” ออกจากทั้งภาษาอังกฤษและภาษาไทยแล้ว เพื่อไม่ให้ปะปนกับงานที่ปิดไปแล้ว
 
 - **เสริม Psycho-Safety Gate เชิงรุก**  
   เพิ่มตัวชี้วัด cadence/flicker/luminance drift พร้อม consent mode (`low-sensory`, `no-flicker`, `monochrome`) และบังคับ deny-by-default สำหรับการเปลี่ยนค่าสี/แสงที่มีความเสี่ยง
