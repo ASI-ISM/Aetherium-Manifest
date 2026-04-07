@@ -127,15 +127,16 @@ def _proxy_request_signature(method: str, path: str, body: str, timestamp: str, 
 
 async def _publish_approved_envelope(envelope: Dict[str, Any]) -> None:
     subject = os.getenv("AETHERIUM_APPROVED_SUBJECT", "visual.commands.approved")
+    payload = json.dumps(envelope)
     if nc and nc.is_connected:
         try:
-            await nc.publish(subject, json.dumps(envelope).encode("utf-8"))
+            await nc.publish(subject, payload.encode("utf-8"))
         except Exception:
             logger.exception("failed to publish approved envelope to nats")
 
     if r:
         try:
-            await r.lpush("kafka:approved_envelopes", json.dumps(envelope))
+            await r.lpush("kafka:approved_envelopes", payload)
         except Exception:
             logger.exception("failed to queue approved envelope for kafka bridge")
 
