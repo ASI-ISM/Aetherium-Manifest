@@ -584,6 +584,18 @@ PY2
 
 ## Validation & Tests
 
+### One-shot production change scaffold
+
+For fast, structured delivery prompts, generate a report scaffold that always includes tests, instrumentation, rollback notes, and PR-ready sections:
+
+```bash
+python3 tools/ci/one_shot_prod.py \
+  --goal "fix/feature statement" \
+  --repo-areas "path/a,path/b"
+```
+
+This outputs a markdown template you can fill with file-level change details, verification commands, and release/rollback guidance.
+
 ```bash
 # API gateway tests
 cd api_gateway && pytest -q
