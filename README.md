@@ -748,7 +748,7 @@ Gateway: `http://localhost:8000` (เอกสาร API ที่ `/docs`)
   - เมื่อ ingest แล้วจะถูกส่งเข้าคิว Redis list ชื่อ `telemetry:queue`
 - ฝั่ง state sync (`ws_gateway/main.py`)
   - มี websocket `WS /ws/state-sync/{room_id}` และ `WS /ws/cognitive-stream`
-  - event ที่รับเข้าจะถูกเขียนลง Redis Streams `state-sync:{room_id}` พร้อมนโยบาย `MAXLEN ~ 1000`
+  - event ที่รับเข้าจะถูกเขียนลง Redis Streams (state-sync:{room_id} หรือ state-sync:cognitive) พร้อมนโยบาย MAXLEN ~ 1000
 
 สำหรับ production ควรเสริม persistence/retention/query layer เพิ่มเติม โดยไม่ทำลายสัญญา API และสัญญา websocket เดิม.
 
