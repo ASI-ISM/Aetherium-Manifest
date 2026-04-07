@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aetherium
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: messaging
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: observability
