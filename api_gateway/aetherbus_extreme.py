@@ -190,7 +190,7 @@ class StateConvergenceProcessor:
     def update_state(self, key: str, value: Any, version: int | None = None) -> bool:
         current_version = self._versions.get(key, -1)
         candidate_version = current_version + 1 if version is None else version
-        if candidate_version < current_version:
+        if candidate_version <= current_version:
             return False
 
         self._state[key] = value
