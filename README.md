@@ -9,7 +9,9 @@
 - [Developer Quick Start](#developer-quick-start)
 - [API Reference (Prototype)](#api-reference-prototype)
 - [Security, Internationalization, and Collaboration](#security-internationalization-and-collaboration)
-- [Research & Engineering Roadmap](#research--engineering-roadmap)
+- [Known Issues & Fix Candidates](#known-issues--fix-candidates)
+- [Proposed Feature Backlog](#proposed-feature-backlog)
+- [Implementation Notes (Completed)](#implementation-notes-completed)
 - [AM-UI Color System](#am-ui-color-system)
 - [Project Structure](#project-structure)
 - [Validation & Tests](#validation--tests)
@@ -46,42 +48,53 @@ Manifest is the visual language of Aetherium intelligence.
 
 ## System Architecture
 
-The current prototype architecture is centered on runtime state semantics and the runtime database structure, with the Governor as the single mutation authority and telemetry/state-sync stores modeled explicitly:
+Current implemented runtime/control flow (as of April 2026) with concrete stores and sync paths:
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                           AI PARTICLE CONTROL CONTRACT (Schema = ABI, versioned)                            │
-│                 payload envelope: intent_state + renderer_controls + optional metadata                       │
+│ AI PARTICLE CONTROL CONTRACT (Schema = ABI, versioned envelope)                                              │
+│ payload: session_id + model_response + governor_context + renderer_controls/intent_state                     │
 └──────────────────────────────────────────────────┬───────────────────────────────────────────────────────────┘
-                                                   │ validate + normalize
+                                                   │ POST /api/v1/cognitive/emit
                                                    ▼
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                     RUNTIME GOVERNOR (single mutable control boundary / canonical path)                     │
-│ validate → transition → profile_map → clamp → fallback → policy_block → capability_gate → telemetry_log    │
-└──────────────────────────────┬───────────────────────────────────────────────────────────────┬───────────────┘
-                               │ governor-approved state envelope                              │ telemetry events
-                               ▼                                                                ▼
-┌────────────────────────────────────────────────────────────────────────────┐   ┌─────────────────────────────────┐
-│ FRONTEND RUNTIME (Manifest/HUD/Renderer)                                  │   │ TELEMETRY INGEST + QUERY API    │
-│ consumes state-first contract only                                         │   │ /api/v1/telemetry/ingest|query  │
-└──────────────────────────────┬─────────────────────────────────────────────┘   └─────────────────┬───────────────┘
-                               │ websocket sync / snapshots                                  writes + retention
-                               ▼                                                                      ▼
-┌────────────────────────────────────────────────────────────────────────────┐   ┌─────────────────────────────────┐
-│ STATE_SYNC_ROOMS (in-memory room store)                                   │   │ TELEMETRY_TS_DB (in-memory TSDB)│
-│ dict[room_id, StateSyncRoom]                                               │   │ dict[str, list[point]]          │
-│ StateSyncRoom = {                                                           │   │ point={metric,value,ts,tags}    │
-│   version:int, shared_state:dict, user_state:dict, updated_at:datetime     │   │ partition key: metric           │
-│ }                                                                           │   │ retention: keep latest 2500/metric
-│ endpoint: /ws/state-sync/{room_id}                                          │   │ query window: count/mean/p95/latest
-└────────────────────────────────────────────────────────────────────────────┘   └─────────────────────────────────┘
+│ API GATEWAY (FastAPI)                                                                                         │
+│ - validates auth/header envelope                                                                               │
+│ - returns governor_result + approved_command                                                                   │
+│ - publishes approved envelope -> NATS subject visual.commands.approved                                         │
+│ - pushes approved envelope -> Redis list kafka:approved_envelopes                                              │
+└──────────────────────────────────────────────────┬───────────────────────────────────────────────────────────┘
+                                                   │ state/control events
+                                                   ▼
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ WS GATEWAY (FastAPI WebSocket)                                                                                │
+│ endpoints: /ws/state-sync/{room_id}, /ws/cognitive-stream                                                     │
+│ replay path: XRANGE from Redis Streams with last_event_id                                                     │
+│ write path: XADD state-sync:{room_id|cognitive} (MAXLEN~1000, approximate trim)                              │
+└──────────────────────────────────────────────┬───────────────────────────────────────────────────────────────┘
+                                               │ state sync / replay
+                                               ▼
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ REDIS RUNTIME STORES                                                                                            │
+│ - Streams: state-sync:{room_id}, state-sync:cognitive (delta/replay events)                                   │
+│ - List: telemetry:queue (ingested telemetry points)                                                            │
+│ - Counters: metrics:* (submission/render/validation counters)                                                  │
+│ - List: kafka:approved_envelopes (bridge queue for approved commands)                                          │
+└──────────────────────────────────────────────┬───────────────────────────────────────────────────────────────┘
+                                               │ telemetry ingest path
+                                               ▼
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ TELEMETRY API                                                                                                  │
+│ POST /api/v1/telemetry/ingest -> LPUSH telemetry:queue                                                         │
+│ current status: ingest queue implemented; in-repo query API/TSDB rollup is not yet implemented                │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-This diagram aligns with the target storage/control model documented under **Runtime Database Structure (Proposed)**:
-- **State before feature:** runtime semantics are defined before effects.
-- **Governor is the only mutate point:** state mutation is centralized.
-- **Schema is ABI:** payload versioning and evolution rules protect FE/BE contract parity.
-- **Telemetry is feedback, not only logs:** query results can drive HUD and render modulation.
+Architecture invariants for current runtime:
+- **Governor path is canonical mutation boundary** (`validate → transition → profile_map → clamp → fallback → policy_block → capability_gate → telemetry_log`).
+- **Schema remains ABI** between producer, gateway, and renderer paths.
+- **State sync uses Redis Streams replay semantics** (`last_event_id`) rather than in-memory room objects.
+- **Telemetry path is queue-first today** (ingest/write implemented, rich query/retention tiering pending).
 
 ### System Layers
 
@@ -615,54 +628,49 @@ npx --yes tsx --test test_runtime_governor_psycho_safety.test.ts
 
 ---
 
-## Research & Engineering Roadmap
+## Known Issues & Fix Candidates
 
-Future directions:
+| Priority | Issue | Contract/Safety Risk | Fix Candidate |
+|---|---|---|---|
+| High | `/api/v1/cognitive/emit` returns a stubbed `governor_result` instead of calling a canonical governor service path. | Mutation-policy guarantees can drift from documented governor sequence; unsafe fields may appear accepted in integration tests. | Wire emit path to a real governor service call with explicit reject/fallback telemetry and parity tests. |
+| High | Telemetry pipeline is ingest-only (`LPUSH telemetry:queue`) with no in-repo query endpoint/retention enforcement. | Operators cannot verify safety regressions quickly; delayed detection of psycho-safety or policy anomalies. | Add query/read API + retention/downsampling workers and publish operator presets. |
+| Medium | WS replay relies on a single `last_event_id` cursor with stream trim (`MAXLEN~1000`). | Late clients may miss safety-relevant state deltas after aggressive trimming. | Add snapshot + checkpoint strategy (periodic room snapshots + replay window validation). |
+| Medium | Proxy nonce anti-replay has dual cache paths (Redis + process memory fallback). | Multi-instance deployments can produce inconsistent replay protection behavior. | Require centralized nonce store in production mode and emit explicit health/warn status if degraded. |
+| Low | Runtime metrics counters are coarse (`metrics:*`) and do not expose per-policy/severity dimensions. | Reduced observability for slow-burn contract drift. | Extend metric labels/tags and document baseline SLO thresholds. |
 
-- **Distributed Runtime State**  
-  Move mutable runtime state to Redis for multi-worker consistency.
+## Proposed Feature Backlog
 
-- **Persistent Telemetry Database**  
-  Integrate TSDB backends (InfluxDB, TimescaleDB) with retention + downsampling.
+> The items below are proposals only (not implemented yet). Each item includes ABI/compatibility notes.
 
-- **Proxy Key Rotation and Tenant Scope**  
-  Add key identifiers (`kid`) with dual-key rotation windows and optional tenant-scoped signing secrets.
+- **Persistent Telemetry Database (TSDB adapter + query API)**  
+  ABI/compat: additive if exposed as new endpoints; avoid changing `TelemetryIngestRequest` fields unless schema version bumps are introduced.
+
+- **Proxy Key Rotation + Tenant Scope (`kid`, dual-key windows)**  
+  ABI/compat: request header contract changes; requires backward-compatible grace period and explicit deprecation timeline.
 
 - **Contract Drift Telemetry Export**  
-  Export drift-guard structural match and policy-violation rates into telemetry for dashboarding and alerting.
+  ABI/compat: additive telemetry metrics; no payload ABI break if emitted as new metric namespaces.
 
-- **Voice Model Experimentation**  
-  A/B routing and quality tracking by language-region (WER, latency, accuracy).
-
-- **CRDT Collaboration**  
-  Add Yjs/Automerge support for conflict-free collaborative state editing.
+- **CRDT Collaboration for State Sync**  
+  ABI/compat: websocket message envelope may need versioned extension fields; keep existing `delta` semantics supported.
 
 - **Plugin Renderer API**  
-  Enable custom visual modules without modifying core runtime. Plugin renderers SHOULD respect AM-UI contracts for state-to-color mapping and reserved palette slots (`ERROR`, `WARNING`, `NIRODHA`). They MAY add extension palettes, but MUST preserve core semantics (e.g., failure remains in the Plasma Red spectrum).
+  ABI/compat: extension surface must preserve reserved AM-UI palette/state semantics and deny unsafe renderer overrides by default.
 
-- **Session Replay**  
-  Timeline scrub + event bookmarks for debugging intent/telemetry behavior.
-
-- **Telemetry Tiered Retention**  
-  Add hot/warm/cold retention tiers so short-window diagnostics remain fast while long-window summaries stay queryable.
-
-- **Operator Query Presets**  
-  Package reusable telemetry query profiles for safety-watch, motion-stability, and performance triage workflows.
-
-- **Runtime Anomaly Detection**  
-  Detect outlier combinations such as `fps` collapse + `policy_block_count` spikes and publish operator-facing alerts.
-
-- **Psycho-Safety Gate Hardening**  
-  Add dedicated psycho-safety metrics (flicker cadence, luminance drift budget, consent mode flags) and enforce deny-by-default mutation for high-risk render transitions.
-
-- **State-Sync Persistence Adapter**  
-  Introduce optional snapshot persistence for `STATE_SYNC_ROOMS` (Redis/Postgres adapter) while preserving websocket contract and room version semantics.
+- **Runtime Anomaly Detection + Psycho-Safety Metrics**  
+  ABI/compat: additive telemetry + policy metadata fields; ensure old clients ignore unknown telemetry attributes safely.
 
 - **Governance Audit Trail Ledger**  
-  Record schema/version approvals, compatibility decisions, and rollout exceptions with trace IDs for incident replay and compliance review.
+  ABI/compat: no renderer ABI change expected; governance records should include schema version + trace_id linkage.
 
 - **Edge Runtime Degradation Profiles**  
-  Add deterministic low-power profiles that couple renderer quality, telemetry sampling rate, and policy thresholds for constrained devices.
+  ABI/compat: additive profile keys; default behavior must remain deterministic for existing clients.
+
+## Implementation Notes (Completed)
+
+- Added prototype Cognitive DSL API Gateway endpoints for emit/validate/generate/health and telemetry ingest.
+- Added websocket state-sync + cognitive-stream gateways backed by Redis Streams replay.
+- Added runtime testing/tooling paths (contract checker/fuzzer, semantic benchmark, TS psycho-safety parity test via `tsx`).
 
 ---
 
@@ -710,7 +718,7 @@ This project is released under the MIT License.
 พร้อมตัวอย่าง payload, startup script และ middleware validation ตามกฎ Firma.
 
 
-## Prototype: Manifestation Deck (Implemented)
+## บันทึกการปรับใช้แล้ว (Implementation Notes)
 
 ### โครงสร้างระบบ
 - **AETHERIUM-GENESIS (Backend):** คิด วิเคราะห์ และสร้าง cognitive/intent signals
@@ -764,7 +772,7 @@ Gateway: `http://localhost:8000` (เอกสาร API ที่ `/docs`)
 
 สำหรับ production ควรเสริม persistence/retention/query layer เพิ่มเติม โดยไม่ทำลายสัญญา API และสัญญา websocket เดิม.
 
-### แนวทางต่อยอด (ภาษาไทย)
+### Proposed Feature Backlog (ภาษาไทย)
 
 - **เสริม Psycho-Safety Gate เชิงรุก**  
   เพิ่มตัวชี้วัด cadence/flicker/luminance drift พร้อม consent mode (`low-sensory`, `no-flicker`, `monochrome`) และบังคับ deny-by-default สำหรับการเปลี่ยนค่าสี/แสงที่มีความเสี่ยง
@@ -796,7 +804,7 @@ Canonical ecosystem repositories (provided by maintainer context):
 
 
 
-## Runtime Pipeline Upgrade (VAD + STT + Intent Mapping, Prototype)
+## บันทึกการปรับใช้แล้ว: Runtime Pipeline Upgrade (VAD + STT + Intent Mapping)
 
 มีการปรับปรุง `index.html` แบบไม่ลบโครงสร้างเดิม เพื่อยกระดับโฟลว์ภายในให้ใกล้กับสถาปัตยกรรมที่เสนอไว้:
 
