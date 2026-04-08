@@ -36,6 +36,25 @@ class AetherBusExtremeTests(unittest.IsolatedAsyncioTestCase):
         ok = bus.publish_nowait("topic", AkashicEnvelope.create("event", {"value": 1}))
         self.assertFalse(ok)
 
+    async def test_shutdown_cancels_background_tasks_with_done_callback(self) -> None:
+        bus = AetherBusExtreme()
+        started = asyncio.Event()
+        release = asyncio.Event()
+
+        async def blocking_handler(_: AkashicEnvelope) -> None:
+            started.set()
+            await release.wait()
+
+        bus.subscribe("topic", blocking_handler)
+        await bus.start()
+        await bus.publish("topic", AkashicEnvelope.create("event", {"value": 1}))
+        await asyncio.wait_for(started.wait(), timeout=1)
+
+        self.assertTrue(bus._background_tasks)
+        await bus.shutdown()
+
+        self.assertFalse(bus._background_tasks)
+
 
 class UtilityTests(unittest.TestCase):
     @unittest.skipUnless(importlib.util.find_spec("msgspec"), "msgspec is not installed in this environment")

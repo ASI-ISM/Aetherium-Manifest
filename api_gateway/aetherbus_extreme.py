@@ -157,9 +157,11 @@ class AetherBusExtreme:
             await asyncio.gather(self._worker_task, return_exceptions=True)
 
         if self._background_tasks:
-            for task in self._background_tasks:
+            tasks = list(self._background_tasks)
+            for task in tasks:
                 task.cancel()
-            await asyncio.gather(*self._background_tasks, return_exceptions=True)
+            await asyncio.gather(*tasks, return_exceptions=True)
+            self._background_tasks = {task for task in self._background_tasks if not task.done()}
 
 
 class NATSJetStreamManager:
