@@ -3,470 +3,530 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AETHERIUM MANIFEST: Living Interface</title>
+  <title>Aetherium Genesis Manifest</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;700&family=Sarabun:wght@300;500&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Sarabun:wght@300;500&display=swap');
 
     :root {
-      --void-bg: #050505;
-      --color-perception: #00ffff;
-      --color-empathy: #bc13fe;
-      --color-decay: #a0522d;
-      --color-manifest: #ffd700;
-      --glass-panel: rgba(20, 20, 20, 0.7);
-      --border-light: rgba(255, 255, 255, 0.15);
+      --bg: #050505;
+      --panel: rgba(12, 12, 14, 0.72);
+      --line: rgba(255, 255, 255, 0.16);
+      --white: #ffffff;
+      --sleep: #00008b;
+      --aether: #00ffff;
+      --reasoning: #800080;
+      --load: #ffd700;
+      --critical: #dc143c;
+      --decay: #a52a2a;
     }
 
-    html,
-    body {
+    html, body {
       margin: 0;
-      padding: 0;
-      width: 100%;
       height: 100%;
       overflow: hidden;
-      background: var(--void-bg);
-      color: #e0e0e0;
+      background: radial-gradient(circle at top, #111 0%, var(--bg) 42%);
+      color: #e8e8e8;
       font-family: 'JetBrains Mono', 'Sarabun', monospace;
     }
 
-    canvas#nervous-system {
-      position: absolute;
+    #nervous-system {
+      position: fixed;
       inset: 0;
       width: 100%;
       height: 100%;
       z-index: 1;
+      display: block;
     }
 
-    #hud-overlay {
-      position: absolute;
-      top: 20px;
-      left: 20px;
+    .hud {
+      position: fixed;
       z-index: 10;
-      width: 280px;
-      padding: 15px;
-      border-radius: 8px;
-      border: 1px solid var(--border-light);
-      background: var(--glass-panel);
-      backdrop-filter: blur(8px);
-      pointer-events: none;
+      backdrop-filter: blur(12px);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 18px 34px rgba(0,0,0,.45);
     }
 
-    .stat-row {
+    #status {
+      top: 66px;
+      right: 18px;
+      width: 340px;
+      padding: 14px;
+    }
+
+    .row {
       margin-bottom: 12px;
     }
 
-    .stat-label {
+    .row-head {
+      font-size: 11px;
       display: flex;
       justify-content: space-between;
+      color: #aaa;
       margin-bottom: 4px;
-      color: #888;
-      font-size: 0.75rem;
+      letter-spacing: .5px;
     }
 
-    .progress-bar-container {
+    .bar-track {
       height: 4px;
-      border-radius: 2px;
+      background: rgba(255,255,255,.08);
+      border-radius: 999px;
       overflow: hidden;
-      background: rgba(255, 255, 255, 0.05);
     }
 
-    .progress-bar {
-      width: 100%;
+    .bar {
       height: 100%;
-      background: var(--color-perception);
-      box-shadow: 0 0 10px currentColor;
-      transition: width 0.5s ease, background-color 1s ease;
+      width: 0;
+      background: var(--aether);
+      box-shadow: 0 0 12px currentColor;
+      transition: width .32s ease, background-color .45s ease;
     }
 
-    .system-msg {
-      margin-top: 10px;
-      color: var(--color-perception);
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      font-size: 0.7rem;
+    #settings-toggle {
+      position: fixed;
+      right: 18px;
+      top: 16px;
+      z-index: 40;
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(8, 8, 10, 0.78);
+      color: #fff;
+      cursor: pointer;
+      font-size: 18px;
     }
 
-    #input-deck {
-      position: absolute;
-      bottom: 30px;
+    #chat-toggle {
+      position: fixed;
       left: 50%;
       transform: translateX(-50%);
-      z-index: 20;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      width: 90%;
-      max-width: 600px;
-      padding: 10px;
-      border: 1px solid var(--border-light);
-      border-radius: 16px;
-      background: rgba(10, 10, 10, 0.8);
-      backdrop-filter: blur(12px);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-      transition: all 0.3s ease;
-    }
-
-    #input-deck:focus-within {
-      border-color: var(--color-perception);
-      box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
-    }
-
-    .icon-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 8px;
-      border: none;
-      border-radius: 50%;
-      background: transparent;
-      color: #888;
-      cursor: pointer;
-      transition: color 0.3s, background 0.3s;
-    }
-
-    .icon-btn:hover {
-      color: var(--color-perception);
-      background: rgba(255, 255, 255, 0.05);
-    }
-
-    .icon-btn svg {
-      width: 20px;
-      height: 20px;
-      fill: currentColor;
-    }
-
-    #chat-input {
-      flex-grow: 1;
-      border: none;
-      outline: none;
-      background: transparent;
+      bottom: 14px;
+      z-index: 35;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(8, 8, 10, 0.82);
       color: #fff;
-      font-size: 1rem;
-      padding: 8px;
-      font-family: 'Sarabun', sans-serif;
+      padding: 8px 16px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
     }
 
-    #chat-input::placeholder {
-      color: #555;
-      font-style: italic;
+    #settings-panel {
+      position: fixed;
+      right: 68px;
+      top: 16px;
+      z-index: 42;
+      width: min(320px, calc(100vw - 24px));
+      padding: 12px;
+      display: none;
+      font-size: 12px;
     }
 
-    .voice-active {
-      color: var(--color-empathy) !important;
-      animation: pulse-voice 1.5s infinite;
+    body.ui-open #settings-panel {
+      display: block;
     }
 
-    @keyframes pulse-voice {
-      0% {
-        box-shadow: 0 0 0 0 rgba(188, 19, 254, 0.4);
-      }
-      70% {
-        box-shadow: 0 0 0 10px rgba(188, 19, 254, 0);
-      }
-      100% {
-        box-shadow: 0 0 0 0 rgba(188, 19, 254, 0);
-      }
-    }
-
-    #file-preview {
-      position: absolute;
-      bottom: 70px;
-      left: 0;
-      display: flex;
-      gap: 10px;
-      padding: 0 10px;
-    }
-
-    .file-chip {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      padding: 5px 10px;
-      border: 1px solid var(--color-perception);
-      border-radius: 4px;
-      background: rgba(255, 255, 255, 0.1);
-      color: var(--color-perception);
-      font-size: 0.8rem;
-    }
-
-    #hologram-display {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      text-align: center;
-      pointer-events: none;
-      z-index: 5;
-      opacity: 0;
-      transition: opacity 1s ease;
-    }
-
-    #hologram-text {
-      color: var(--color-manifest);
-      text-shadow: 0 0 20px var(--color-manifest);
-      letter-spacing: 4px;
-      font-size: 2rem;
+    .settings-title {
+      margin-bottom: 8px;
       font-weight: 700;
     }
 
-    .loading-light {
-      width: 50px;
-      height: 50px;
-      margin: 0 auto 20px;
-      border: 2px solid rgba(255, 255, 255, 0.1);
-      border-top: 2px solid var(--color-manifest);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
+    .setting-group { margin-top: 10px; }
 
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-
-    .floating-button {
-      position: fixed;
-      right: 20px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      z-index: 30;
-      border: 1px solid var(--border-light);
-      border-radius: 999px;
-      padding: 10px 16px;
-      color: white;
-      cursor: pointer;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.8rem;
-      background: rgba(0, 0, 0, 0.7);
-      backdrop-filter: blur(10px);
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    .floating-button:hover {
-      transform: translateY(-2px);
-    }
-
-    #freeze-btn {
-      top: 20px;
-      border-color: #00ffff;
-      box-shadow: 0 0 16px rgba(0, 255, 255, 0.4);
-    }
-
-    #save-btn {
-      top: 74px;
-      border-color: #00ff88;
-      box-shadow: 0 0 16px rgba(0, 255, 136, 0.4);
-      display: none;
-    }
-
-    #erase-btn {
-      top: 128px;
-      border-color: #ff6688;
-      box-shadow: 0 0 16px rgba(255, 102, 136, 0.4);
-      display: none;
-    }
-
-    #pen-btn {
-      top: 182px;
-      border-color: #b68cff;
-      box-shadow: 0 0 16px rgba(182, 140, 255, 0.4);
-      display: none;
-    }
-
-    .mode-active {
-      outline: 2px solid #fff;
-    }
-
-    .document-save-ui,
-    .light-pen-ui {
-      position: fixed;
-      left: 20px;
-      bottom: 120px;
-      z-index: 40;
-      width: min(360px, calc(100% - 40px));
-      border: 1px solid var(--border-light);
-      border-radius: 16px;
-      background: rgba(12, 12, 18, 0.85);
-      backdrop-filter: blur(10px);
-      color: #f3f3f3;
-      box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45);
-    }
-
-    .save-header,
-    .pen-header {
+    .setting-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 12px 16px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      margin-bottom: 6px;
+      gap: 8px;
     }
 
-    .save-header h3,
-    .pen-header h3 {
+    .seg {
+      display: inline-flex;
+      gap: 6px;
+    }
+
+    .seg button {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.08);
+      color: #fff;
+      border-radius: 8px;
+      font-size: 11px;
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+
+    .seg button.active {
+      border-color: rgba(0,255,255,.65);
+      color: #d0ffff;
+    }
+
+    #log {
+      right: 18px;
+      top: 284px;
+      width: 380px;
+      max-height: 46vh;
+      padding: 14px;
+      overflow: auto;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    #log pre {
       margin: 0;
-      font-size: 0.95rem;
+      white-space: pre-wrap;
+      color: #c5f7ff;
     }
 
-    .close-btn {
-      cursor: pointer;
-      opacity: 0.7;
-    }
-
-    .format-options {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 10px;
+    #conversation {
+      right: 18px;
+      top: calc(284px + 46vh + 12px);
+      width: 380px;
+      max-height: 34vh;
       padding: 12px;
+      overflow: auto;
+      font-size: 12px;
+      line-height: 1.45;
     }
 
-    .format-option {
-      border: 1px solid rgba(255, 255, 255, 0.15);
+    .bubble {
+      margin: 0 0 8px;
+      padding: 8px 10px;
       border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.18);
+      background: rgba(255,255,255,.05);
+    }
+
+    .bubble.user { border-color: rgba(0,255,255,.45); color: #d7ffff; }
+    .bubble.system { border-color: rgba(255,215,0,.35); color: #fff7cf; }
+
+    #sources {
+      margin-top: 8px;
+      color: #9fd4ff;
+      font-size: 11px;
+    }
+
+    #composer {
+      left: 50%;
+      bottom: 14px;
+      transform: translateX(-50%);
+      width: min(840px, calc(100vw - 36px));
       padding: 10px;
-      cursor: pointer;
-      text-align: center;
-    }
-
-    .format-option.selected {
-      border-color: var(--color-manifest);
-      background: rgba(255, 215, 0, 0.08);
-    }
-
-    .save-options,
-    .pen-actions,
-    .brush-controls {
       display: flex;
       gap: 8px;
-      padding: 0 12px 12px;
       align-items: center;
     }
 
-    .filename-input,
-    .save-button,
-    .pen-actions button,
-    .brush-controls input {
+    #compat {
+      right: 18px;
+      bottom: 18px;
+      width: 340px;
+      padding: 10px 12px;
+      font-size: 11px;
+    }
+
+    #compat-frame {
+      display: block;
+      width: 100%;
+      margin-top: 8px;
       border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255,255,255,.2);
+      background: rgba(0,0,0,.25);
+      min-height: 90px;
+      object-fit: cover;
+    }
+
+    .compat-note {
+      color: #b7d7ff;
+      line-height: 1.4;
+    }
+
+    body:not(.ui-open) #status,
+    body:not(.ui-open) #log,
+    body:not(.ui-open) #conversation,
+    body:not(.ui-open) #compat {
+      display: none;
+    }
+
+    #composer {
+      transition: transform .28s ease, opacity .28s ease;
+    }
+
+    body:not(.chat-open) #composer {
+      transform: translate(-50%, 120%);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #intent-input {
+      width: 100%;
+      border: 0;
+      outline: none;
       color: white;
-      padding: 10px;
+      font-size: 15px;
+      padding: 10px 12px;
+      border-radius: 9px;
+      background: rgba(255,255,255,.07);
+      font-family: 'Sarabun', sans-serif;
+    }
+
+    .btn {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.07);
+      color: white;
+      border-radius: 9px;
+      padding: 10px 12px;
+      cursor: pointer;
       font-family: inherit;
     }
 
-    .filename-input {
-      flex: 1;
+    .chip {
+      display: inline-block;
+      margin-right: 6px;
+      margin-top: 6px;
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 11px;
+      color: #ddd;
     }
 
-    .save-button,
-    .pen-actions button {
-      cursor: pointer;
+    #display-page-2 {
+      position: fixed;
+      inset: 0;
+      z-index: 9;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 20% 20%, rgba(0,255,255,.08), transparent 38%),
+                  radial-gradient(circle at 80% 80%, rgba(128,0,128,.12), transparent 42%),
+                  rgba(5,5,5,.72);
+      pointer-events: none;
     }
 
-    .color-palette {
+    body.display-page-2 #display-page-2 {
+      display: flex;
+    }
+
+    .display2-card {
+      width: min(760px, calc(100vw - 36px));
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(10,10,14,.76);
+      backdrop-filter: blur(12px);
+      padding: 16px;
+    }
+
+    .display2-grid {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .display2-cell {
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 10px;
+      padding: 10px;
+      background: rgba(255,255,255,.04);
+    }
+
+    .mini-boxes {
+      position: fixed;
+      left: 16px;
+      bottom: 16px;
+      z-index: 11;
+      display: flex;
+      flex-direction: column;
       gap: 8px;
-      padding: 12px;
     }
 
-    .color-option {
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
-      border: 2px solid transparent;
-      cursor: pointer;
-      margin: 0 auto;
+    .mini-box {
+      min-width: 130px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.2);
+      background: rgba(8,8,10,.76);
+      font-size: 11px;
+      display: none;
     }
 
-    .color-option.selected {
-      border-color: #fff;
-      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+    body.show-box-1 #mini-box-1,
+    body.show-box-2 #mini-box-2,
+    body.show-box-3 #mini-box-3 {
+      display: block;
     }
 
-    canvas.erase-mode {
-      cursor: crosshair;
+    .critical {
+      border-color: var(--critical) !important;
+      animation: flicker .14s infinite alternate;
     }
 
-    canvas.draw-mode {
-      cursor: cell;
+    @keyframes flicker {
+      from { opacity: 1; box-shadow: 0 0 8px rgba(220,20,60,.6); }
+      to { opacity: .75; box-shadow: 0 0 18px rgba(220,20,60,.9); }
     }
   </style>
 </head>
 <body>
   <canvas id="nervous-system"></canvas>
+  <button id="settings-toggle" aria-label="toggle settings">⚙</button>
+  <button id="chat-toggle" aria-label="toggle chat">Chat</button>
 
-  <div class="floating-button" id="freeze-btn">❄️ <span>Freeze</span></div>
-  <div class="floating-button" id="save-btn">💾 <span>Save</span></div>
-  <div class="floating-button" id="erase-btn">🗑️ <span>Erase</span></div>
-  <div class="floating-button" id="pen-btn">🖌️ <span>Light Pen</span></div>
-
-  <div id="hud-overlay">
-    <div class="stat-row">
-      <div class="stat-label"><span>ENERGY (METABOLISM)</span> <span id="val-energy">100%</span></div>
-      <div class="progress-bar-container"><div class="progress-bar" id="bar-energy"></div></div>
+  <aside class="hud" id="settings-panel">
+    <div class="settings-title">SETTINGS</div>
+    <div class="setting-group">
+      <div class="setting-row">
+        <span>Display Page</span>
+        <div class="seg" id="display-selector">
+          <button type="button" data-page="1" class="active">Page 1</button>
+          <button type="button" data-page="2">Page 2</button>
+        </div>
+      </div>
     </div>
-    <div class="stat-row">
-      <div class="stat-label"><span>ENTROPY (CHAOS)</span> <span id="val-entropy">10%</span></div>
-      <div class="progress-bar-container"><div class="progress-bar" id="bar-entropy" style="background: var(--color-decay); width: 10%"></div></div>
+    <div class="setting-group">
+      <div class="setting-row"><span>Mini Box #1</span><button class="btn" id="toggle-box-1">Toggle</button></div>
+      <div class="setting-row"><span>Mini Box #2</span><button class="btn" id="toggle-box-2">Toggle</button></div>
+      <div class="setting-row"><span>Mini Box #3</span><button class="btn" id="toggle-box-3">Toggle</button></div>
     </div>
-    <div class="system-msg" id="sys-msg">SYSTEM: AWAITING INTENT</div>
-  </div>
+  </aside>
 
-  <div id="hologram-display">
-    <div class="loading-light" id="manifest-loader" style="display: none"></div>
-    <div id="hologram-text"></div>
-  </div>
+  <aside class="hud" id="status">
+    <div class="row"><strong>AETHERBUS / GUNUI STATUS</strong></div>
+    <div class="row">
+      <div class="row-head"><span>FSM STATE</span><span id="state-text">IDLE</span></div>
+      <span class="chip" id="shape-chip">shape: cloud</span>
+      <span class="chip" id="intent-chip">intent: chat</span>
+    </div>
+    <div class="row">
+      <div class="row-head"><span>ENERGY</span><span id="energy-text">100%</span></div>
+      <div class="bar-track"><div class="bar" id="energy-bar"></div></div>
+    </div>
+    <div class="row">
+      <div class="row-head"><span>ENTROPY</span><span id="entropy-text">0%</span></div>
+      <div class="bar-track"><div class="bar" id="entropy-bar"></div></div>
+    </div>
+    <div class="row">
+      <div class="row-head"><span>LOAD (CPU HEAT)</span><span id="load-text">0%</span></div>
+      <div class="bar-track"><div class="bar" id="load-bar"></div></div>
+    </div>
+  </aside>
 
-  <div id="input-deck">
-    <input type="file" id="file-upload" hidden multiple accept=".pdf,image/*" />
-    <div id="file-preview"></div>
+  <aside class="hud" id="log"><pre id="intent-json">Intent Vector จะปรากฏที่นี่...</pre></aside>
 
-    <button class="icon-btn" id="btn-attach" title="แนบเอกสาร/รูปภาพ">
-      <svg viewBox="0 0 24 24"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5a2.5 2.5 0 0 0 5 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z" /></svg>
-    </button>
+  <aside class="hud" id="conversation">
+    <div><strong>CONVERSATION CONTEXT</strong></div>
+    <div id="chat-stream"></div>
+    <div id="sources">sources: none</div>
+  </aside>
 
-    <input type="text" id="chat-input" placeholder="ส่งข้อความหรือเจตจำนง..." />
+  <section class="hud" id="composer">
+    <input id="intent-input" placeholder="พิมพ์ intent เช่น: ด่วน! สรุปข้อมูลให้หน่อย หรือ I feel confused and tired" />
+    <button class="btn" id="voice-btn" title="Voice chat" aria-label="voice chat">🎤</button>
+    <button class="btn" id="send-btn">Emit Intent</button>
+    <button class="btn" id="nirodha-btn">Nirodha</button>
+  </section>
 
-    <button class="icon-btn" id="btn-voice" title="สนทนาด้วยเสียง">
-      <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" /><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" /></svg>
-    </button>
+  <aside class="hud" id="compat">
+    <div><strong>COMPATIBILITY RENDER</strong></div>
+    <div class="compat-note" id="compat-note">mode: realtime</div>
+    <img id="compat-frame" alt="compatibility-frame" />
+  </aside>
 
-    <button class="icon-btn" id="btn-send" title="ส่งข้อมูล">
-      <svg viewBox="0 0 24 24" style="fill: var(--color-perception)"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" /></svg>
-    </button>
-  </div>
+  <section id="display-page-2" aria-label="display page two">
+    <div class="display2-card">
+      <div><strong>DISPLAY PAGE 2</strong></div>
+      <div style="margin-top:6px;color:#b8daff;font-size:12px;">หน้านี้เป็นโหมดแสดงผลเพิ่มเติม โดยยังคงใช้ความสามารถระบบเดิมทั้งหมด</div>
+      <div class="display2-grid">
+        <div class="display2-cell">State: <span id="page2-state">IDLE</span></div>
+        <div class="display2-cell">Energy: <span id="page2-energy">100%</span></div>
+        <div class="display2-cell">Entropy: <span id="page2-entropy">0%</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="mini-boxes" aria-label="mini display boxes">
+    <div class="mini-box" id="mini-box-1">Mini Box 1 : System Pulse</div>
+    <div class="mini-box" id="mini-box-2">Mini Box 2 : Intent Monitor</div>
+    <div class="mini-box" id="mini-box-3">Mini Box 3 : Source Signals</div>
+  </section>
 
   <script>
     const canvas = document.getElementById('nervous-system');
     const ctx = canvas.getContext('2d');
 
-    const state = {
+    const palette = {
+      IDLE: '#00ffff',
+      LISTENING: '#00ffff',
+      PROCESSING: '#800080',
+      RESONATING: '#ffd700',
+      NIRODHA: '#00008b',
+      CRITICAL: '#dc143c',
+      DECAY: '#a52a2a'
+    };
+
+    const fsm = {
+      state: 'IDLE',
       energy: 100,
-      entropy: 10,
-      mode: 'IDLE'
+      entropy: 8,
+      load: 5,
+      shape: 'cloud',
+      intentCategory: 'chat',
+      turbulence: 0.18,
+      particleDensity: 0.45,
+      emotionalValence: 0,
+      energyLevel: 0.2,
+      desiredForm: 'abstract',
+      sourceHints: []
     };
 
-    const config = {
-      particleCount: 200,
-      baseSpeed: 0.8,
-      colors: {
-        IDLE: '#00FFFF',
-        LISTENING: '#BC13FE',
-        PROCESSING: '#FFD700',
-        MANIFESTING: '#FFFFFF'
-      }
+    const refs = {
+      stateText: document.getElementById('state-text'),
+      energyText: document.getElementById('energy-text'),
+      entropyText: document.getElementById('entropy-text'),
+      loadText: document.getElementById('load-text'),
+      energyBar: document.getElementById('energy-bar'),
+      entropyBar: document.getElementById('entropy-bar'),
+      loadBar: document.getElementById('load-bar'),
+      shapeChip: document.getElementById('shape-chip'),
+      intentChip: document.getElementById('intent-chip'),
+      json: document.getElementById('intent-json'),
+      status: document.getElementById('status'),
+      compatNote: document.getElementById('compat-note'),
+      compatFrame: document.getElementById('compat-frame'),
+      chatStream: document.getElementById('chat-stream'),
+      sources: document.getElementById('sources'),
+      settingsToggle: document.getElementById('settings-toggle'),
+      chatToggle: document.getElementById('chat-toggle'),
+      displayPage2State: document.getElementById('page2-state'),
+      displayPage2Energy: document.getElementById('page2-energy'),
+      displayPage2Entropy: document.getElementById('page2-entropy')
     };
 
-    let width;
-    let height;
+    const displayButtons = Array.from(document.querySelectorAll('#display-selector button'));
+
+    function setDisplayPage(page) {
+      document.body.classList.toggle('display-page-2', page === '2');
+      displayButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.page === page));
+    }
+
+    function toggleMiniBox(index) {
+      document.body.classList.toggle(`show-box-${index}`);
+    }
+
+    const mouse = { x: -9999, y: -9999, active: false };
+    let width = 0;
+    let height = 0;
     let particles = [];
-    let center = { x: 0, y: 0 };
+    let compatMode = false;
+    let compatLastFrameAt = 0;
 
     function resize() {
       width = canvas.width = window.innerWidth;
       height = canvas.height = window.innerHeight;
-      center = { x: width / 2, y: height / 2 };
     }
 
     class Particle {
@@ -477,488 +537,390 @@
       reset() {
         this.x = Math.random() * width;
         this.y = Math.random() * height;
-        this.vx = (Math.random() - 0.5) * config.baseSpeed;
-        this.vy = (Math.random() - 0.5) * config.baseSpeed;
-        this.size = Math.random() * 2 + 0.5;
+        this.vx = (Math.random() - 0.5) * 0.9;
+        this.vy = (Math.random() - 0.5) * 0.9;
+        this.size = 0.8 + Math.random() * 1.8;
+        this.seed = Math.random();
       }
 
-      update() {
-        if (state.mode === 'MANIFESTING') {
-          const dx = center.x - this.x;
-          const dy = center.y - this.y;
-          this.vx += dx * 0.005;
-          this.vy += dy * 0.005;
-          this.vx *= 0.9;
-          this.vy *= 0.9;
-        } else if (state.mode === 'PROCESSING') {
-          const dx = this.x - center.x;
-          const dy = this.y - center.y;
-          this.vx += -dy * 0.001;
-          this.vy += dx * 0.001;
+      update(t) {
+        const speed = 0.15 + fsm.energyLevel * 1.8;
+        const turbulence = fsm.turbulence * 1.2;
+
+        if (fsm.shape === 'vortex') {
+          const cx = width / 2;
+          const cy = height / 2;
+          const dx = this.x - cx;
+          const dy = this.y - cy;
+          const r = Math.max(24, Math.hypot(dx, dy));
+          this.vx += (-dy / r) * (0.17 + turbulence);
+          this.vy += (dx / r) * (0.17 + turbulence);
+        } else if (fsm.shape === 'sphere') {
+          const cx = width / 2;
+          const cy = height / 2;
+          this.vx += (cx - this.x) * 0.00045;
+          this.vy += (cy - this.y) * 0.00045;
+        } else if (fsm.shape === 'cube') {
+          this.vx += Math.sin(this.y * 0.03 + t * 0.001) * 0.02;
+          this.vy += Math.cos(this.x * 0.03 + t * 0.001) * 0.02;
+        } else if (fsm.shape === 'mountain') {
+          const targetX = (this.seed * width);
+          const peakY = height * (0.35 + Math.abs((this.seed - 0.5) * 0.9));
+          const slope = Math.abs((this.x - targetX) / (width * 0.35));
+          const targetY = clamp(peakY + slope * height * 0.5, height * 0.2, height * 0.92);
+          this.vx += (targetX - this.x) * 0.00035;
+          this.vy += (targetY - this.y) * 0.00055;
+        } else if (fsm.shape === 'river') {
+          const flowY = height * (0.5 + Math.sin((this.x / width) * 8 + t * 0.0013) * 0.2);
+          this.vx += 0.06 + turbulence * 0.1;
+          this.vy += (flowY - this.y) * 0.0012;
+        } else if (fsm.shape === 'face' || fsm.shape === 'human') {
+          const cx = width * 0.5;
+          const cy = height * 0.52;
+          const phase = this.seed * Math.PI * 2;
+          const r = fsm.shape === 'human' ? width * 0.14 : width * 0.12;
+          const targetX = cx + Math.cos(phase) * r * (0.65 + this.seed * 0.5);
+          const targetY = cy + Math.sin(phase) * r * (0.9 + this.seed * 0.35);
+          this.vx += (targetX - this.x) * 0.00042;
+          this.vy += (targetY - this.y) * 0.00042;
         } else {
-          this.vx += (Math.random() - 0.5) * 0.1;
-          this.vy += (Math.random() - 0.5) * 0.1;
+          this.vx += Math.sin(this.y * 0.009 + t * 0.001) * (0.03 + turbulence * 0.06);
+          this.vy += Math.cos(this.x * 0.009 + t * 0.001) * (0.03 + turbulence * 0.06);
         }
 
-        const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-        if (speed > 5) {
-          this.vx *= 0.9;
-          this.vy *= 0.9;
+        if (mouse.active && fsm.state !== 'NIRODHA') {
+          const dx = mouse.x - this.x;
+          const dy = mouse.y - this.y;
+          const dist = Math.max(1, Math.hypot(dx, dy));
+          if (dist < 280) {
+            const force = ((280 - dist) / 280) * 0.45;
+            this.vx += (dx / dist) * force;
+            this.vy += (dy / dist) * force;
+            fsm.entropy = clamp(fsm.entropy + 0.03, 0, 100);
+          }
         }
 
-        this.x += this.vx;
-        this.y += this.vy;
+        this.vx *= 0.94;
+        this.vy *= 0.94;
+        this.x += this.vx * speed;
+        this.y += this.vy * speed;
 
-        if (state.mode !== 'MANIFESTING') {
-          if (this.x < 0) this.x = width;
-          if (this.x > width) this.x = 0;
-          if (this.y < 0) this.y = height;
-          if (this.y > height) this.y = 0;
-        }
+        if (this.x < 0) this.x = width;
+        if (this.x > width) this.x = 0;
+        if (this.y < 0) this.y = height;
+        if (this.y > height) this.y = 0;
       }
 
       draw() {
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fillStyle = config.colors[state.mode] || '#fff';
+        ctx.fillStyle = palette[fsm.state] || palette.IDLE;
+        ctx.globalAlpha = fsm.state === 'NIRODHA' ? 0.28 : 0.45 + Math.sin(Date.now() * 0.006) * 0.15;
         ctx.fill();
       }
     }
 
-    window.addEventListener('resize', resize);
-    resize();
-    for (let i = 0; i < config.particleCount; i += 1) particles.push(new Particle());
-
-    const fileInput = document.getElementById('file-upload');
-    const attachBtn = document.getElementById('btn-attach');
-    const voiceBtn = document.getElementById('btn-voice');
-    const sendBtn = document.getElementById('btn-send');
-    const chatInput = document.getElementById('chat-input');
-    const sysMsg = document.getElementById('sys-msg');
-    const hologram = document.getElementById('hologram-display');
-    const holoText = document.getElementById('hologram-text');
-    const loader = document.getElementById('manifest-loader');
-    const freezeBtn = document.getElementById('freeze-btn');
-    const saveBtn = document.getElementById('save-btn');
-    const eraseBtn = document.getElementById('erase-btn');
-    const penBtn = document.getElementById('pen-btn');
-
-    class LightDocument {
-      constructor() {
-        this.currentSnapshot = null;
-        this.currentFormat = 'PNG';
-        this.ui = this.createDocumentUI();
-      }
-
-      createDocumentUI() {
-        const docUI = document.createElement('div');
-        docUI.className = 'document-save-ui';
-        docUI.innerHTML = `
-          <div class="save-header">
-            <h3>💾 Save Frozen Light</h3>
-            <div class="close-btn" data-action="close">✕</div>
-          </div>
-          <div class="format-options">
-            <div class="format-option selected" data-format="PNG"><div>🖼️ PNG</div></div>
-            <div class="format-option" data-format="PDF"><div>📄 PDF</div></div>
-          </div>
-          <div class="save-options">
-            <input type="text" class="filename-input" value="frozen-light" />
-            <button class="save-button">บันทึกไฟล์</button>
-          </div>
-        `;
-        docUI.style.display = 'none';
-        document.body.appendChild(docUI);
-
-        docUI.querySelector('[data-action="close"]').addEventListener('click', () => {
-          docUI.style.display = 'none';
-        });
-
-        docUI.querySelectorAll('.format-option').forEach((option) => {
-          option.addEventListener('click', () => {
-            docUI.querySelectorAll('.format-option').forEach((e) => e.classList.remove('selected'));
-            option.classList.add('selected');
-            this.currentFormat = option.dataset.format;
-          });
-        });
-
-        docUI.querySelector('.save-button').addEventListener('click', () => {
-          const baseName = docUI.querySelector('.filename-input').value.trim() || 'frozen-light';
-          if (this.currentFormat === 'PDF') {
-            this.exportAsPDF(`${baseName}.pdf`);
-          } else {
-            this.exportAsPNG(`${baseName}.png`);
-          }
-        });
-
-        return docUI;
-      }
-
-      showSaveUI(snapshot) {
-        this.currentSnapshot = snapshot;
-        this.ui.style.display = 'block';
-      }
-
-      renderFrozenToCanvas(scale = 1) {
-        const renderCanvas = document.createElement('canvas');
-        renderCanvas.width = Math.floor(width * scale);
-        renderCanvas.height = Math.floor(height * scale);
-        const renderCtx = renderCanvas.getContext('2d');
-
-        const gradient = renderCtx.createLinearGradient(0, 0, renderCanvas.width, renderCanvas.height);
-        gradient.addColorStop(0, '#03030c');
-        gradient.addColorStop(1, '#0b1120');
-        renderCtx.fillStyle = gradient;
-        renderCtx.fillRect(0, 0, renderCanvas.width, renderCanvas.height);
-
-        if (!this.currentSnapshot?.points?.length) return renderCanvas;
-
-        this.currentSnapshot.points.forEach((point) => {
-          renderCtx.beginPath();
-          renderCtx.fillStyle = point.color || '#99f6ff';
-          renderCtx.globalAlpha = 0.92;
-          renderCtx.arc(point.x * scale, point.y * scale, (point.size + 0.8) * scale, 0, Math.PI * 2);
-          renderCtx.fill();
-        });
-
-        renderCtx.globalAlpha = 1;
-        renderCtx.fillStyle = 'rgba(255,255,255,0.8)';
-        renderCtx.font = `${14 * scale}px JetBrains Mono`;
-        renderCtx.fillText(`Aetherium Freeze • ${new Date(this.currentSnapshot.timestamp).toLocaleString()}`, 20 * scale, 30 * scale);
-        return renderCanvas;
-      }
-
-      triggerDownload(href, filename) {
-        const anchor = document.createElement('a');
-        anchor.href = href;
-        anchor.download = filename;
-        anchor.click();
-      }
-
-      exportAsPNG(filename = 'frozen-light.png') {
-        const imgCanvas = this.renderFrozenToCanvas(2);
-        this.triggerDownload(imgCanvas.toDataURL('image/png'), filename);
-        sysMsg.innerText = `SYSTEM: SAVED ${filename}`;
-      }
-
-      exportAsPDF(filename = 'frozen-light.pdf') {
-        const pdfCanvas = this.renderFrozenToCanvas(2);
-        const imageData = pdfCanvas.toDataURL('image/png');
-        const pdfShell = `<!doctype html><html><head><title>${filename}</title><style>body{margin:0;background:#10131f;display:flex;justify-content:center;align-items:center;height:100vh;}img{max-width:95vw;max-height:95vh;}</style></head><body><img src="${imageData}" alt="Frozen light"></body></html>`;
-        const blob = new Blob([pdfShell], { type: 'text/html' });
-        this.triggerDownload(URL.createObjectURL(blob), filename.replace(/\.pdf$/i, '.html'));
-        sysMsg.innerText = 'SYSTEM: PDF fallback exported as printable HTML snapshot';
-      }
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
     }
 
-    class LightPen {
-      constructor() {
-        this.isActive = false;
-        this.isDrawing = false;
-        this.brushSize = 2;
-        this.currentColor = '#00ffff';
-        this.ui = this.createPenUI();
-        this.target = null;
+    function evolveState() {
+      if (fsm.state === 'NIRODHA') {
+        fsm.energy = clamp(fsm.energy + 0.28, 0, 100);
+        fsm.load = clamp(fsm.load - 0.18, 0, 100);
+        fsm.entropy = clamp(fsm.entropy - 0.2, 0, 100);
+        if (fsm.energy > 96) fsm.state = 'IDLE';
+        return;
       }
 
-      createPenUI() {
-        const ui = document.createElement('div');
-        ui.className = 'light-pen-ui';
-        ui.style.display = 'none';
-        const palette = ['#ff0000', '#00ff88', '#00aaff', '#ffd700', '#ffffff', '#ff00dd', '#00ffff', '#ff8844', '#b68cff', '#7fffd4'];
-        ui.innerHTML = `
-          <div class="pen-header"><h3>🖌️ Light Pen</h3><div class="close-btn" data-action="close">✕</div></div>
-          <div class="color-palette">${palette.map((color, i) => `<div class="color-option ${i===6 ? 'selected' : ''}" data-color="${color}" style="background:${color}"></div>`).join('')}</div>
-          <div class="brush-controls"><label for="brush-size">Brush</label><input id="brush-size" type="range" min="1" max="8" value="2" /></div>
-          <div class="pen-actions"><button class="undo-btn">↶ Undo</button><button class="finish-btn">✅ เสร็จสิ้น</button></div>`;
-        document.body.appendChild(ui);
+      fsm.energy = clamp(fsm.energy - 0.045 - fsm.energyLevel * 0.03, 0, 100);
+      fsm.entropy = clamp(fsm.entropy * 0.996, 0, 100);
+      fsm.load = clamp(fsm.load * 0.994, 0, 100);
 
-        ui.querySelectorAll('.color-option').forEach((node) => {
-          node.addEventListener('click', () => {
-            ui.querySelectorAll('.color-option').forEach((e) => e.classList.remove('selected'));
-            node.classList.add('selected');
-            this.currentColor = node.dataset.color;
-          });
-        });
-        ui.querySelector('#brush-size').addEventListener('input', (e) => { this.brushSize = Number(e.target.value); });
-        ui.querySelector('.finish-btn').addEventListener('click', () => this.finish());
-        ui.querySelector('[data-action="close"]').addEventListener('click', () => this.finish());
-        ui.querySelector('.undo-btn').addEventListener('click', () => this.undo());
-        return ui;
-      }
-
-      activate(targetSnapshot) {
-        this.target = targetSnapshot;
-        this.isActive = true;
-        this.ui.style.display = 'block';
-        canvas.classList.add('draw-mode');
-      }
-
-      drawAt(x, y) {
-        if (!this.isActive || !this.target) return;
-        if (!this.target.history) this.target.history = [];
-        const point = { x, y, size: this.brushSize, color: this.currentColor, drawn: true };
-        this.target.points.push(point);
-        this.target.history.push(point);
-      }
-
-      undo() {
-        if (!this.target?.history?.length) return;
-        const lastPoint = this.target.history.pop();
-        const idx = this.target.points.lastIndexOf(lastPoint);
-        if (idx >= 0) this.target.points.splice(idx, 1);
-      }
-
-      finish() {
-        this.isActive = false;
-        this.isDrawing = false;
-        canvas.classList.remove('draw-mode');
-        this.ui.style.display = 'none';
-      }
-    }
-
-    class LightErase {
-      constructor() {
-        this.radius = 32;
-        this.isActive = false;
-      }
-
-      toggle(active) {
-        this.isActive = active;
-        canvas.classList.toggle('erase-mode', active);
-      }
-
-      eraseAt(snapshot, x, y) {
-        if (!snapshot?.points?.length) return;
-        snapshot.points = snapshot.points.filter((point) => {
-          const dx = point.x - x;
-          const dy = point.y - y;
-          return Math.sqrt(dx * dx + dy * dy) > this.radius;
-        });
-      }
-    }
-
-    class LightCrystallizer {
-      constructor() {
-        this.frozenStructures = [];
-        this.currentFrozenIndex = -1;
-      }
-
-      startFreeze() {
-        const snapshot = {
-          timestamp: Date.now(),
-          points: particles.map((p) => ({ x: p.x, y: p.y, size: p.size + 0.4, color: config.colors[state.mode] || '#99f6ff' })),
-          metadata: { mode: state.mode, entropy: state.entropy }
-        };
-        this.frozenStructures.push(snapshot);
-        this.currentFrozenIndex = this.frozenStructures.length - 1;
-        saveBtn.style.display = 'flex';
-        eraseBtn.style.display = 'flex';
-        penBtn.style.display = 'flex';
-        sysMsg.innerText = 'SYSTEM: LIGHT CRYSTALLIZED';
-        return snapshot;
-      }
-
-      getCurrentFrozen() {
-        return this.frozenStructures[this.currentFrozenIndex] || null;
-      }
-
-      drawFrozen(ctxRef) {
-        this.frozenStructures.forEach((snapshot) => {
-          snapshot.points.forEach((point) => {
-            ctxRef.beginPath();
-            ctxRef.fillStyle = point.color || '#99f6ff';
-            ctxRef.globalAlpha = 0.9;
-            ctxRef.arc(point.x, point.y, point.size, 0, Math.PI * 2);
-            ctxRef.fill();
-          });
-        });
-        ctxRef.globalAlpha = 1;
-      }
-
-      setupVoiceCommands(commands) {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) return;
-        this.speechRecognizer = new SpeechRecognition();
-        this.speechRecognizer.lang = 'th-TH';
-        this.speechRecognizer.continuous = true;
-        this.speechRecognizer.interimResults = false;
-        this.speechRecognizer.onresult = (event) => {
-          const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
-          Object.entries(commands).forEach(([keyword, action]) => {
-            if (transcript.includes(keyword)) action();
-          });
-        };
-      }
-    }
-
-    const lightDocument = new LightDocument();
-    const lightPen = new LightPen();
-    const lightErase = new LightErase();
-    const lightCrystallizer = new LightCrystallizer();
-
-    const freezeVoiceCommands = {
-      'แช่แข็ง': () => freezeBtn.click(),
-      'หยุดนิ่ง': () => freezeBtn.click(),
-      freeze: () => freezeBtn.click(),
-      'บันทึก': () => saveBtn.click(),
-      save: () => saveBtn.click(),
-      'ลบ': () => eraseBtn.click(),
-      erase: () => eraseBtn.click(),
-      'วาด': () => penBtn.click(),
-      draw: () => penBtn.click()
-    };
-    lightCrystallizer.setupVoiceCommands(freezeVoiceCommands);
-
-    attachBtn.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', (event) => {
-      const file = event.target.files[0];
-      if (!file) return;
-      const preview = document.getElementById('file-preview');
-      preview.innerHTML = `<div class="file-chip">📎 ${file.name}</div>`;
-      sysMsg.innerText = `SYSTEM: FILE BUFFERED [${file.type}]`;
-    });
-
-    let isListening = false;
-    voiceBtn.addEventListener('click', () => {
-      isListening = !isListening;
-      if (isListening) {
-        voiceBtn.classList.add('voice-active');
-        state.mode = 'LISTENING';
-        sysMsg.innerText = 'SYSTEM: LISTENING TO VOICE FREQUENCY...';
-        chatInput.placeholder = 'กำลังฟัง...';
+      if (fsm.energy < 10 || fsm.load > 92) {
+        fsm.state = 'CRITICAL';
+      } else if (fsm.energy < 18) {
+        fsm.state = 'DECAY';
+      } else if (fsm.load > 65) {
+        fsm.state = 'RESONATING';
+      } else if (fsm.entropy > 45) {
+        fsm.state = 'PROCESSING';
       } else {
-        voiceBtn.classList.remove('voice-active');
-        state.mode = 'IDLE';
-        sysMsg.innerText = 'SYSTEM: AWAITING INTENT';
-        chatInput.placeholder = 'ส่งข้อความหรือเจตจำนง...';
+        fsm.state = 'IDLE';
       }
-    });
 
-    freezeBtn.addEventListener('click', () => {
-      lightCrystallizer.startFreeze();
-      freezeBtn.classList.add('mode-active');
-      setTimeout(() => freezeBtn.classList.remove('mode-active'), 600);
-    });
+      if (fsm.energy <= 1) fsm.state = 'NIRODHA';
+    }
 
-    saveBtn.addEventListener('click', () => {
-      const frozen = lightCrystallizer.getCurrentFrozen();
-      if (!frozen) return;
-      lightDocument.showSaveUI(frozen);
-    });
+    function inferIntentVector(text) {
+      const t = text.toLowerCase();
+      let intentCategory = 'chat';
+      if (/^(run|execute|deploy|start|stop|สั่ง|ทำ)/.test(t)) intentCategory = 'command';
+      if (/(สรุป|explain|what|หา|ค้น|ข้อมูล|request|ช่วยหา)/.test(t)) intentCategory = 'request';
+      if (/(error|ผิด|พัง|fail|broken)/.test(t)) intentCategory = 'error';
 
-    eraseBtn.addEventListener('click', () => {
-      const willActivate = !lightErase.isActive;
-      lightErase.toggle(willActivate);
-      eraseBtn.classList.toggle('mode-active', willActivate);
-      if (willActivate) {
-        lightPen.finish();
-        penBtn.classList.remove('mode-active');
-        sysMsg.innerText = 'SYSTEM: ERASE MODE ACTIVE';
-      } else {
-        sysMsg.innerText = 'SYSTEM: ERASE MODE OFF';
-      }
-    });
+      let emotionalValence = 0;
+      if (/(ดีใจ|great|awesome|thanks|ขอบคุณ)/.test(t)) emotionalValence = 0.65;
+      if (/(เครียด|angry|sad|confused|tired|เหนื่อย|งง)/.test(t)) emotionalValence = -0.65;
 
-    penBtn.addEventListener('click', () => {
-      const frozen = lightCrystallizer.getCurrentFrozen();
-      if (!frozen) return;
-      const willActivate = !lightPen.isActive;
-      penBtn.classList.toggle('mode-active', willActivate);
-      if (willActivate) {
-        lightErase.toggle(false);
-        eraseBtn.classList.remove('mode-active');
-        lightPen.activate(frozen);
-        sysMsg.innerText = 'SYSTEM: LIGHT PEN ACTIVE';
-      } else {
-        lightPen.finish();
-        sysMsg.innerText = 'SYSTEM: LIGHT PEN OFF';
-      }
-    });
+      const urgent = /(ด่วน|urgent|now|asap|ทันที|เร็ว)/.test(t);
+      const energyLevel = clamp((text.length / 120) + (urgent ? 0.36 : 0.08), 0, 1);
 
-    canvas.addEventListener('mousedown', (event) => {
-      const frozen = lightCrystallizer.getCurrentFrozen();
-      if (!frozen) return;
-      if (lightErase.isActive) {
-        lightErase.eraseAt(frozen, event.clientX, event.clientY);
-      }
-      if (lightPen.isActive) {
-        lightPen.isDrawing = true;
-        lightPen.drawAt(event.clientX, event.clientY);
-      }
-    });
+      const concepts = [];
+      if (/(fire|heat|hot|แดง|วิกฤต)/.test(t)) concepts.push('fire');
+      if (/(flow|water|stream|ไหล)/.test(t)) concepts.push('flow');
+      if (/(structure|table|schema|json|order|ระเบียบ)/.test(t)) concepts.push('structure');
+      if (/(mountain|ภูเขา|hill)/.test(t)) concepts.push('mountain');
+      if (/(river|แม่น้ำ|waterfall)/.test(t)) concepts.push('river');
+      if (/(human|มนุษย์|body|ร่างกาย)/.test(t)) concepts.push('human');
+      if (/(face|ใบหน้า|portrait)/.test(t)) concepts.push('face');
+      if (concepts.length === 0) concepts.push('balance');
 
-    canvas.addEventListener('mousemove', (event) => {
-      if (!lightPen.isActive || !lightPen.isDrawing) return;
-      lightPen.drawAt(event.clientX, event.clientY);
-    });
+      let baseShape = 'sphere';
+      if (intentCategory === 'error') baseShape = 'cracks';
+      else if (concepts.includes('mountain')) baseShape = 'mountain';
+      else if (concepts.includes('river')) baseShape = 'river';
+      else if (concepts.includes('face')) baseShape = 'face';
+      else if (concepts.includes('human')) baseShape = 'human';
+      else if (concepts.includes('flow')) baseShape = 'vortex';
+      else if (concepts.includes('structure')) baseShape = 'cube';
+      else if (energyLevel < 0.25) baseShape = 'cloud';
 
-    window.addEventListener('mouseup', () => {
-      lightPen.isDrawing = false;
-    });
-
-    function processIntent() {
-      const text = chatInput.value.toLowerCase().trim();
-      const hasFile = fileInput.files.length > 0;
-      if (!text && !hasFile) return;
-
-      state.mode = 'PROCESSING';
-      sysMsg.innerText = 'SYSTEM: ANALYZING INTENT VECTORS...';
-      hologram.style.opacity = 1;
-      loader.style.display = 'block';
-      holoText.innerText = '';
-
-      chatInput.value = '';
-      document.getElementById('file-preview').innerHTML = '';
-
-      setTimeout(() => {
-        state.mode = 'MANIFESTING';
-        loader.style.display = 'none';
-
-        if (text.includes('ทะเล') || text.includes('น้ำตก') || text.includes('ภูเขา') || text.includes('sea')) {
-          holoText.innerText = `MANIFESTING: "${text.toUpperCase()}"`;
-          sysMsg.innerText = 'SYSTEM: CONSTRUCTING VISUAL REALITY FROM DATA';
-        } else if (hasFile) {
-          holoText.innerText = 'DOCUMENT RECEIVED';
-          sysMsg.innerText = 'SYSTEM: PARSING PDF STRUCTURE...';
-        } else {
-          holoText.innerText = 'UNDERSTOOD';
-          sysMsg.innerText = 'SYSTEM: INTENT ACKNOWLEDGED';
+      return {
+        intent_category: intentCategory,
+        emotional_valence: Number(emotionalValence.toFixed(2)),
+        energy_level: Number(energyLevel.toFixed(2)),
+        semantic_concepts: concepts,
+        visual_parameters: {
+          base_shape: baseShape,
+          turbulence: Number(clamp(0.1 + energyLevel * 0.8, 0, 1).toFixed(2)),
+          particle_density: Number(clamp(0.35 + energyLevel * 0.55, 0, 1).toFixed(2))
         }
-
-        setTimeout(() => {
-          state.mode = 'IDLE';
-          hologram.style.opacity = 0;
-          sysMsg.innerText = 'SYSTEM: AWAITING NEW INTENT';
-          particles.forEach((p) => p.reset());
-        }, 4000);
-      }, 2000);
+      };
     }
 
-    sendBtn.addEventListener('click', processIntent);
-    chatInput.addEventListener('keypress', (event) => {
-      if (event.key === 'Enter') processIntent();
-    });
+    function applyIntent(vector) {
+      fsm.intentCategory = vector.intent_category;
+      fsm.energyLevel = vector.energy_level;
+      fsm.turbulence = vector.visual_parameters.turbulence;
+      fsm.particleDensity = vector.visual_parameters.particle_density;
+      fsm.emotionalValence = vector.emotional_valence;
+      fsm.desiredForm = vector.visual_parameters.base_shape;
+      fsm.load = clamp(fsm.load + vector.energy_level * 38, 0, 100);
+      fsm.entropy = clamp(fsm.entropy + vector.energy_level * 26, 0, 100);
+      fsm.energy = clamp(fsm.energy - vector.energy_level * 9, 0, 100);
+      fsm.state = 'PROCESSING';
 
-    function animate() {
-      ctx.fillStyle = 'rgba(5, 5, 5, 0.2)';
+      if (vector.visual_parameters.base_shape === 'cracks') {
+        fsm.shape = 'cloud';
+        fsm.state = 'CRITICAL';
+      } else {
+        fsm.shape = vector.visual_parameters.base_shape;
+      }
+
+      const targetCount = Math.floor(220 + fsm.particleDensity * 980);
+      particles = Array.from({ length: targetCount }, () => new Particle());
+
+      refs.json.textContent = JSON.stringify(vector, null, 2);
+    }
+
+    function addBubble(role, message) {
+      const p = document.createElement('p');
+      p.className = `bubble ${role}`;
+      p.textContent = `${role === 'user' ? 'USER' : 'SYSTEM'}: ${message}`;
+      refs.chatStream.prepend(p);
+      while (refs.chatStream.children.length > 10) refs.chatStream.removeChild(refs.chatStream.lastChild);
+    }
+
+    async function fetchReferenceSignals(text) {
+      const q = encodeURIComponent(text.trim().slice(0, 80));
+      if (!q) return [];
+      try {
+        const api = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${q}&limit=3&namespace=0&format=json&origin=*`;
+        const res = await fetch(api);
+        if (!res.ok) return [];
+        const data = await res.json();
+        const titles = (data && data[1]) || [];
+        return titles.filter(Boolean).slice(0, 3);
+      } catch (_) {
+        return [];
+      }
+    }
+
+    async function processUserInput(text) {
+      addBubble('user', text);
+      fsm.state = 'LISTENING';
+      const references = await fetchReferenceSignals(text);
+      fsm.sourceHints = references;
+      refs.sources.textContent = references.length
+        ? `sources: ${references.join(' | ')}`
+        : 'sources: none (offline/no match)';
+
+      const enriched = references.length ? `${text} ${references.join(' ')}` : text;
+      const vector = inferIntentVector(enriched);
+      applyIntent(vector);
+
+      const response = `understood intent=${vector.intent_category}, form=${vector.visual_parameters.base_shape}, refs=${references.length}`;
+      addBubble('system', response);
+    }
+
+    function renderHUD() {
+      refs.stateText.textContent = fsm.state;
+      refs.energyText.textContent = `${Math.round(fsm.energy)}%`;
+      refs.entropyText.textContent = `${Math.round(fsm.entropy)}%`;
+      refs.loadText.textContent = `${Math.round(fsm.load)}%`;
+
+      refs.energyBar.style.width = `${fsm.energy}%`;
+      refs.entropyBar.style.width = `${fsm.entropy}%`;
+      refs.loadBar.style.width = `${fsm.load}%`;
+
+      refs.energyBar.style.backgroundColor = palette[fsm.state] || palette.IDLE;
+      refs.entropyBar.style.backgroundColor = '#00ffff';
+      refs.loadBar.style.backgroundColor = fsm.load > 65 ? '#ffd700' : '#ffffff';
+
+      refs.shapeChip.textContent = `shape: ${fsm.shape}`;
+      refs.intentChip.textContent = `intent: ${fsm.intentCategory}`;
+
+      refs.displayPage2State.textContent = fsm.state;
+      refs.displayPage2Energy.textContent = `${Math.round(fsm.energy)}%`;
+      refs.displayPage2Entropy.textContent = `${Math.round(fsm.entropy)}%`;
+
+      refs.status.classList.toggle('critical', fsm.state === 'CRITICAL');
+      refs.compatNote.textContent = compatMode
+        ? 'mode: compatibility (deterministic SVG snapshots every 500ms)'
+        : 'mode: realtime';
+    }
+
+    function renderCompatFrame() {
+      const stroke = palette[fsm.state] || palette.IDLE;
+      const energy = Math.round(fsm.energy);
+      const entropy = Math.round(fsm.entropy);
+      const load = Math.round(fsm.load);
+
+      const svg = `
+<svg xmlns='http://www.w3.org/2000/svg' width='640' height='180' viewBox='0 0 640 180'>
+  <rect width='640' height='180' fill='#050505'/>
+  <text x='16' y='26' fill='#ffffff' font-size='14' font-family='monospace'>AETHERIUM COMPAT FRAME</text>
+  <text x='16' y='48' fill='${stroke}' font-size='13' font-family='monospace'>STATE: ${fsm.state}</text>
+  <rect x='16' y='64' width='608' height='10' fill='#222'/>
+  <rect x='16' y='64' width='${(608 * energy) / 100}' height='10' fill='${stroke}'/>
+  <text x='16' y='90' fill='#00ffff' font-size='12' font-family='monospace'>ENERGY ${energy}%</text>
+  <text x='180' y='90' fill='#00ffff' font-size='12' font-family='monospace'>ENTROPY ${entropy}%</text>
+  <text x='360' y='90' fill='#ffd700' font-size='12' font-family='monospace'>LOAD ${load}%</text>
+  <text x='16' y='116' fill='#cccccc' font-size='12' font-family='monospace'>shape=${fsm.shape} intent=${fsm.intentCategory}</text>
+  <circle cx='580' cy='112' r='18' fill='none' stroke='${stroke}' stroke-width='2'/>
+  <circle cx='580' cy='112' r='${4 + (fsm.energyLevel * 12)}' fill='${stroke}' opacity='0.7'/>
+  <text x='16' y='144' fill='#9db5ff' font-size='11' font-family='monospace'>Designed for low-feature / unstable headless environments.</text>
+</svg>`;
+      refs.compatFrame.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    }
+
+    function detectCompatibilityMode() {
+      const params = new URLSearchParams(window.location.search);
+      const forceCompat = params.get('render') === 'compat';
+      const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      compatMode = Boolean(forceCompat || reduceMotion);
+      if (compatMode) {
+        fsm.shape = 'sphere';
+        fsm.turbulence = 0.08;
+      }
+    }
+
+    function drawBackground() {
+      ctx.fillStyle = 'rgba(5,5,8,0.24)';
       ctx.fillRect(0, 0, width, height);
 
-      particles.forEach((p) => {
-        p.update();
-        p.draw();
-      });
-
-      lightCrystallizer.drawFrozen(ctx);
-
-      document.getElementById('bar-energy').style.width = `${state.energy}%`;
-      document.getElementById('bar-energy').style.backgroundColor = config.colors[state.mode];
-      document.getElementById('bar-entropy').style.width = `${state.entropy}%`;
-
-      requestAnimationFrame(animate);
+      if (fsm.state === 'NIRODHA') {
+        ctx.fillStyle = 'rgba(0, 0, 139, 0.06)';
+        ctx.fillRect(0, 0, width, height);
+      }
     }
 
-    animate();
+    function tick(t) {
+      drawBackground();
+      evolveState();
+
+      if (!compatMode) {
+        for (const p of particles) {
+          p.update(t);
+          p.draw();
+        }
+      } else if (t - compatLastFrameAt > 500) {
+        renderCompatFrame();
+        compatLastFrameAt = t;
+      }
+
+      ctx.globalAlpha = 1;
+      renderHUD();
+      requestAnimationFrame(tick);
+    }
+
+    window.addEventListener('resize', resize);
+    window.addEventListener('mousemove', e => {
+      mouse.active = true;
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
+      fsm.energy = clamp(fsm.energy - 0.02, 0, 100);
+      fsm.entropy = clamp(fsm.entropy + 0.03, 0, 100);
+    });
+
+    document.getElementById('send-btn').addEventListener('click', async () => {
+      const input = document.getElementById('intent-input');
+      const text = input.value.trim();
+      if (!text) return;
+      await processUserInput(text);
+      input.value = '';
+    });
+
+    document.getElementById('intent-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('send-btn').click();
+    });
+
+
+    refs.settingsToggle.addEventListener('click', () => {
+      document.body.classList.toggle('ui-open');
+    });
+
+    displayButtons.forEach(btn => {
+      btn.addEventListener('click', () => setDisplayPage(btn.dataset.page));
+    });
+
+    document.getElementById('toggle-box-1').addEventListener('click', () => toggleMiniBox(1));
+    document.getElementById('toggle-box-2').addEventListener('click', () => toggleMiniBox(2));
+    document.getElementById('toggle-box-3').addEventListener('click', () => toggleMiniBox(3));
+
+    document.getElementById('voice-btn').addEventListener('click', () => {
+      addBubble('system', 'voice input icon pressed (demo)');
+    });
+
+    refs.chatToggle.addEventListener('click', () => {
+      document.body.classList.toggle('chat-open');
+    });
+
+    document.getElementById('nirodha-btn').addEventListener('click', () => {
+      fsm.state = 'NIRODHA';
+      fsm.shape = 'cloud';
+      fsm.intentCategory = 'maintenance';
+      fsm.energyLevel = 0.05;
+      fsm.turbulence = 0.08;
+      refs.json.textContent = JSON.stringify({
+        intent_category: 'maintenance',
+        emotional_valence: 0,
+        energy_level: 0.05,
+        semantic_concepts: ['calm', 'potentiality'],
+        visual_parameters: { base_shape: 'cloud', turbulence: 0.08, particle_density: 0.38 }
+      }, null, 2);
+    });
+
+    document.body.classList.remove('ui-open');
+    document.body.classList.remove('chat-open');
+    document.body.classList.remove('display-page-2');
+    resize();
+    detectCompatibilityMode();
+    particles = Array.from({ length: 560 }, () => new Particle());
+    renderCompatFrame();
+    renderHUD();
+    requestAnimationFrame(tick);
   </script>
 </body>
 </html>
