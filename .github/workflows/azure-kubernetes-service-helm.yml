@@ -25,7 +25,7 @@ jobs:
     timeout-minutes: 25
     if: ${{ secrets.AZURE_CLIENT_ID != '' && secrets.AZURE_TENANT_ID != '' && secrets.AZURE_SUBSCRIPTION_ID != '' }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Azure login
         uses: azure/login@v3
@@ -44,7 +44,7 @@ jobs:
     needs: [build-image]
     if: ${{ needs.build-image.result == 'success' }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Azure login
         uses: azure/login@v3
