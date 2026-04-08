@@ -44,6 +44,7 @@ class AkashicEnvelope:
 
 
 def zero_copy_send(sock: Any, data: bytes | bytearray | memoryview) -> int:
+    """Blocking zero-copy send helper for synchronous socket workflows."""
     mv = memoryview(data)
     total_sent = 0
     while total_sent < len(mv):
@@ -52,6 +53,29 @@ def zero_copy_send(sock: Any, data: bytes | bytearray | memoryview) -> int:
             raise ConnectionError("socket connection broken")
         total_sent += sent
     return total_sent
+
+
+async def async_zero_copy_send(
+    loop: asyncio.AbstractEventLoop,
+    sock: Any,
+    data: bytes | bytearray | memoryview,
+) -> int:
+    """Non-blocking async zero-copy send helper for asyncio contexts."""
+    mv = memoryview(data)
+    original_timeout = sock.gettimeout() if hasattr(sock, "gettimeout") else None
+    if hasattr(sock, "setblocking"):
+        sock.setblocking(False)
+
+    try:
+        while True:
+            try:
+                await loop.sock_sendall(sock, mv)
+                return len(mv)
+            except (BlockingIOError, InterruptedError):
+                await asyncio.sleep(0)
+    finally:
+        if hasattr(sock, "settimeout"):
+            sock.settimeout(original_timeout)
 
 
 def _load_msgspec() -> Any:
@@ -178,6 +202,9 @@ class NATSJetStreamManager:
         if self.nc is None:
             raise RuntimeError("NATS client is not connected")
         await self.nc.publish(subject, payload)
+
+    async def publish_via_socket(self, loop: asyncio.AbstractEventLoop, sock: Any, payload: bytes) -> int:
+        return await async_zero_copy_send(loop, sock, payload)
 
     async def close(self) -> None:
         if self.nc is not None:

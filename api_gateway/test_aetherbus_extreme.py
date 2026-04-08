@@ -6,7 +6,9 @@ import unittest
 from api_gateway.aetherbus_extreme import (
     AetherBusExtreme,
     AkashicEnvelope,
+    NATSJetStreamManager,
     StateConvergenceProcessor,
+    async_zero_copy_send,
     deserialize_from_msgpack,
     serialize_to_msgpack,
     zero_copy_send,
@@ -54,6 +56,56 @@ class AetherBusExtremeTests(unittest.IsolatedAsyncioTestCase):
         await bus.shutdown()
 
         self.assertFalse(bus._background_tasks)
+
+    async def test_async_zero_copy_send(self) -> None:
+        left, right = socket.socketpair()
+        try:
+            loop = asyncio.get_running_loop()
+            self.assertTrue(left.getblocking())
+            sent = await async_zero_copy_send(loop, left, b"tachyon-async")
+            recv = right.recv(64)
+            self.assertEqual(sent, 13)
+            self.assertEqual(recv, b"tachyon-async")
+            self.assertTrue(left.getblocking())
+        finally:
+            left.close()
+            right.close()
+
+    async def test_async_zero_copy_send_handles_blockingioerror(self) -> None:
+        loop = asyncio.get_running_loop()
+
+        class _FakeSocket:
+            def __init__(self) -> None:
+                self.timeout = None
+
+            def gettimeout(self) -> None:
+                return self.timeout
+
+            def setblocking(self, flag: bool) -> None:
+                self.timeout = 0.0 if not flag else None
+
+            def settimeout(self, timeout: float | None) -> None:
+                self.timeout = timeout
+
+        fake_sock = _FakeSocket()
+        manager = NATSJetStreamManager(servers=[])
+        attempts = {"count": 0}
+
+        async def flaky_sock_sendall(_: object, __: memoryview) -> None:
+            if attempts["count"] == 0:
+                attempts["count"] += 1
+                raise BlockingIOError("would block")
+
+        original = loop.sock_sendall
+        loop.sock_sendall = flaky_sock_sendall  # type: ignore[method-assign]
+        try:
+            sent = await manager.publish_via_socket(loop, fake_sock, b"ok")
+        finally:
+            loop.sock_sendall = original  # type: ignore[method-assign]
+
+        self.assertEqual(sent, 2)
+        self.assertEqual(attempts["count"], 1)
+        self.assertIsNone(fake_sock.timeout)
 
 
 class UtilityTests(unittest.TestCase):
