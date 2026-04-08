@@ -946,17 +946,25 @@
       return 'medium';
     }
 
+    function clampParticleDensityByTier(raw, tier = fsm.qualityTier) {
+      const ceiling = tier === 'low'
+        ? 0.5
+        : tier === 'medium'
+          ? 0.75
+          : 0.95;
+      return Number(clamp(raw, 0, ceiling).toFixed(2));
+    }
+
     function applyQualityTier(tier) {
       fsm.qualityTier = tier;
       if (tier === 'low') {
         fsm.targetFps = 30;
-        fsm.particleDensity = Math.min(fsm.particleDensity, 0.5);
       } else if (tier === 'high') {
         fsm.targetFps = 60;
       } else {
         fsm.targetFps = 45;
-        fsm.particleDensity = Math.min(fsm.particleDensity, 0.75);
       }
+      fsm.particleDensity = clampParticleDensityByTier(fsm.particleDensity, tier);
     }
 
     function setFrameRateActive(isActive) {
@@ -1009,7 +1017,7 @@
         visual_parameters: {
           base_shape: baseShape,
           color_palette: warm,
-          particle_density: Number(clamp(0.32 + intent.energy_level * 0.6, 0.2, 0.95).toFixed(2)),
+          particle_density: clampParticleDensityByTier(clamp(0.32 + intent.energy_level * 0.6, 0.2, 0.95), fsm.qualityTier),
           turbulence: Number(clamp(0.12 + intent.energy_level * 0.7, 0.08, 0.95).toFixed(2)),
           flow_direction: intent.emotional_valence >= 0 ? 'upward' : 'inward'
         }
@@ -1090,9 +1098,24 @@
         visual_parameters: {
           base_shape: baseShape,
           turbulence: Number(clamp(0.1 + energyLevel * 0.8, 0, 1).toFixed(2)),
-          particle_density: Number(clamp(0.35 + energyLevel * 0.55, 0, 1).toFixed(2))
+          particle_density: clampParticleDensityByTier(clamp(0.35 + energyLevel * 0.55, 0, 1), fsm.qualityTier)
         }
       };
+    }
+
+    function applyIntent(intentVector) {
+      const visual = intentVector?.visual_parameters || {};
+      fsm.intentCategory = intentVector?.intent_category || 'chat';
+      fsm.shape = visual.base_shape || fsm.shape;
+      fsm.emotionalValence = Number((intentVector?.emotional_valence ?? 0).toFixed(2));
+      fsm.energyLevel = Number(clamp(intentVector?.energy_level ?? 0.2, 0, 1).toFixed(2));
+      fsm.turbulence = Number(clamp(visual.turbulence ?? fsm.turbulence, 0, 1).toFixed(2));
+      fsm.particleDensity = clampParticleDensityByTier(
+        visual.particle_density ?? fsm.particleDensity,
+        fsm.qualityTier
+      );
+      fsm.state = 'PROCESSING';
+      refs.json.textContent = JSON.stringify(intentVector, null, 2);
     }
 
     function getImagePatternMemory() {
