@@ -55,7 +55,9 @@ def zero_copy_send(sock: Any, data: bytes | bytearray | memoryview) -> int:
 
 
 def _load_msgspec() -> Any:
-    return importlib.import_module("msgspec")
+    if not hasattr(_load_msgspec, "_module"):
+        _load_msgspec._module = importlib.import_module("msgspec")
+    return _load_msgspec._module
 
 
 def serialize_to_msgpack(data: Any) -> bytes:
