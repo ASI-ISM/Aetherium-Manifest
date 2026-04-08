@@ -1,5 +1,5 @@
 # ใช้ Nginx image ขนาดเล็กสำหรับ Production
-FROM nginx:1.29-alpine
+FROM nginx:1.29.8-alpine
 
 # กำหนด Working Directory
 WORKDIR /usr/share/nginx/html
