@@ -1,0 +1,9 @@
+{
+  "chat_toggle": "チャット",
+  "send": "意図を送信",
+  "url_loading": "状態: 読み込み中...",
+  "url_analyzed": "状態: プロキシで解析済み",
+  "url_failed": "状態: 失敗 (proxy/network)",
+  "voice_idle": "音声: 待機",
+  "voice_model": "音声モデル"
+}

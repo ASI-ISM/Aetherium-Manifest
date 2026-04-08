@@ -1,0 +1,21 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ws-gateway-pdb
+  namespace: aetherium
+spec:
+  minAvailable: 80%
+  selector:
+    matchLabels:
+      app: ws-gateway
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: governor-pdb
+  namespace: aetherium
+spec:
+  minAvailable: 4
+  selector:
+    matchLabels:
+      app: governor

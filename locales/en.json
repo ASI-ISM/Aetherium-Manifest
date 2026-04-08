@@ -1,0 +1,9 @@
+{
+  "chat_toggle": "Chat",
+  "send": "Emit Intent",
+  "url_loading": "status: loading...",
+  "url_analyzed": "status: analyzed via proxy",
+  "url_failed": "status: failed (proxy/network)",
+  "voice_idle": "voice: idle",
+  "voice_model": "voice model"
+}

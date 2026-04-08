@@ -1,0 +1,10 @@
+{"intent":"comfort","light_pattern":"violet_halo","operator_confidence":0.93}
+{"intent":"comfort","light_pattern":"violet_halo","operator_confidence":0.9}
+{"intent":"comfort","light_pattern":"violet_halo","operator_confidence":0.88}
+{"intent":"guide","light_pattern":"amber_focus","operator_confidence":0.84}
+{"intent":"guide","light_pattern":"amber_focus","operator_confidence":0.82}
+{"intent":"guide","light_pattern":"amber_focus","operator_confidence":0.85}
+{"intent":"alert","light_pattern":"crimson_pulse","operator_confidence":0.91}
+{"intent":"alert","light_pattern":"crimson_pulse","operator_confidence":0.89}
+{"intent":"alert","light_pattern":"crimson_pulse","operator_confidence":0.9}
+{"intent":"alert","light_pattern":"strobe","operator_confidence":0.4}

@@ -1,0 +1,9 @@
+{
+    "workbench.editor.alwaysShowEditorActions": true,
+    "workbench.editor.autoLockGroups": {
+        "chatgpt.conversationEditor": true,
+        "ai-mlstudio.dataEditor": true,
+        "mainThreadWebview-markdown.preview": true,
+        "workbench.editorinputs.browser": true
+    }
+}

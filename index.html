@@ -3,115 +3,282 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Aetherium Genesis Manifest</title>
+  <title>AETHERIUM Light UI</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Sarabun:wght@300;500&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap');
 
     :root {
-      --bg: #050505;
-      --panel: rgba(12, 12, 14, 0.72);
-      --line: rgba(255, 255, 255, 0.16);
-      --white: #ffffff;
-      --sleep: #00008b;
-      --aether: #00ffff;
-      --reasoning: #800080;
-      --load: #ffd700;
-      --critical: #dc143c;
-      --decay: #a52a2a;
+      --void-bg: #020204;
+      --panel-bg: rgba(10, 12, 20, 0.72);
+      --panel-border: rgba(255, 255, 255, 0.08);
+      --border-light: rgba(255, 255, 255, 0.16);
+      --color-manifest: #ffd166;
+      --text: #eef2ff;
+      --muted: #8b93a7;
+      --cyan: #00e5ff;
+      --pink: #ff3d81;
+      --gold: #ffd166;
+      --shadow: 0 18px 58px rgba(0, 0, 0, 0.52);
     }
+
+    * { box-sizing: border-box; }
 
     html, body {
       margin: 0;
+      width: 100%;
       height: 100%;
       overflow: hidden;
-      background: radial-gradient(circle at top, #111 0%, var(--bg) 42%);
-      color: #e8e8e8;
-      font-family: 'JetBrains Mono', 'Sarabun', monospace;
+      background: var(--void-bg);
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
     }
 
-    #nervous-system {
-      position: fixed;
+    body {
+      position: relative;
+      user-select: none;
+      touch-action: manipulation;
+    }
+
+    #display-layer {
+      position: absolute;
       inset: 0;
       width: 100%;
       height: 100%;
+      display: block;
       z-index: 1;
+      background:
+        radial-gradient(circle at 50% 32%, rgba(109, 40, 217, 0.16), transparent 36%),
+        radial-gradient(circle at 72% 44%, rgba(0, 229, 255, 0.12), transparent 30%),
+        radial-gradient(circle at 28% 68%, rgba(255, 61, 129, 0.1), transparent 32%),
+        #020204;
+    }
+
+    /*
+      memory-layer ยังเก็บไว้เพื่อใช้เป็น canvas ช่วยคอมไพล์ข้อความเป็น field ของอนุภาค
+      แต่จะไม่แสดงผลให้ผู้ใช้เห็นโดยตรง
+    */
+    #memory-layer,
+    #file-input {
+      display: none;
+    }
+
+    .ambient-label {
+      position: absolute;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 3;
+      font-size: 10px;
+      letter-spacing: 0.32em;
+      color: rgba(255,255,255,0.42);
+      text-transform: uppercase;
+      pointer-events: none;
+      text-shadow: 0 0 12px rgba(255,255,255,0.08);
+    }
+
+    .bottom-shell {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 5;
+      padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+      background: linear-gradient(to top, rgba(2,2,4,0.9), rgba(2,2,4,0.22) 60%, transparent);
+      pointer-events: none;
+    }
+
+    .chat-bar {
+      width: min(980px, 100%);
+      margin: 0 auto;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(26px) saturate(125%);
+      -webkit-backdrop-filter: blur(26px) saturate(125%);
+      padding: 10px;
+      pointer-events: auto;
+    }
+
+    .chat-top {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+    }
+
+    .icon-btn,
+    .send-btn {
+      border: 0;
+      outline: none;
+      appearance: none;
+      cursor: pointer;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+    }
+
+    .icon-btn:hover,
+    .send-btn:hover {
+      transform: translateY(-1px);
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255,255,255,0.14);
+    }
+
+    .icon-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+    }
+
+    .icon-btn svg,
+    .send-btn svg {
+      width: 18px;
+      height: 18px;
       display: block;
     }
 
-    .hud {
-      position: fixed;
-      z-index: 10;
-      backdrop-filter: blur(12px);
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      box-shadow: 0 18px 34px rgba(0,0,0,.45);
+    .composer-wrap {
+      flex: 1 1 auto;
+      min-width: 0;
+      background: linear-gradient(140deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 18px;
+      padding: 10px 12px;
     }
 
-    #status {
-      top: 66px;
-      right: 18px;
-      width: 340px;
-      padding: 14px;
+    #chat-input {
+      width: 100%;
+      min-height: 24px;
+      max-height: 120px;
+      resize: none;
+      overflow-y: auto;
+      border: 0;
+      outline: none;
+      background: transparent;
+      color: var(--text);
+      font: inherit;
+      font-size: 14px;
+      line-height: 1.45;
     }
 
-    .row {
-      margin-bottom: 12px;
+    #chat-input::placeholder {
+      color: var(--muted);
     }
 
-    .row-head {
-      font-size: 11px;
+    .chat-bottom {
       display: flex;
       justify-content: space-between;
-      color: #aaa;
-      margin-bottom: 4px;
-      letter-spacing: .5px;
+      align-items: center;
+      gap: 12px;
+      margin-top: 8px;
+      padding: 0 2px;
     }
 
-    .bar-track {
-      height: 4px;
-      background: rgba(255,255,255,.08);
-      border-radius: 999px;
+    .status-line {
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      white-space: nowrap;
       overflow: hidden;
+      text-overflow: ellipsis;
     }
 
-    .bar {
-      height: 100%;
-      width: 0;
-      background: var(--aether);
-      box-shadow: 0 0 12px currentColor;
-      transition: width .32s ease, background-color .45s ease;
+    .action-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 0 0 auto;
     }
 
-    #settings-toggle {
-      position: fixed;
-      right: 18px;
-      top: 16px;
-      z-index: 40;
-      width: 40px;
-      height: 40px;
-      border-radius: 999px;
-      border: 1px solid var(--line);
-      background: rgba(8, 8, 10, 0.78);
-      color: #fff;
+    .send-btn {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(0,229,255,0.22), rgba(255,61,129,0.24));
+      border-color: rgba(255,255,255,0.14);
+      box-shadow: 0 0 22px rgba(0, 229, 255, 0.12);
+    }
+
+    .send-btn:hover {
+      box-shadow: 0 0 28px rgba(255, 61, 129, 0.18);
+    }
+
+    .recording {
+      border-color: rgba(255, 61, 129, 0.48) !important;
+      background: rgba(255, 61, 129, 0.12) !important;
+      box-shadow: 0 0 18px rgba(255, 61, 129, 0.22);
+    }
+
+    .file-chip {
+      display: none;
+      margin-top: 10px;
+      padding: 8px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      font-size: 11px;
+      color: #dbe8ff;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .file-chip.active {
+      display: flex;
+    }
+
+    .file-remove {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
       cursor: pointer;
-      font-size: 18px;
+      padding: 0;
     }
 
-    #chat-toggle {
+    @media (max-width: 640px) {
+      .bottom-shell {
+        padding-inline: 10px;
+      }
+
+      .chat-bar {
+        border-radius: 20px;
+        padding: 8px;
+      }
+
+      .icon-btn,
+      .send-btn {
+        width: 42px;
+        height: 42px;
+      }
+
+      #chat-input {
+        font-size: 13px;
+      }
+    }
+
+    .floating-button {
       position: fixed;
-      left: 50%;
-      transform: translateX(-50%);
-      bottom: 14px;
-      z-index: 35;
-      border: 1px solid var(--line);
+      right: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 30;
+      border: 1px solid var(--border-light);
       border-radius: 999px;
-      background: rgba(8, 8, 10, 0.82);
-      color: #fff;
-      padding: 8px 16px;
+      padding: 10px 16px;
+      color: white;
       cursor: pointer;
-      font-family: inherit;
-      font-size: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(10px);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
 
     #settings-panel {
@@ -175,123 +342,125 @@
       line-height: 1.45;
     }
 
-    #log pre {
+    .save-header h3,
+    .pen-header h3 {
       margin: 0;
-      white-space: pre-wrap;
-      color: #c5f7ff;
+      font-size: 0.95rem;
     }
 
-    #conversation {
-      right: 18px;
-      top: calc(284px + 46vh + 12px);
-      width: 380px;
-      max-height: 34vh;
+    .close-btn {
+      cursor: pointer;
+      opacity: 0.7;
+    }
+
+    .format-options {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
       padding: 12px;
-      overflow: auto;
-      font-size: 12px;
-      line-height: 1.45;
     }
 
-    .bubble {
-      margin: 0 0 8px;
-      padding: 8px 10px;
+    .format-option {
+      border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 10px;
-      border: 1px solid rgba(255,255,255,.18);
-      background: rgba(255,255,255,.05);
-    }
-
-    .bubble.user { border-color: rgba(0,255,255,.45); color: #d7ffff; }
-    .bubble.system { border-color: rgba(255,215,0,.35); color: #fff7cf; }
-
-    #sources {
-      margin-top: 8px;
-      color: #9fd4ff;
-      font-size: 11px;
-    }
-
-    #composer {
-      left: 50%;
-      bottom: 14px;
-      transform: translateX(-50%);
-      width: min(840px, calc(100vw - 36px));
       padding: 10px;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .format-option.selected {
+      border-color: var(--color-manifest);
+      background: rgba(255, 215, 0, 0.08);
+    }
+
+    .save-options,
+    .pen-actions,
+    .brush-controls {
       display: flex;
       gap: 8px;
+      padding: 0 12px 12px;
       align-items: center;
     }
 
-    #compat {
-      right: 18px;
-      bottom: 18px;
-      width: 340px;
-      padding: 10px 12px;
-      font-size: 11px;
-    }
-
-    #compat-frame {
-      display: block;
-      width: 100%;
-      margin-top: 8px;
+    .filename-input,
+    .save-button,
+    .pen-actions button,
+    .brush-controls input {
       border-radius: 8px;
-      border: 1px solid rgba(255,255,255,.2);
-      background: rgba(0,0,0,.25);
-      min-height: 90px;
-      object-fit: cover;
-    }
-
-    .compat-note {
-      color: #b7d7ff;
-      line-height: 1.4;
-    }
-
-    body:not(.ui-open) #status,
-    body:not(.ui-open) #log,
-    body:not(.ui-open) #conversation,
-    body:not(.ui-open) #compat {
-      display: none;
-    }
-
-    #composer {
-      transition: transform .28s ease, opacity .28s ease;
-    }
-
-    body:not(.chat-open) #composer {
-      transform: translate(-50%, 120%);
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    #intent-input {
-      width: 100%;
-      border: 0;
-      outline: none;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.05);
       color: white;
-      font-size: 15px;
-      padding: 10px 12px;
-      border-radius: 9px;
-      background: rgba(255,255,255,.07);
-      font-family: 'Sarabun', sans-serif;
-    }
-
-    .btn {
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,.07);
-      color: white;
-      border-radius: 9px;
-      padding: 10px 12px;
-      cursor: pointer;
+      padding: 10px;
       font-family: inherit;
     }
 
-    .chip {
-      display: inline-block;
-      margin-right: 6px;
-      margin-top: 6px;
-      border: 1px solid rgba(255,255,255,.2);
+    .filename-input {
+      flex: 1;
+    }
+
+    .save-button,
+    .pen-actions button {
+      cursor: pointer;
+    }
+
+    .color-palette {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      padding: 12px;
+    }
+
+    .color-option {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      margin: 0 auto;
+    }
+
+    .color-option.selected {
+      border-color: #fff;
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+    }
+
+    canvas.erase-mode {
+      cursor: crosshair;
+    }
+
+    canvas.draw-mode {
+      cursor: cell;
+    }
+
+    #hud-overlay {
+      position: fixed;
+      left: 16px;
+      top: 56px;
+      z-index: 6;
+      width: min(320px, calc(100% - 32px));
+      background: linear-gradient(165deg, rgba(17, 20, 34, 0.78), rgba(9, 11, 20, 0.56));
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      padding: 12px;
+      backdrop-filter: blur(8px);
+    }
+
+    .stat-row { display: flex; flex-direction: column; gap: 8px; }
+
+    .stat-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      color: #dbe8ff;
+    }
+
+    .progress-bar-container {
+      width: 100%;
+      height: 6px;
       border-radius: 999px;
-      padding: 4px 10px;
-      font-size: 11px;
-      color: #ddd;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.08);
     }
 
     #display-page-2 {
@@ -365,9 +534,32 @@
       animation: flicker .14s infinite alternate;
     }
 
-    @keyframes flicker {
-      from { opacity: 1; box-shadow: 0 0 8px rgba(220,20,60,.6); }
-      to { opacity: .75; box-shadow: 0 0 18px rgba(220,20,60,.9); }
+    .hud-mode {
+      margin-top: 8px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      color: #c6d4ff;
+      text-transform: uppercase;
+    }
+
+    .home-tips {
+      margin: 8px auto 0;
+      width: min(980px, 100%);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      pointer-events: auto;
+    }
+
+    .home-tip {
+      font-size: 10px;
+      color: #c8d3f0;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 999px;
+      padding: 4px 10px;
     }
   </style>
 </head>
@@ -401,13 +593,42 @@
       <span class="chip" id="shape-chip">shape: cloud</span>
       <span class="chip" id="intent-chip">intent: chat</span>
     </div>
-    <div class="row">
-      <div class="row-head"><span>ENERGY</span><span id="energy-text">100%</span></div>
-      <div class="bar-track"><div class="bar" id="energy-bar"></div></div>
+  </div>
+
+  <div class="bottom-shell">
+    <div class="chat-bar">
+      <div class="chat-top">
+        <button class="icon-btn" id="attach-btn" aria-label="แนบไฟล์">
+          📎
+        </button>
+        <button class="icon-btn" id="voice-btn" aria-label="เปิดโหมดเสียง">
+          🎙️
+        </button>
+        <div class="composer-wrap">
+          <textarea id="chat-input" placeholder="พิมพ์ข้อความที่ต้องการให้ Aetherium ประมวลผล..."></textarea>
+        </div>
+        <button class="icon-btn" id="settings-btn" aria-label="ตั้งค่า">
+          ⚙️
+        </button>
+        <button class="send-btn" id="send-btn" aria-label="ส่งข้อความ">
+          ➤
+        </button>
+      </div>
+
+      <div id="file-chip" class="file-chip">
+        <span id="file-name"></span>
+        <button id="file-remove" class="file-remove" type="button">ลบ</button>
+      </div>
+
+      <div class="chat-bottom">
+        <div class="status-line" id="status-line">กำลังเตรียมระบบ...</div>
+      </div>
     </div>
-    <div class="row">
-      <div class="row-head"><span>ENTROPY</span><span id="entropy-text">0%</span></div>
-      <div class="bar-track"><div class="bar" id="entropy-bar"></div></div>
+    <div class="home-tips" aria-hidden="true">
+      <div class="home-tip">Enter เพื่อส่ง</div>
+      <div class="home-tip">Shift+Enter ขึ้นบรรทัดใหม่</div>
+      <div class="home-tip">แนบภาพเพื่อสกัดโครงสร้างแสง</div>
+      <div class="home-tip">แตะพื้นที่ว่างเพื่อปลุกอนุภาค</div>
     </div>
     <div class="row">
       <div class="row-head"><span>LOAD (CPU HEAT)</span><span id="load-text">0%</span></div>
@@ -455,33 +676,64 @@
   </section>
 
   <script>
-    const canvas = document.getElementById('nervous-system');
-    const ctx = canvas.getContext('2d');
+    const display = document.getElementById('display-layer');
+    const ctx = display.getContext('2d', { alpha: false });
+    const memCanvas = document.getElementById('memory-layer');
+    const memCtx = memCanvas.getContext('2d', { willReadFrequently: true });
 
-    const palette = {
-      IDLE: '#00ffff',
-      LISTENING: '#00ffff',
-      PROCESSING: '#800080',
-      RESONATING: '#ffd700',
-      NIRODHA: '#00008b',
-      CRITICAL: '#dc143c',
-      DECAY: '#a52a2a'
-    };
+    const chatInput = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('send-btn');
+    const attachBtn = document.getElementById('attach-btn');
+    const voiceBtn = document.getElementById('voice-btn');
+    const settingsBtn = document.getElementById('settings-btn');
+    const fileInput = document.getElementById('file-input');
+    const fileChip = document.getElementById('file-chip');
+    const fileNameEl = document.getElementById('file-name');
+    const fileRemoveBtn = document.getElementById('file-remove');
+    const statusLine = document.getElementById('status-line');
+    const energyBar = document.getElementById('bar-energy');
+    const energyValue = document.getElementById('val-energy');
+    const energyState = document.getElementById('energy-state');
+    const freezeBtn = document.getElementById('freeze-btn');
+    const saveBtn = document.getElementById('save-btn');
+    const eraseBtn = document.getElementById('erase-btn');
+    const penBtn = document.getElementById('pen-btn');
+    const shareBtn = document.getElementById('share-btn');
 
-    const fsm = {
-      state: 'IDLE',
-      energy: 100,
-      entropy: 8,
-      load: 5,
-      shape: 'cloud',
-      intentCategory: 'chat',
-      turbulence: 0.18,
-      particleDensity: 0.45,
-      emotionalValence: 0,
-      energyLevel: 0.2,
-      desiredForm: 'abstract',
-      sourceHints: []
+    let W = 0;
+    let H = 0;
+    let CX = 0;
+    let CY = 0;
+    let renderTime = 0;
+    let selectedFile = null;
+    let learnedImageMemory = null;
+    let recording = false;
+    let lastInteractionTime = performance.now();
+    let fadingOut = false;
+    let visibilityStrength = 1;
+    let targetField = [];
+    let compileState = 'idle';
+    let compileExpireAt = 0;
+    let isFrozen = false;
+    let lastSubmittedMessage = '';
+
+    const NUM_PHOTONS = 2000;
+    const PARTICLE_SPEED = 4.0;
+    const IMAGE_MEMORY_TTL_MS = 60 * 60 * 1000;
+    const MESSAGE_COMPILE_HOLD_MS = 3200;
+    const photons = [];
+    const touchBursts = [];
+
+    const THEMES = {
+      idle: { palette: ['#031b44', '#0b4fd9', '#00b7ff', '#d8f6ff'], force: 0.021, noise: 0.08, trail: 0.08 },
+      sent: { palette: ['#00e5ff', '#ff3d81', '#ffd166'], force: 0.036, noise: 0.14, trail: 0.16 },
+      voice: { palette: ['#ff3d81', '#ffd166', '#ffffff'], force: 0.03, noise: 0.16, trail: 0.16 }
     };
+    let theme = 'idle';
+
+    function setStatus(text) { statusLine.textContent = text; }
+    function setTheme(nextTheme) { theme = nextTheme; }
+    function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 
     const refs = {
       stateText: document.getElementById('state-text'),
@@ -525,225 +777,190 @@
     let compatLastFrameAt = 0;
 
     function resize() {
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
+      W = display.width = window.innerWidth;
+      H = display.height = window.innerHeight;
+      memCanvas.width = W;
+      memCanvas.height = H;
+      CX = W * 0.5;
+      CY = H * 0.5;
     }
 
-    class Particle {
-      constructor() {
-        this.reset();
-      }
+    function autoResizeTextarea() {
+      chatInput.style.height = '24px';
+      chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+    }
 
-      reset() {
-        this.x = Math.random() * width;
-        this.y = Math.random() * height;
-        this.vx = (Math.random() - 0.5) * 0.9;
-        this.vy = (Math.random() - 0.5) * 0.9;
-        this.size = 0.8 + Math.random() * 1.8;
-        this.seed = Math.random();
-      }
+    function markInteraction(reasonText) {
+      lastInteractionTime = performance.now();
+      fadingOut = false;
+      visibilityStrength = Math.min(1, visibilityStrength + 0.14);
+      if (reasonText) setStatus(reasonText);
+    }
 
-      update(t) {
-        const speed = 0.15 + fsm.energyLevel * 1.8;
-        const turbulence = fsm.turbulence * 1.2;
-
-        if (fsm.shape === 'vortex') {
-          const cx = width / 2;
-          const cy = height / 2;
-          const dx = this.x - cx;
-          const dy = this.y - cy;
-          const r = Math.max(24, Math.hypot(dx, dy));
-          this.vx += (-dy / r) * (0.17 + turbulence);
-          this.vy += (dx / r) * (0.17 + turbulence);
-        } else if (fsm.shape === 'sphere') {
-          const cx = width / 2;
-          const cy = height / 2;
-          this.vx += (cx - this.x) * 0.00045;
-          this.vy += (cy - this.y) * 0.00045;
-        } else if (fsm.shape === 'cube') {
-          this.vx += Math.sin(this.y * 0.03 + t * 0.001) * 0.02;
-          this.vy += Math.cos(this.x * 0.03 + t * 0.001) * 0.02;
-        } else if (fsm.shape === 'mountain') {
-          const targetX = (this.seed * width);
-          const peakY = height * (0.35 + Math.abs((this.seed - 0.5) * 0.9));
-          const slope = Math.abs((this.x - targetX) / (width * 0.35));
-          const targetY = clamp(peakY + slope * height * 0.5, height * 0.2, height * 0.92);
-          this.vx += (targetX - this.x) * 0.00035;
-          this.vy += (targetY - this.y) * 0.00055;
-        } else if (fsm.shape === 'river') {
-          const flowY = height * (0.5 + Math.sin((this.x / width) * 8 + t * 0.0013) * 0.2);
-          this.vx += 0.06 + turbulence * 0.1;
-          this.vy += (flowY - this.y) * 0.0012;
-        } else if (fsm.shape === 'face' || fsm.shape === 'human') {
-          const cx = width * 0.5;
-          const cy = height * 0.52;
-          const phase = this.seed * Math.PI * 2;
-          const r = fsm.shape === 'human' ? width * 0.14 : width * 0.12;
-          const targetX = cx + Math.cos(phase) * r * (0.65 + this.seed * 0.5);
-          const targetY = cy + Math.sin(phase) * r * (0.9 + this.seed * 0.35);
-          this.vx += (targetX - this.x) * 0.00042;
-          this.vy += (targetY - this.y) * 0.00042;
-        } else {
-          this.vx += Math.sin(this.y * 0.009 + t * 0.001) * (0.03 + turbulence * 0.06);
-          this.vy += Math.cos(this.x * 0.009 + t * 0.001) * (0.03 + turbulence * 0.06);
-        }
-
-        if (mouse.active && fsm.state !== 'NIRODHA') {
-          const dx = mouse.x - this.x;
-          const dy = mouse.y - this.y;
-          const dist = Math.max(1, Math.hypot(dx, dy));
-          if (dist < 280) {
-            const force = ((280 - dist) / 280) * 0.45;
-            this.vx += (dx / dist) * force;
-            this.vy += (dy / dist) * force;
-            fsm.entropy = clamp(fsm.entropy + 0.03, 0, 100);
-          }
-        }
-
-        this.vx *= 0.94;
-        this.vy *= 0.94;
-        this.x += this.vx * speed;
-        this.y += this.vy * speed;
-
-        if (this.x < 0) this.x = width;
-        if (this.x > width) this.x = 0;
-        if (this.y < 0) this.y = height;
-        if (this.y > height) this.y = 0;
-      }
-
-      draw() {
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fillStyle = palette[fsm.state] || palette.IDLE;
-        ctx.globalAlpha = fsm.state === 'NIRODHA' ? 0.28 : 0.45 + Math.sin(Date.now() * 0.006) * 0.15;
-        ctx.fill();
+    function initPhotons() {
+      photons.length = 0;
+      for (let i = 0; i < NUM_PHOTONS; i++) {
+        photons.push({
+          x: CX + (Math.random() - 0.5) * W * 0.25,
+          y: CY + (Math.random() - 0.5) * H * 0.25,
+          vx: (Math.random() - 0.5) * 0.8,
+          vy: (Math.random() - 0.5) * 0.8
+        });
       }
     }
 
-    function clamp(value, min, max) {
-      return Math.max(min, Math.min(max, value));
+    function hexToRgb(hex) {
+      const v = hex.replace('#', '');
+      const full = v.length === 3 ? v.split('').map(s => s + s).join('') : v;
+      return [parseInt(full.slice(0, 2), 16), parseInt(full.slice(2, 4), 16), parseInt(full.slice(4, 6), 16)];
     }
 
-    function evolveState() {
-      if (fsm.state === 'NIRODHA') {
-        fsm.energy = clamp(fsm.energy + 0.28, 0, 100);
-        fsm.load = clamp(fsm.load - 0.18, 0, 100);
-        fsm.entropy = clamp(fsm.entropy - 0.2, 0, 100);
-        if (fsm.energy > 96) fsm.state = 'IDLE';
-        return;
-      }
-
-      fsm.energy = clamp(fsm.energy - 0.045 - fsm.energyLevel * 0.03, 0, 100);
-      fsm.entropy = clamp(fsm.entropy * 0.996, 0, 100);
-      fsm.load = clamp(fsm.load * 0.994, 0, 100);
-
-      if (fsm.energy < 10 || fsm.load > 92) {
-        fsm.state = 'CRITICAL';
-      } else if (fsm.energy < 18) {
-        fsm.state = 'DECAY';
-      } else if (fsm.load > 65) {
-        fsm.state = 'RESONATING';
-      } else if (fsm.entropy > 45) {
-        fsm.state = 'PROCESSING';
-      } else {
-        fsm.state = 'IDLE';
-      }
-
-      if (fsm.energy <= 1) fsm.state = 'NIRODHA';
+    function paletteColor(t, palette) {
+      const a = hexToRgb(palette[Math.floor(t * palette.length) % palette.length]);
+      const b = hexToRgb(palette[(Math.floor(t * palette.length) + 1) % palette.length]);
+      const m = (Math.sin(t * Math.PI * 2) + 1) * 0.5;
+      return [a[0] + (b[0] - a[0]) * m, a[1] + (b[1] - a[1]) * m, a[2] + (b[2] - a[2]) * m];
     }
 
-    function inferIntentVector(text) {
-      const t = text.toLowerCase();
-      let intentCategory = 'chat';
-      if (/^(run|execute|deploy|start|stop|สั่ง|ทำ)/.test(t)) intentCategory = 'command';
-      if (/(สรุป|explain|what|หา|ค้น|ข้อมูล|request|ช่วยหา)/.test(t)) intentCategory = 'request';
-      if (/(error|ผิด|พัง|fail|broken)/.test(t)) intentCategory = 'error';
-
-      let emotionalValence = 0;
-      if (/(ดีใจ|great|awesome|thanks|ขอบคุณ)/.test(t)) emotionalValence = 0.65;
-      if (/(เครียด|angry|sad|confused|tired|เหนื่อย|งง)/.test(t)) emotionalValence = -0.65;
-
-      const urgent = /(ด่วน|urgent|now|asap|ทันที|เร็ว)/.test(t);
-      const energyLevel = clamp((text.length / 120) + (urgent ? 0.36 : 0.08), 0, 1);
-
-      const concepts = [];
-      if (/(fire|heat|hot|แดง|วิกฤต)/.test(t)) concepts.push('fire');
-      if (/(flow|water|stream|ไหล)/.test(t)) concepts.push('flow');
-      if (/(structure|table|schema|json|order|ระเบียบ)/.test(t)) concepts.push('structure');
-      if (/(mountain|ภูเขา|hill)/.test(t)) concepts.push('mountain');
-      if (/(river|แม่น้ำ|waterfall)/.test(t)) concepts.push('river');
-      if (/(human|มนุษย์|body|ร่างกาย)/.test(t)) concepts.push('human');
-      if (/(face|ใบหน้า|portrait)/.test(t)) concepts.push('face');
-      if (concepts.length === 0) concepts.push('balance');
-
-      let baseShape = 'sphere';
-      if (intentCategory === 'error') baseShape = 'cracks';
-      else if (concepts.includes('mountain')) baseShape = 'mountain';
-      else if (concepts.includes('river')) baseShape = 'river';
-      else if (concepts.includes('face')) baseShape = 'face';
-      else if (concepts.includes('human')) baseShape = 'human';
-      else if (concepts.includes('flow')) baseShape = 'vortex';
-      else if (concepts.includes('structure')) baseShape = 'cube';
-      else if (energyLevel < 0.25) baseShape = 'cloud';
-
+    function getStandbyTarget(index) {
+      const t = index / NUM_PHOTONS;
+      const angle = t * Math.PI * 16 + renderTime * 0.95;
+      const radius = Math.min(W, H) * (0.05 + t * 0.3);
       return {
-        intent_category: intentCategory,
-        emotional_valence: Number(emotionalValence.toFixed(2)),
-        energy_level: Number(energyLevel.toFixed(2)),
-        semantic_concepts: concepts,
-        visual_parameters: {
-          base_shape: baseShape,
-          turbulence: Number(clamp(0.1 + energyLevel * 0.8, 0, 1).toFixed(2)),
-          particle_density: Number(clamp(0.35 + energyLevel * 0.55, 0, 1).toFixed(2))
-        }
+        x: CX + Math.cos(angle) * radius,
+        y: CY + Math.sin(angle) * radius * 0.86,
+        color: paletteColor(t, THEMES.idle.palette)
       };
     }
 
-    function applyIntent(vector) {
-      fsm.intentCategory = vector.intent_category;
-      fsm.energyLevel = vector.energy_level;
-      fsm.turbulence = vector.visual_parameters.turbulence;
-      fsm.particleDensity = vector.visual_parameters.particle_density;
-      fsm.emotionalValence = vector.emotional_valence;
-      fsm.desiredForm = vector.visual_parameters.base_shape;
-      fsm.load = clamp(fsm.load + vector.energy_level * 38, 0, 100);
-      fsm.entropy = clamp(fsm.entropy + vector.energy_level * 26, 0, 100);
-      fsm.energy = clamp(fsm.energy - vector.energy_level * 9, 0, 100);
-      fsm.state = 'PROCESSING';
+    function addTouchBurst(x, y) {
+      touchBursts.push({ x, y, bornAt: renderTime, life: 1.15, strength: 1.2 });
+      if (touchBursts.length > 6) touchBursts.shift();
+    }
 
-      if (vector.visual_parameters.base_shape === 'cracks') {
-        fsm.shape = 'cloud';
-        fsm.state = 'CRITICAL';
-      } else {
-        fsm.shape = vector.visual_parameters.base_shape;
+    function applyTouchBursts(photon) {
+      let fx = 0;
+      let fy = 0;
+      for (const burst of touchBursts) {
+        const age = renderTime - burst.bornAt;
+        if (age > burst.life) continue;
+        const dx = photon.x - burst.x;
+        const dy = photon.y - burst.y;
+        const dist = Math.hypot(dx, dy) || 1;
+        const ageFactor = 1 - age / burst.life;
+        const falloff = Math.max(0, 1 - dist / 170) * ageFactor * burst.strength;
+        fx += (dx / dist) * falloff;
+        fy += (dy / dist) * falloff;
+      }
+      return { fx, fy };
+    }
+
+    function pruneTouchBursts() {
+      for (let i = touchBursts.length - 1; i >= 0; i--) {
+        if (renderTime - touchBursts[i].bornAt > touchBursts[i].life) touchBursts.splice(i, 1);
+      }
+    }
+
+    function buildMessageField(text) {
+      const value = (text || '').trim();
+      if (!value) {
+        targetField = [];
+        return;
+      }
+      memCtx.clearRect(0, 0, W, H);
+      const fontSize = clamp(Math.floor(Math.min(W * 0.08, H * 0.14)), 34, 94);
+      memCtx.fillStyle = '#fff';
+      memCtx.textAlign = 'center';
+      memCtx.textBaseline = 'middle';
+      memCtx.font = `700 ${fontSize}px "JetBrains Mono", monospace`;
+      memCtx.fillText(value.slice(0, 72), CX, CY);
+
+      const img = memCtx.getImageData(0, 0, W, H).data;
+      const points = [];
+      const step = Math.max(4, Math.floor(Math.min(W, H) / 160));
+      for (let y = 0; y < H; y += step) {
+        for (let x = 0; x < W; x += step) {
+          const alpha = img[(y * W + x) * 4 + 3];
+          if (alpha > 80) points.push({ x, y });
+        }
+      }
+      targetField = points.length ? points : [];
+      compileState = targetField.length ? 'compiled' : 'idle';
+      compileExpireAt = performance.now() + MESSAGE_COMPILE_HOLD_MS;
+    }
+
+    function rememberImagePattern(pattern) {
+      learnedImageMemory = {
+        ...pattern,
+        learnedAt: Date.now(),
+        expiresAt: Date.now() + IMAGE_MEMORY_TTL_MS
+      };
+    }
+
+    function getImagePatternMemory() {
+      if (!learnedImageMemory) return null;
+      if (Date.now() > learnedImageMemory.expiresAt) {
+        learnedImageMemory = null;
+        return null;
+      }
+      return learnedImageMemory;
+    }
+
+    function buildFieldFromImage(imageBitmap) {
+      memCtx.clearRect(0, 0, W, H);
+      const fit = Math.min(W / imageBitmap.width, H / imageBitmap.height);
+      const drawW = Math.max(1, Math.floor(imageBitmap.width * fit));
+      const drawH = Math.max(1, Math.floor(imageBitmap.height * fit));
+      const offsetX = Math.floor((W - drawW) * 0.5);
+      const offsetY = Math.floor((H - drawH) * 0.5);
+      memCtx.drawImage(imageBitmap, offsetX, offsetY, drawW, drawH);
+
+      const img = memCtx.getImageData(0, 0, W, H).data;
+      const points = [];
+      const step = Math.max(2, Math.floor(Math.min(W, H) / 220));
+      for (let y = 0; y < H; y += step) {
+        for (let x = 0; x < W; x += step) {
+          const idx = (y * W + x) * 4;
+          const alpha = img[idx + 3];
+          if (alpha < 24) continue;
+          const r = img[idx];
+          const g = img[idx + 1];
+          const b = img[idx + 2];
+          const brightness = (r + g + b) / 3;
+          if (brightness < 12) continue;
+          points.push({ x, y, color: [r, g, b] });
+        }
       }
 
-      const targetCount = Math.floor(220 + fsm.particleDensity * 980);
-      particles = Array.from({ length: targetCount }, () => new Particle());
+      if (!points.length) return null;
 
-      refs.json.textContent = JSON.stringify(vector, null, 2);
+      const average = points.reduce((acc, p) => {
+        acc[0] += p.color[0];
+        acc[1] += p.color[1];
+        acc[2] += p.color[2];
+        return acc;
+      }, [0, 0, 0]);
+      const n = points.length;
+
+      return {
+        targetField: points,
+        averageColor: average.map(v => Math.round(v / n)),
+        structure: { width: imageBitmap.width, height: imageBitmap.height, sampled_points: points.length }
+      };
     }
 
-    function addBubble(role, message) {
-      const p = document.createElement('p');
-      p.className = `bubble ${role}`;
-      p.textContent = `${role === 'user' ? 'USER' : 'SYSTEM'}: ${message}`;
-      refs.chatStream.prepend(p);
-      while (refs.chatStream.children.length > 10) refs.chatStream.removeChild(refs.chatStream.lastChild);
-    }
-
-    async function fetchReferenceSignals(text) {
-      const q = encodeURIComponent(text.trim().slice(0, 80));
-      if (!q) return [];
+    async function analyzeAttachedImage(file) {
+      if (!file || !file.type.startsWith('image/')) return null;
       try {
-        const api = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${q}&limit=3&namespace=0&format=json&origin=*`;
-        const res = await fetch(api);
-        if (!res.ok) return [];
-        const data = await res.json();
-        const titles = (data && data[1]) || [];
-        return titles.filter(Boolean).slice(0, 3);
-      } catch (_) {
-        return [];
+        const bitmap = await createImageBitmap(file);
+        const pattern = buildFieldFromImage(bitmap);
+        bitmap.close();
+        if (!pattern) return null;
+        rememberImagePattern(pattern);
+        return pattern;
+      } catch (error) {
+        console.warn('[AETHERIUM][image-analysis-failed]', error);
+        return null;
       }
     }
 
@@ -826,59 +1043,169 @@
       }
     }
 
-    function drawBackground() {
-      ctx.fillStyle = 'rgba(5,5,8,0.24)';
-      ctx.fillRect(0, 0, width, height);
-
-      if (fsm.state === 'NIRODHA') {
-        ctx.fillStyle = 'rgba(0, 0, 139, 0.06)';
-        ctx.fillRect(0, 0, width, height);
+    async function submitMessage() {
+      const text = chatInput.value.trim();
+      if (!text && !selectedFile) {
+        setStatus('โปรดพิมพ์ข้อความหรือแนบไฟล์ก่อนส่ง');
+        markInteraction();
+        return;
       }
+
+      sendBtn.disabled = true;
+      setTheme(recording ? 'voice' : 'sent');
+      setStatus('กำลังส่งข้อความ...');
+      markInteraction();
+
+      const imageMemory = getImagePatternMemory();
+      if (imageMemory?.targetField?.length) {
+        targetField = imageMemory.targetField;
+        compileState = 'compiled';
+        compileExpireAt = performance.now() + MESSAGE_COMPILE_HOLD_MS;
+      } else {
+        buildMessageField(text || 'FILE');
+      }
+      const result = await deliverMessage(text || '[file-only]');
+
+      if (result.ok) {
+        setStatus('ส่งข้อความสำเร็จ');
+        lastSubmittedMessage = text || lastSubmittedMessage;
+        trackUxEvent('message_sent', { has_file: String(Boolean(selectedFile)) });
+      } else {
+        setStatus('ส่งผ่าน API ไม่สำเร็จ แสดงผลในโหมดจำลองแทน');
+      }
+
+      chatInput.value = '';
+      autoResizeTextarea();
+      selectedFile = null;
+      fileInput.value = '';
+      fileChip.classList.remove('active');
+
+      window.setTimeout(() => {
+        if (!recording) setTheme('idle');
+      }, 1800);
+      sendBtn.disabled = false;
     }
 
-    function tick(t) {
-      drawBackground();
-      evolveState();
+    function tick(ts) {
+      const nowMs = performance.now();
+      if (!isFrozen) {
+        renderTime = ts * 0.001;
+      }
+      const cfg = THEMES[theme] || THEMES.idle;
 
-      if (!compatMode) {
-        for (const p of particles) {
-          p.update(t);
-          p.draw();
-        }
-      } else if (t - compatLastFrameAt > 500) {
-        renderCompatFrame();
-        compatLastFrameAt = t;
+      const idleMs = performance.now() - lastInteractionTime;
+      if (idleMs > 5000) fadingOut = true;
+      visibilityStrength = clamp(visibilityStrength + (fadingOut ? -0.008 : 0.01), 0.08, 1);
+      getImagePatternMemory();
+      if (compileState === 'compiled' && nowMs >= compileExpireAt) {
+        targetField = [];
+        compileState = 'idle';
       }
 
-      ctx.globalAlpha = 1;
-      renderHUD();
+      const trailStrength = isFrozen ? 0.04 : cfg.trail;
+      ctx.fillStyle = `rgba(2, 2, 5, ${trailStrength})`;
+      ctx.fillRect(0, 0, W, H);
+      const uiEnergy = Math.max(18, Math.round(visibilityStrength * 100));
+      energyBar.style.width = `${uiEnergy}%`;
+      energyValue.textContent = `${uiEnergy}%`;
+      energyState.textContent = uiEnergy > 42 ? 'Stable' : 'Nirodha';
+      energyState.style.color = uiEnergy > 42 ? '#9fe8ff' : '#ffd166';
+
+      for (let i = 0; i < photons.length; i++) {
+        const p = photons[i];
+        const target = targetField.length ? targetField[i % targetField.length] : getStandbyTarget(i);
+
+        const dx = target.x - p.x;
+        const dy = target.y - p.y;
+        const dist = Math.hypot(dx, dy) || 1;
+        const force = cfg.force + (dist > 80 ? 0.005 : 0);
+        if (!isFrozen) {
+          p.vx += (dx / dist) * force;
+          p.vy += (dy / dist) * force;
+        }
+
+        const burst = applyTouchBursts(p);
+        if (!isFrozen) {
+          p.vx += burst.fx * 0.2;
+          p.vy += burst.fy * 0.2;
+        }
+
+        if (!isFrozen) {
+          p.vx += (Math.random() - 0.5) * cfg.noise;
+          p.vy += (Math.random() - 0.5) * cfg.noise;
+        }
+
+        if (!isFrozen) {
+          p.vx *= 0.91;
+          p.vy *= 0.91;
+          p.x += p.vx * PARTICLE_SPEED;
+          p.y += p.vy * PARTICLE_SPEED;
+        }
+
+        if (p.x < -20) p.x = W + 20;
+        else if (p.x > W + 20) p.x = -20;
+        if (p.y < -20) p.y = H + 20;
+        else if (p.y > H + 20) p.y = -20;
+
+        const [r, g, b] = target.color || paletteColor((i / NUM_PHOTONS) + renderTime * 0.01, cfg.palette);
+        ctx.fillStyle = `rgba(${r|0}, ${g|0}, ${b|0}, ${0.18 + visibilityStrength * 0.72})`;
+        ctx.fillRect(p.x, p.y, 1.8, 1.8);
+      }
+
+      if (!isFrozen) pruneTouchBursts();
       requestAnimationFrame(tick);
     }
 
-    window.addEventListener('resize', resize);
-    window.addEventListener('mousemove', e => {
-      mouse.active = true;
-      mouse.x = e.clientX;
-      mouse.y = e.clientY;
-      fsm.energy = clamp(fsm.energy - 0.02, 0, 100);
-      fsm.entropy = clamp(fsm.entropy + 0.03, 0, 100);
+    attachBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', async () => {
+      selectedFile = fileInput.files?.[0] || null;
+      if (selectedFile) {
+        fileNameEl.textContent = `${selectedFile.name} · ${Math.max(1, Math.round(selectedFile.size / 1024))} KB`;
+        fileChip.classList.add('active');
+        const imagePattern = await analyzeAttachedImage(selectedFile);
+        if (imagePattern?.targetField?.length) {
+          targetField = imagePattern.targetField;
+          const [r, g, b] = imagePattern.averageColor;
+          markInteraction(`วิเคราะห์ภาพแล้ว · โครงสร้าง ${imagePattern.structure.sampled_points} จุด · สีเฉลี่ย rgb(${r}, ${g}, ${b}) · จำ 1 ชม.`);
+        } else {
+          markInteraction('แนบไฟล์แล้ว พร้อมส่ง');
+        }
+      } else {
+        fileChip.classList.remove('active');
+      }
     });
 
-    document.getElementById('send-btn').addEventListener('click', async () => {
-      const input = document.getElementById('intent-input');
-      const text = input.value.trim();
-      if (!text) return;
-      await processUserInput(text);
-      input.value = '';
+    fileRemoveBtn.addEventListener('click', () => {
+      selectedFile = null;
+      fileInput.value = '';
+      fileChip.classList.remove('active');
+      learnedImageMemory = null;
+      markInteraction('ลบไฟล์แนบแล้ว');
     });
 
-    document.getElementById('intent-input').addEventListener('keydown', e => {
-      if (e.key === 'Enter') document.getElementById('send-btn').click();
+    voiceBtn.addEventListener('click', () => {
+      recording = !recording;
+      voiceBtn.classList.toggle('recording', recording);
+      setTheme(recording ? 'voice' : 'idle');
+      markInteraction(recording ? 'โหมดเสียงพร้อมใช้งาน' : 'ปิดโหมดเสียง');
     });
 
+    settingsBtn.addEventListener('click', () => {
+      markInteraction('ตั้งค่าจะพร้อมใช้งานในเวอร์ชันถัดไป');
+    });
 
-    refs.settingsToggle.addEventListener('click', () => {
-      document.body.classList.toggle('ui-open');
+    sendBtn.addEventListener('click', submitMessage);
+
+    chatInput.addEventListener('input', () => {
+      autoResizeTextarea();
+      markInteraction();
+    });
+
+    chatInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        submitMessage();
+      }
     });
 
     displayButtons.forEach(btn => {
@@ -897,29 +1224,21 @@
       document.body.classList.toggle('chat-open');
     });
 
-    document.getElementById('nirodha-btn').addEventListener('click', () => {
-      fsm.state = 'NIRODHA';
-      fsm.shape = 'cloud';
-      fsm.intentCategory = 'maintenance';
-      fsm.energyLevel = 0.05;
-      fsm.turbulence = 0.08;
-      refs.json.textContent = JSON.stringify({
-        intent_category: 'maintenance',
-        emotional_valence: 0,
-        energy_level: 0.05,
-        semantic_concepts: ['calm', 'potentiality'],
-        visual_parameters: { base_shape: 'cloud', turbulence: 0.08, particle_density: 0.38 }
-      }, null, 2);
+    freezeBtn.addEventListener('click', () => {
+      isFrozen = !isFrozen;
+      freezeBtn.classList.toggle('mode-active', isFrozen);
+      freezeBtn.querySelector('span').textContent = isFrozen ? 'Unfreeze' : 'Freeze';
+      markInteraction(isFrozen ? 'หยุดเวลาอนุภาคแล้ว' : 'คืนการไหลของอนุภาคแล้ว');
     });
 
     document.body.classList.remove('ui-open');
     document.body.classList.remove('chat-open');
     document.body.classList.remove('display-page-2');
     resize();
-    detectCompatibilityMode();
-    particles = Array.from({ length: 560 }, () => new Particle());
-    renderCompatFrame();
-    renderHUD();
+    autoResizeTextarea();
+    applySharedManifestFromUrl();
+    initPhotons();
+    setStatus('SPHERE STANDBY · พิมพ์ข้อความแล้วกดส่งได้ทันที');
     requestAnimationFrame(tick);
   </script>
 </body>

@@ -1,0 +1,29 @@
+version: 1
+formations:
+  - id: reasoning/spiral_convergence
+    archetype: reasoning
+    phrase: "spiral inward then ascend"
+    forceBias: 0.88
+    coherenceStart: 0.16
+    coherenceTarget: 0.86
+    flowBias: 0.75
+    noiseBias: 0.42
+    rhythm: 0.14
+  - id: stabilization/sphere_equilibrium
+    archetype: stabilization
+    phrase: "settle into equilibrium"
+    forceBias: 0.75
+    coherenceStart: 0.22
+    coherenceTarget: 0.9
+    flowBias: 0.3
+    noiseBias: 0.32
+    rhythm: 0.08
+  - id: bloom/flower_shell
+    archetype: bloom
+    phrase: "expand radially with grace"
+    forceBias: 0.8
+    coherenceStart: 0.12
+    coherenceTarget: 0.78
+    flowBias: 0.68
+    noiseBias: 0.55
+    rhythm: 0.2

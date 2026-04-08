@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ws-gateway
+  namespace: aetherium
+spec:
+  replicas: 12
+  selector:
+    matchLabels:
+      app: ws-gateway
+  template:
+    metadata:
+      labels:
+        app: ws-gateway
+    spec:
+      containers:
+        - name: ws-gateway
+          image: ghcr.io/aetherium/ws-gateway:1.0.0
+          ports:
+            - containerPort: 8080
+          env:
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: aetherium-secrets
+                  key: redis_url
+            - name: NATS_URL
+              value: nats://nats.messaging.svc.cluster.local:4222
+            - name: WS_SHARD_MODE
+              value: room-hash
+            - name: WS_MAX_CONNECTIONS_PER_POD
+              value: "50000"
+            - name: WS_SEND_QUEUE_MAX
+              value: "512"
+            - name: WS_HEARTBEAT_INTERVAL_SEC
+              value: "20"
+          resources:
+            requests:
+              cpu: "1"
+              memory: "1Gi"
+            limits:
+              cpu: "4"
+              memory: "4Gi"
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ws-gateway
+  namespace: aetherium
+spec:
+  selector:
+    app: ws-gateway
+  ports:
+    - name: ws
+      port: 80
+      targetPort: 8080

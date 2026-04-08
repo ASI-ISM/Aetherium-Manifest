@@ -1,0 +1,18 @@
+state THINKING {
+  intent: "recursive analysis"
+  confidence: 0.82
+
+  visual {
+    shape: vortex
+    particle_density: 0.72
+    turbulence: 0.30
+    flow_direction: inward
+    glow_intensity: 0.85
+    palette: deep_reasoning
+  }
+
+  rule {
+    enforce Patimokkha.NO_CHAOTIC_VISUAL
+    if turbulence > 0.9 then clamp
+  }
+}

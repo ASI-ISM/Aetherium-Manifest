@@ -1,0 +1,14 @@
+{
+  "contract_type": "EMBODIMENT_V1",
+  "visual_manifestation": {
+    "core_shape": "lotus_field",
+    "particle_velocity": 0.54,
+    "turbulence": 0.23,
+    "chromatic_aberration": 0.05,
+    "cadence": {
+      "bpm": 72,
+      "phase": 0.0,
+      "jitter": 0.05
+    }
+  }
+}

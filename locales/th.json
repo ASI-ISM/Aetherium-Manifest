@@ -1,0 +1,9 @@
+{
+  "chat_toggle": "แชต",
+  "send": "ส่งเจตนา",
+  "url_loading": "สถานะ: กำลังโหลด...",
+  "url_analyzed": "สถานะ: วิเคราะห์ผ่านพร็อกซีแล้ว",
+  "url_failed": "สถานะ: ล้มเหลว (proxy/network)",
+  "voice_idle": "เสียง: ว่าง",
+  "voice_model": "โมเดลเสียง"
+}

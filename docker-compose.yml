@@ -1,0 +1,35 @@
+
+# Docker Compose V3.8
+version: '3.8'
+
+# นิยาม services (containers) ที่จะรัน
+services:
+  # Service สำหรับ Backend API Gateway
+  api-gateway:
+    build:
+      context: ./api_gateway  # ระบุว่าให้ build จากโฟลเดอร์ api_gateway
+      dockerfile: Dockerfile    # โดยใช้ Dockerfile ที่อยู่ในนั้น
+    ports:
+      - "8080:8080"             # map port 8080 ของเครื่อง host ไปยัง port 8080 ของ container
+    environment:
+      # หมายเหตุ: โปรดตั้งค่า API key ของคุณอย่างน้อยหนึ่งตัวในไฟล์ .env
+      # หรือใส่ค่าโดยตรงที่นี่เพื่อการทดสอบ
+      - GOOGLE_API_KEY=YOUR_API_KEY_HERE
+    volumes:
+      # Mount โค้ดของ api_gateway เข้าไปใน container เพื่อการพัฒนา
+      - ./api_gateway:/app
+
+  # Service สำหรับ Frontend Web Server
+  frontend:
+    build:
+      context: .              # Build จาก root directory ของโปรเจกต์
+      dockerfile: Dockerfile    # โดยใช้ Dockerfile ที่อยู่ที่ root
+    ports:
+      - "4173:80"             # map port 4173 ของเครื่อง host ไปยัง port 80 ของ nginx container
+    volumes:
+      # Mount โค้ดของ frontend เพื่อให้แก้ไขแล้วเห็นผลทันทีโดยไม่ต้อง build ใหม่
+      - ./index.html:/usr/share/nginx/html/index.html
+      - ./app.webmanifest:/usr/share/nginx/html/app.webmanifest
+      - ./service-worker.js:/usr/share/nginx/html/service-worker.js
+      - ./locales:/usr/share/nginx/html/locales
+      - ./docs:/usr/share/nginx/html/docs
