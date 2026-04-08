@@ -1,0 +1,16 @@
+helmDefaults:
+  atomic: true
+  wait: true
+
+environments:
+  dev: {}
+  prod: {}
+
+releases:
+  - name: aetherium-manifest
+    namespace: aetherium
+    createNamespace: true
+    chart: ./charts/aetherium-manifest
+    values:
+      - charts/aetherium-manifest/values.yaml
+      - charts/aetherium-manifest/values-{{ .Environment.Name }}.yaml

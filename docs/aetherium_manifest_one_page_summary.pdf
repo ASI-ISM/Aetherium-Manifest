@@ -1,0 +1,62 @@
+%PDF-1.4
+1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj
+3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj
+4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj
+5 0 obj << /Length 3033 >> stream
+BT
+/F1 10.5 Tf
+1 0 0 1 42 752 Tm (Aetherium Manifest — One-Page Summary) Tj
+1 0 0 1 42 735 Tm () Tj
+1 0 0 1 42 718 Tm () Tj
+1 0 0 1 42 701 Tm (What it is) Tj
+1 0 0 1 42 684 Tm (• Aetherium Manifest is a real-time visualization interface that maps AI intent, confidence,) Tj
+1 0 0 1 42 667 Tm (and runtime state into light/particle motion so cognition is observable to humans.) Tj
+1 0 0 1 42 650 Tm () Tj
+1 0 0 1 42 633 Tm (Who it’s for) Tj
+1 0 0 1 42 616 Tm (• Primary persona: AI platform developers/operators who need interpretable runtime behavior,) Tj
+1 0 0 1 42 599 Tm (safety-governed state transitions, and deterministic telemetry feedback.) Tj
+1 0 0 1 42 582 Tm () Tj
+1 0 0 1 42 565 Tm (What it does) Tj
+1 0 0 1 42 548 Tm (• Renders AI cognition as dynamic particles/light in a static web frontend runtime.) Tj
+1 0 0 1 42 531 Tm (• Enforces contract-first payload semantics via versioned schemas \(schema = ABI\).) Tj
+1 0 0 1 42 514 Tm (• Applies governor-controlled safety stages before renderer/runtime state is accepted.) Tj
+1 0 0 1 42 497 Tm (• Exposes FastAPI endpoints for cognitive emit, cognitive validate, health, telemetry) Tj
+1 0 0 1 42 480 Tm (ingest/query, and cognitive websocket streaming.) Tj
+1 0 0 1 42 463 Tm (• Tracks in-memory runtime telemetry for query windows \(count/mean/p95/latest\).) Tj
+1 0 0 1 42 446 Tm (• Includes contract validation/fuzzing and benchmark tooling for replay/drift/latency checks.) Tj
+1 0 0 1 42 429 Tm () Tj
+1 0 0 1 42 412 Tm (How it works \(repo-evidence architecture\)) Tj
+1 0 0 1 42 395 Tm (• Producer/model emits cognitive payload envelope -> gateway validates/normalizes input.) Tj
+1 0 0 1 42 378 Tm (• Runtime governor pipeline: validate -> transition -> profile_map -> clamp -> fallback ->) Tj
+1 0 0 1 42 361 Tm (policy_block -> capability_gate -> telemetry_log.) Tj
+1 0 0 1 42 344 Tm (• Governor-approved state feeds frontend renderer/HUD; telemetry points are written to) Tj
+1 0 0 1 42 327 Tm (`TELEMETRY_TS_DB` \(in-memory\); room/shared state is tracked in `STATE_SYNC_ROOMS`.) Tj
+1 0 0 1 42 310 Tm (• Not found in repo: a live `/ws/state-sync/{room_id}` route implementation in) Tj
+1 0 0 1 42 293 Tm (`api_gateway/main.py` \(state-sync is documented architecturally, but websocket route is not) Tj
+1 0 0 1 42 276 Tm (present there\).) Tj
+1 0 0 1 42 259 Tm () Tj
+1 0 0 1 42 242 Tm (How to run \(minimal\)) Tj
+1 0 0 1 42 225 Tm (1. Create backend venv + install deps:) Tj
+1 0 0 1 42 208 Tm (• cd api_gateway && python3 -m venv .venv && source .venv/bin/activate && pip install -r) Tj
+1 0 0 1 42 191 Tm (requirements.txt) Tj
+1 0 0 1 42 174 Tm (2. Start frontend:) Tj
+1 0 0 1 42 157 Tm (• python3 -m http.server 4173) Tj
+1 0 0 1 42 140 Tm (3. Start gateway \(new terminal\):) Tj
+1 0 0 1 42 123 Tm (• cd api_gateway && source .venv/bin/activate && uvicorn main:app --host 0.0.0.0 --port 8000) Tj
+1 0 0 1 42 106 Tm (--reload) Tj
+1 0 0 1 42 89 Tm (4. Open frontend at `http://localhost:4173` and API at `http://localhost:8000/docs`.) Tj
+ET
+endstream endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000000311 00000 n 
+trailer << /Size 6 /Root 1 0 R >>
+startxref
+3396
+%%EOF

@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AkashicEnvelopeV2",
+  "type": "object",
+  "required": [
+    "sync_id",
+    "intent_vector",
+    "entropy_seed",
+    "payload_ptr",
+    "rkey",
+    "ghost_flag"
+  ],
+  "properties": {
+    "sync_id": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Lamport/logical clock"
+    },
+    "intent_vector": {
+      "type": "string",
+      "description": "1024-bit embedding as encoded string"
+    },
+    "entropy_seed": {
+      "type": "string",
+      "description": "256-bit shared PRNG state"
+    },
+    "payload_ptr": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Remote memory address"
+    },
+    "rkey": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "RDMA access key"
+    },
+    "ghost_flag": {
+      "type": "boolean",
+      "description": "true if speculative envelope"
+    }
+  },
+  "additionalProperties": false,
+  "x-field-evolution": {
+    "introduced_in": "2.0.0",
+    "supersedes": "AKASHIC_ENVELOPE_V1",
+    "compatibility_adapter": "none",
+    "required_evolution_sections": [
+      "intent_vector",
+      "payload_ptr"
+    ]
+  }
+}

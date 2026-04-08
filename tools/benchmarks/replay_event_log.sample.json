@@ -1,0 +1,5 @@
+[
+  {"tick": 1, "event_type": "emotion", "intent": "comfort", "amplitude": 0.45},
+  {"tick": 2, "event_type": "intent_switch", "intent": "reflect", "amplitude": 0.22},
+  {"tick": 3, "event_type": "emotion", "intent": "stabilize", "amplitude": 0.33}
+]

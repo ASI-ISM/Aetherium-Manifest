@@ -1,0 +1,215 @@
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
+
+import pytest
+from fastapi.testclient import TestClient
+
+from .main import app, _proxy_request_signature
+
+
+@pytest.fixture
+def client() -> TestClient:
+    return TestClient(app)
+
+
+def test_health_check(client: TestClient) -> None:
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json()["status"] == "healthy"
+
+
+def test_emit_missing_api_key(client: TestClient) -> None:
+    response = client.post("/api/v1/cognitive/emit", json={})
+    assert response.status_code == 401
+    assert "missing X-API-Key" in response.text
+
+
+def test_emit_missing_model_headers(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/cognitive/emit",
+        json={},
+        headers={"X-API-Key": "test-key"},
+    )
+    assert response.status_code == 400
+    assert "missing model provider/version" in response.text
+
+
+def test_validate_missing_api_key(client: TestClient) -> None:
+    response = client.post("/api/v1/cognitive/validate", json={})
+    assert response.status_code == 401
+    assert "missing X-API-Key" in response.text
+
+
+def test_proxy_fetch_supports_cors_preflight(client: TestClient) -> None:
+    response = client.options(
+        "/api/v1/proxy/fetch",
+        headers={
+            "Origin": "https://example.com",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "*"
+
+
+def test_generate_rejects_unsupported_model_with_400(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/cognitive/generate",
+        headers={"X-API-Key": "test-key"},
+        json={"prompt": "hello", "model": "unknown-model", "temperature": 0.2},
+    )
+    assert response.status_code == 400
+    assert "Unsupported model" in response.text
+
+
+def test_proxy_fetch_rejects_urls_with_credentials(client: TestClient) -> None:
+    response = client.get(
+        "/api/v1/proxy/fetch",
+        params={"url": "https://user:pass@example.com/path"},
+        headers={"X-API-Key": "test-key"},
+    )
+    assert response.status_code == 400
+    assert "credentials" in response.text.lower()
+
+
+def test_proxy_fetch_requires_signing_headers_when_secret_configured(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AETHERIUM_PROXY_SIGNING_SECRET", "prod-secret")
+    response = client.get(
+        "/api/v1/proxy/fetch",
+        params={"url": "https://example.com"},
+        headers={"X-API-Key": "test-key"},
+    )
+    assert response.status_code == 401
+    assert "signing headers" in response.text.lower()
+
+
+def test_proxy_fetch_rejects_nonce_replay_when_signature_is_reused(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AETHERIUM_PROXY_SIGNING_SECRET", "prod-secret")
+    timestamp = str(int(datetime.now(timezone.utc).timestamp()))
+    nonce = "nonce-123"
+    url = "https://user:pass@example.com/path"
+    signature = _proxy_request_signature(
+        "GET",
+        "/api/v1/proxy/fetch",
+        url,
+        timestamp,
+        nonce,
+        "prod-secret",
+    )
+    headers = {
+        "X-API-Key": "test-key",
+        "X-Proxy-Timestamp": timestamp,
+        "X-Proxy-Nonce": nonce,
+        "X-Proxy-Signature": signature,
+    }
+
+    first_response = client.get("/api/v1/proxy/fetch", params={"url": url}, headers=headers)
+    assert first_response.status_code == 400
+
+    replay_response = client.get("/api/v1/proxy/fetch", params={"url": url}, headers=headers)
+    assert replay_response.status_code == 409
+    assert "nonce replay" in replay_response.text.lower()
+
+
+def test_reliability_temporal_morphogenesis_endpoint(client: TestClient) -> None:
+    response = client.get(
+        "/api/v1/reliability/temporal-morphogenesis",
+        headers={"X-API-Key": "test-key"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert "drift_detector_recall" in payload
+    assert "containment_activation_p95_ms" in payload
+    assert "sev1_replay_reproducibility" in payload
+
+
+def _valid_emit_payload() -> dict:
+    return {
+        "session_id": "sess-1",
+        "model_response": {
+            "trace_id": "trace-1",
+            "reasoning_trace": "guided",
+            "intent_vector": {"category": "guide", "emotional_valence": 0.2, "energy_level": 0.7},
+            "particle_control": {
+                "intent_state": {
+                    "state": "THINKING",
+                    "shape": "ring",
+                    "particle_density": 0.3,
+                    "velocity": 0.8,
+                    "turbulence": 0.4,
+                    "cohesion": 0.6,
+                    "flow_direction": "centripetal",
+                    "glow_intensity": 0.7,
+                    "flicker": 0.1,
+                    "attractor": "core",
+                    "palette": {"mode": "adaptive", "primary": "#88CCFF", "secondary": "#4466FF"},
+                },
+                "renderer_controls": {
+                    "base_shape": "ring",
+                    "chromatic_mode": "adaptive",
+                    "particle_count": 4800,
+                    "flow_field": "centripetal",
+                    "shader_uniforms": {"glow_intensity": 0.7, "flicker": 0.1, "cohesion": 0.6},
+                    "runtime_profile": "adaptive",
+                },
+            },
+            "visual_manifestation": {
+                "base_shape": "ring",
+                "transition_type": "pulse",
+                "color_palette": {"primary": "#88CCFF", "secondary": "#4466FF"},
+                "particle_physics": {
+                    "turbulence": 0.4,
+                    "flow_direction": "centripetal",
+                    "luminance_mass": 0.7,
+                    "particle_count": 4800,
+                },
+                "chromatic_mode": "adaptive",
+                "emergency_override": False,
+                "device_tier": 1,
+            },
+        },
+        "model_metadata": {"model_name": "gpt-4o", "temperature": 0.2, "max_tokens": 256},
+        "governor_context": {
+            "human_override": {"force_safe_mode": False, "allow_runtime_governor_bypass": False},
+            "device_capability": {
+                "max_particle_count": 3000,
+                "supports_motion_sensors": True,
+                "motion_sensor_permission": "denied",
+                "low_power_mode": True,
+                "gpu_tier": 2,
+            },
+        },
+    }
+
+
+def test_emit_returns_governor_result(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/cognitive/emit",
+        json=_valid_emit_payload(),
+        headers={"X-API-Key": "test-key", "X-Model-Provider": "openai", "X-Model-Version": "2026-03"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["governor_result"]["accepted_command"]["renderer_controls"]["particle_count"] == 2000
+    assert payload["governor_result"]["fallback_reason"] in {"device_low_power_mode", "sensor_permission_denied", "containment:soft_clamp", "containment:deterministic_anchor_replay", "containment:hard_rollback_legacy"}
+    assert "renderer_controls.particle_count" in payload["governor_result"]["rejected_fields"]
+    assert payload["visual_manifestation"]["particle_physics"]["flow_direction"] == "still"
+    assert payload["governor_result"]["accepted_command"]["intent_state"]["state"] in {"WARNING", "SENSOR_PENDING_PERMISSION", "SENSOR_UNAVAILABLE"}
+    assert payload["governor_result"]["telemetry_logging"]["state_entered_at"]
+    assert payload["governor_result"]["telemetry_logging"]["state_duration_ms"] >= 0
+    assert payload["governor_result"]["telemetry_logging"]["transition_reason"]
+
+
+def test_emit_rejects_missing_governor_context(client: TestClient) -> None:
+    payload = _valid_emit_payload()
+    payload.pop("governor_context")
+
+    response = client.post(
+        "/api/v1/cognitive/emit",
+        json=payload,
+        headers={"X-API-Key": "test-key", "X-Model-Provider": "openai", "X-Model-Version": "2026-03"},
+    )
+
+    assert response.status_code == 422

@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: governor
+  namespace: aetherium
+spec:
+  replicas: 6
+  selector:
+    matchLabels:
+      app: governor
+  template:
+    metadata:
+      labels:
+        app: governor
+    spec:
+      containers:
+        - name: governor
+          image: ghcr.io/aetherium/governor:1.0.0
+          ports:
+            - containerPort: 8090
+          env:
+            - name: PARTICLE_CONTRACT_SCHEMA_PATH
+              value: /app/contracts/particle-control.schema.json
+            - name: GOVERNOR_POLICY_STRICT
+              value: "true"
+            - name: NATS_URL
+              value: nats://nats.messaging.svc.cluster.local:4222
+            - name: KAFKA_BROKERS
+              value: kafka-0.kafka-headless.messaging.svc.cluster.local:9092,kafka-1.kafka-headless.messaging.svc.cluster.local:9092,kafka-2.kafka-headless.messaging.svc.cluster.local:9092
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "768Mi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"

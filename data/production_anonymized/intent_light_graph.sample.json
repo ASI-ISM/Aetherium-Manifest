@@ -1,0 +1,37 @@
+{
+  "privacy": {
+    "anonymized": true,
+    "k_anonymity_threshold": 3
+  },
+  "nodes": [
+    "alert",
+    "amber_focus",
+    "comfort",
+    "crimson_pulse",
+    "guide",
+    "violet_halo"
+  ],
+  "edges": [
+    {
+      "source": "comfort",
+      "target": "violet_halo",
+      "count": 3,
+      "avg_confidence": 0.903,
+      "calibration_weight": 2.71
+    },
+    {
+      "source": "alert",
+      "target": "crimson_pulse",
+      "count": 3,
+      "avg_confidence": 0.9,
+      "calibration_weight": 2.7
+    },
+    {
+      "source": "guide",
+      "target": "amber_focus",
+      "count": 3,
+      "avg_confidence": 0.837,
+      "calibration_weight": 2.51
+    }
+  ]
+}

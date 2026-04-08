@@ -1,0 +1,20 @@
+{
+  "compile_latency_ms": [62.1, 66.4, 71.0, 73.3, 68.8, 64.9, 69.5, 72.2, 70.8, 67.4],
+  "tick_delta_ms": [0.8, 1.1, 1.0, 1.4, 1.2, 1.0, 0.9, 1.3, 1.2, 1.1],
+  "render_pipeline_ms": [31.2, 33.4, 35.1, 37.0, 38.2, 36.8, 34.9, 39.1, 40.0, 37.3],
+  "resource_samples": [
+    {"gpu_utilization": 0.61, "cpu_utilization": 0.52, "memory_mb": 1240},
+    {"gpu_utilization": 0.67, "cpu_utilization": 0.58, "memory_mb": 1310},
+    {"gpu_utilization": 0.71, "cpu_utilization": 0.62, "memory_mb": 1375},
+    {"gpu_utilization": 0.74, "cpu_utilization": 0.66, "memory_mb": 1420},
+    {"gpu_utilization": 0.69, "cpu_utilization": 0.61, "memory_mb": 1360}
+  ],
+  "intent_faithfulness_scores": [0.84, 0.86, 0.82, 0.88, 0.85],
+  "temporal_continuity_scores": [0.81, 0.83, 0.84, 0.8, 0.82],
+  "legibility_scores": [
+    {"human": 0.88, "model": 0.83},
+    {"human": 0.86, "model": 0.82},
+    {"human": 0.89, "model": 0.85},
+    {"human": 0.87, "model": 0.84}
+  ]
+}

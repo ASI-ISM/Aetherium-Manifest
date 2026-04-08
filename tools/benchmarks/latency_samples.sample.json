@@ -1,0 +1,6 @@
+[
+  {"raw_rtt_ms": 48.0, "render_pipeline_ms": 32.0, "cognitive_settle_ms": 46.0, "prediction_mismatch": 0.0},
+  {"raw_rtt_ms": 58.0, "render_pipeline_ms": 36.0, "cognitive_settle_ms": 52.0, "prediction_mismatch": 0.1},
+  {"raw_rtt_ms": 51.0, "render_pipeline_ms": 28.0, "cognitive_settle_ms": 44.0, "prediction_mismatch": 0.0},
+  {"raw_rtt_ms": 63.0, "render_pipeline_ms": 39.0, "cognitive_settle_ms": 55.0, "prediction_mismatch": 0.2}
+]

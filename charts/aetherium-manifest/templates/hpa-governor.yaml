@@ -1,0 +1,19 @@
+{{- if .Values.governor.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "aetherium-manifest.fullname" . }}-governor-hpa
+  labels:
+    {{- include "aetherium-manifest.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "aetherium-manifest.fullname" . }}-governor
+  minReplicas: {{ .Values.governor.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.governor.autoscaling.maxReplicas }}
+  behavior:
+    {{- toYaml .Values.governor.autoscaling.behavior | nindent 4 }}
+  metrics:
+    {{- toYaml .Values.governor.autoscaling.metrics | nindent 4 }}
+{{- end }}

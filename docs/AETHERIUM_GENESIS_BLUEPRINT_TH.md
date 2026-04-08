@@ -79,7 +79,7 @@
 
 ## ๕) ยุทธศาสตร์สู่ความเป็นจริง (Execution Strategy)
 
-1. สร้าง “กาย” (GunUI): Shader + particle system ที่รับ force fields
+1. สร้าง “กาย” (Aetherium-Manifest): Shader + particle system ที่รับ force fields
 2. เชื่อม “ประสาท” (AetherBus): WebSocket/ZeroMQ สำหรับ intent transport ความหน่วงต่ำ
 3. ปลุก “ดวงตา” (BioVision): ค่าความนิ่ง/entropy ของสภาพแวดล้อมเข้าไปกำกับแสง
 4. ใส่ “จิต” (Logenesis): เชื่อม LLM reasoning เพื่อปรับรูปร่างแสงตามบทสนทนา

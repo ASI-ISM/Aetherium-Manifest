@@ -1,0 +1,36 @@
+{
+  "contract_type": "EMBODIMENT_V1",
+  "input_signal": {
+    "source_model": "genesis-phi-3",
+    "latency_ms": 67.2,
+    "reasoning_depth": 0.82
+  },
+  "intent": {
+    "category": "comfort_response",
+    "confidence": 0.91
+  },
+  "cognitive_state": {
+    "certainty": 0.88,
+    "complexity": "medium"
+  },
+  "temporal_state": {
+    "phase": "awakened",
+    "stability": 0.86
+  },
+  "visual_manifestation": {
+    "core_shape": "lotus_field",
+    "particle_velocity": 0.54,
+    "turbulence": 0.23,
+    "chromatic_aberration": 0.05,
+    "cadence": {
+      "bpm": 72,
+      "phase": 0.0,
+      "jitter": 0.05
+    },
+    "color_semantics": {
+      "color_mode": "THERMODYNAMIC",
+      "palette_key": "REASONING",
+      "gradient_key": "THINKING"
+    }
+  }
+}
