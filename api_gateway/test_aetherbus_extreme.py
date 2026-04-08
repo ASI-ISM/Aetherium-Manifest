@@ -28,7 +28,8 @@ class AetherBusExtremeTests(unittest.IsolatedAsyncioTestCase):
         await bus.publish("topic", AkashicEnvelope.create("event", {"value": 7}))
 
         await asyncio.wait_for(bus._queue.join(), timeout=1)
-        await asyncio.sleep(0.01)
+        if bus._background_tasks:
+            await asyncio.wait(bus._background_tasks, timeout=1)
         await bus.shutdown()
 
         self.assertEqual(got, [7])
