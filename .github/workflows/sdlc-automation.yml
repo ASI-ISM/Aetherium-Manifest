@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -41,8 +41,9 @@ jobs:
   ecosystem-compatibility-checklist:
     name: Ecosystem Compatibility Checklist
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -57,11 +58,12 @@ jobs:
   contract-runtime-quality:
     name: Contracts + Runtime Quality
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     needs:
       - lint-and-typecheck
       - ecosystem-compatibility-checklist
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -80,13 +82,26 @@ jobs:
       - name: Runtime unit tests
         run: python -m unittest api_gateway.test_api api_gateway.test_aetherbus_extreme api_gateway.test_runtime_quality
 
+  psycho-safety-parity:
+    name: Psycho-safety Parity (TS)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: lint-and-typecheck
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Run governor psycho-safety parity test
+        run: npx --yes tsx --test test_runtime_governor_psycho_safety.test.ts
+
   frontend-js-tests:
     name: Frontend JS Tests
     runs-on: ubuntu-latest
     needs: lint-and-typecheck
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -99,7 +114,7 @@ jobs:
     needs: lint-and-typecheck
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -123,7 +138,7 @@ jobs:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -148,6 +163,6 @@ jobs:
     needs: contract-runtime-quality
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Build API gateway image
         run: docker build -t aetherium-gateway-ci -f api_gateway/Dockerfile api_gateway

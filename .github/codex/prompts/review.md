@@ -1,52 +1,19 @@
-name: Codex pull request review
-on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+You are reviewing a pull request for Aetherium Manifest.
 
-jobs:
-  codex:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-    outputs:
-      final_message: ${{ steps.run_codex.outputs.final-message }}
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+Goals:
+1. Focus on contract safety, runtime-governor safety, and deterministic observability.
+2. Flag schema/ABI incompatibilities and missing migration notes.
+3. Prioritize concrete issues with file/line references and actionable fixes.
 
-      - name: Pre-fetch base and head refs
-        run: |
-          git fetch --no-tags origin \
-            ${{ github.event.pull_request.base.ref }} \
-            +refs/pull/${{ github.event.pull_request.number }}/head
+Review checklist:
+- Contract-first compatibility preserved (schemas, API payloads, versioning).
+- Governor control boundary remains canonical and deny-by-default.
+- Replay/telemetry behavior remains deterministic when relevant.
+- Tests/benchmarks cover changed risk surface.
+- CI and docs remain consistent with behavior.
 
-      - name: Run Codex
-        id: run_codex
-        uses: openai/codex-action@v1
-        with:
-          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          prompt-file: .github/codex/prompts/review.md
-          output-file: codex-output.md
-          safety-strategy: drop-sudo
-          sandbox: workspace-write
-
-  post_feedback:
-    runs-on: ubuntu-latest
-    needs: codex
-    if: needs.codex.outputs.final_message != ''
-    steps:
-      - name: Post Codex feedback
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ github.token }}
-          script: |
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-              body: process.env.CODEX_FINAL_MESSAGE,
-            });
-        env:
-          CODEX_FINAL_MESSAGE: ${{ needs.codex.outputs.final_message }}
+Output format:
+- Summary: 2-4 bullets.
+- Blocking issues: numbered list (or "None").
+- Non-blocking suggestions: short bullets.
+- Confidence: High / Medium / Low with one-sentence reason.

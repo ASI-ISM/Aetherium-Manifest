@@ -3,6 +3,7 @@ name: Contract and Runtime Quality Checks
 on:
   pull_request:
     branches: ["**"]
+  workflow_dispatch:
 
 concurrency:
   group: contract-runtime-${{ github.workflow }}-${{ github.ref }}
@@ -14,8 +15,9 @@ permissions:
 jobs:
   ecosystem-compatibility-checklist:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -24,9 +26,10 @@ jobs:
 
   contract-checker:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: ecosystem-compatibility-checklist
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -43,9 +46,10 @@ jobs:
 
   runtime-quality:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     needs: ecosystem-compatibility-checklist
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -71,11 +75,24 @@ jobs:
       - name: Runtime unit tests
         run: python -m unittest api_gateway.test_api api_gateway.test_aetherbus_extreme api_gateway.test_runtime_quality
 
-  k8s-helm-regression:
+  psycho-safety-parity:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: ecosystem-compatibility-checklist
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Runtime governor psycho-safety parity
+        run: npx --yes tsx --test test_runtime_governor_psycho_safety.test.ts
+
+  k8s-helm-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: ecosystem-compatibility-checklist
+    steps:
+      - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
