@@ -1402,9 +1402,10 @@
       btn.addEventListener('click', () => setDisplayPage(btn.dataset.page));
     });
 
-    document.getElementById('toggle-box-1').addEventListener('click', () => toggleMiniBox(1));
-    document.getElementById('toggle-box-2').addEventListener('click', () => toggleMiniBox(2));
-    document.getElementById('toggle-box-3').addEventListener('click', () => toggleMiniBox(3));
+    [1, 2, 3].forEach((i) => {
+      const btn = document.getElementById(`toggle-box-${i}`);
+      if (btn) btn.addEventListener('click', () => toggleMiniBox(i));
+    });
 
     const voiceSystem = initializeVoiceSystem(async (audioBlob) => {
       fsm.state = 'PROCESSING';
@@ -1413,13 +1414,16 @@
       await processTranscript(transcript, 'voice');
     });
 
-    document.getElementById('voice-btn').addEventListener('click', () => {
-      if (voicePipeline.listening) {
-        voiceSystem.stop();
-      } else {
-        voiceSystem.start();
-      }
-    });
+    const voiceToggleBtn = document.getElementById('voice-btn');
+    if (voiceToggleBtn) {
+      voiceToggleBtn.addEventListener('click', () => {
+        if (voicePipeline.listening) {
+          voiceSystem.stop();
+        } else {
+          voiceSystem.start();
+        }
+      });
+    }
 
     refs.chatToggle.addEventListener('click', () => {
       document.body.classList.toggle('chat-open');
