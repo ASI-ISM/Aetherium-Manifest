@@ -1169,10 +1169,14 @@
     }
 
     function renderHUD() {
+      const energy = Math.round(fsm.energy);
+      const entropy = Math.round(fsm.entropy);
+      const load = Math.round(fsm.load);
+
       refs.stateText.textContent = fsm.state;
-      refs.energyText.textContent = `${Math.round(fsm.energy)}%`;
-      refs.entropyText.textContent = `${Math.round(fsm.entropy)}%`;
-      refs.loadText.textContent = `${Math.round(fsm.load)}%`;
+      refs.energyText.textContent = `${energy}%`;
+      refs.entropyText.textContent = `${entropy}%`;
+      refs.loadText.textContent = `${load}%`;
 
       refs.energyBar.style.width = `${fsm.energy}%`;
       refs.entropyBar.style.width = `${fsm.entropy}%`;
@@ -1186,9 +1190,11 @@
       refs.intentChip.textContent = `intent: ${fsm.intentCategory}`;
       refs.qualityChip.textContent = `quality: ${fsm.qualityTier} @${fsm.targetFps}fps`;
 
-      refs.displayPage2State.textContent = fsm.state;
-      refs.displayPage2Energy.textContent = `${Math.round(fsm.energy)}%`;
-      refs.displayPage2Entropy.textContent = `${Math.round(fsm.entropy)}%`;
+      if (document.body.classList.contains('display-page-2') && !document.hidden) {
+        refs.displayPage2State.textContent = fsm.state;
+        refs.displayPage2Energy.textContent = `${energy}%`;
+        refs.displayPage2Entropy.textContent = `${entropy}%`;
+      }
 
       refs.status.classList.toggle('critical', fsm.state === 'CRITICAL');
       refs.compatNote.textContent = compatMode
