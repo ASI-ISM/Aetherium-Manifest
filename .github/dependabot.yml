@@ -1,35 +1,272 @@
 version: 2
-updates:
-  - package-ecosystem: "pip"
-    directory: "/api_gateway"
+
+multi-ecosystem-groups:
+  infra:
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: weekly
+      day: monday
       time: "03:00"
-      timezone: "Etc/UTC"
+      timezone: Etc/UTC
     labels:
-      - "dependencies"
-      - "python"
-    open-pull-requests-limit: 10
-
-  - package-ecosystem: "github-actions"
-    directory: "/"
+      - dependencies
+      - infra
+    assignees:
+      - CNR-CRN
+  app-runtime:
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: weekly
+      day: monday
       time: "03:30"
-      timezone: "Etc/UTC"
+      timezone: Etc/UTC
     labels:
-      - "dependencies"
-      - "github_actions"
+      - dependencies
+      - runtime
+    assignees:
+      - CNR-CRN
 
-  - package-ecosystem: "docker"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "04:00"
-      timezone: "Etc/UTC"
+updates:
+  # -----------------------------
+  # App/runtime ecosystems
+  # -----------------------------
+  - package-ecosystem: npm
+    directory: /
+    multi-ecosystem-group: app-runtime
+    open-pull-requests-limit: 10
     labels:
-      - "dependencies"
-      - "docker"
+      - dependencies
+      - javascript
+      - runtime
+    assignees:
+      - CNR-CRN
+    schedule:
+      interval: daily
+      time: "01:30"
+      timezone: Etc/UTC
+    groups:
+      app-runtime-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      app-runtime-version:
+        applies-to: version-updates
+        patterns:
+          - "*"
+
+  - package-ecosystem: pip
+    directory: /api_gateway
+    multi-ecosystem-group: app-runtime
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+      - python
+      - runtime
+    assignees:
+      - CNR-CRN
+    schedule:
+      interval: daily
+      time: "01:40"
+      timezone: Etc/UTC
+    groups:
+      app-runtime-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      app-runtime-version:
+        applies-to: version-updates
+        patterns:
+          - "*"
+
+  - package-ecosystem: pip
+    directory: /governor
+    multi-ecosystem-group: app-runtime
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+      - python
+      - runtime
+    assignees:
+      - CNR-CRN
+    schedule:
+      interval: daily
+      time: "01:50"
+      timezone: Etc/UTC
+    groups:
+      app-runtime-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      app-runtime-version:
+        applies-to: version-updates
+        patterns:
+          - "*"
+
+  - package-ecosystem: pip
+    directory: /ws_gateway
+    multi-ecosystem-group: app-runtime
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+      - python
+      - runtime
+    assignees:
+      - CNR-CRN
+    schedule:
+      interval: daily
+      time: "02:00"
+      timezone: Etc/UTC
+    groups:
+      app-runtime-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      app-runtime-version:
+        applies-to: version-updates
+        patterns:
+          - "*"
+
+  # -----------------------------
+  # Infra ecosystems
+  # -----------------------------
+  - package-ecosystem: github-actions
+    directory: /
+    multi-ecosystem-group: infra
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - github_actions
+      - infra
+    assignees:
+      - CNR-CRN
+    schedule:
+      interval: daily
+      time: "02:30"
+      timezone: Etc/UTC
+    groups:
+      infra-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      infra-version:
+        applies-to: version-updates
+        patterns:
+          - "*"
+
+  - package-ecosystem: docker
+    directory: /
+    multi-ecosystem-group: infra
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - docker
+      - infra
+    assignees:
+      - CNR-CRN
+    schedule:
+      interval: daily
+      time: "02:40"
+      timezone: Etc/UTC
+    groups:
+      infra-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      infra-version:
+        applies-to: version-updates
+        patterns:
+          - "*"
+
+  - package-ecosystem: docker
+    directory: /api_gateway
+    multi-ecosystem-group: infra
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - docker
+      - infra
+    assignees:
+      - CNR-CRN
+    schedule:
+      interval: daily
+      time: "02:45"
+      timezone: Etc/UTC
+    groups:
+      infra-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      infra-version:
+        applies-to: version-updates
+        patterns:
+          - "*"
+
+  - package-ecosystem: docker
+    directory: /governor
+    multi-ecosystem-group: infra
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - docker
+      - infra
+    assignees:
+      - CNR-CRN
+    schedule:
+      interval: daily
+      time: "02:50"
+      timezone: Etc/UTC
+    groups:
+      infra-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      infra-version:
+        applies-to: version-updates
+        patterns:
+          - "*"
+
+  - package-ecosystem: docker
+    directory: /ws_gateway
+    multi-ecosystem-group: infra
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - docker
+      - infra
+    assignees:
+      - CNR-CRN
+    schedule:
+      interval: daily
+      time: "02:55"
+      timezone: Etc/UTC
+    groups:
+      infra-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      infra-version:
+        applies-to: version-updates
+        patterns:
+          - "*"
+
+  - package-ecosystem: terraform
+    directory: /
+    multi-ecosystem-group: infra
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - terraform
+      - infra
+    assignees:
+      - CNR-CRN
+    schedule:
+      interval: daily
+      time: "03:10"
+      timezone: Etc/UTC
+    groups:
+      infra-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      infra-version:
+        applies-to: version-updates
+        patterns:
+          - "*"
