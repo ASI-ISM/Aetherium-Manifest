@@ -1,0 +1,23 @@
+# Prompt before running commands with the prefix `gh pr view` outside the sandbox.
+prefix_rule(
+    # The prefix to match.
+    pattern = ["gh", "pr", "view"],
+
+    # The action to take when Codex requests to run a matching command.
+    decision = "prompt",
+
+    # Optional rationale for why this rule exists.
+    justification = "Viewing PRs is allowed with approval",
+
+    # `match` and `not_match` are optional "inline unit tests" where you can
+    # provide examples of commands that should (or should not) match this rule.
+    match = [
+        "gh pr view 7888",
+        "gh pr view --repo openai/codex",
+        "gh pr view 7888 --json title,body,comments",
+    ],
+    not_match = [
+        # Does not match because the `pattern` must be an exact prefix.
+        "gh pr --repo openai/codex view 7888",
+    ],
+)

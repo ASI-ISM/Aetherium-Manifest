@@ -72,3 +72,9 @@ Key technologies:
   - State-first AI contract semantics are mandatory.
   - Deterministic observability (replay/benchmark/telemetry lockstep) is a release gate.
 - Suggested extension priorities remain tracked in `README.md` roadmap and AI-agent proposal sections.
+
+## Repository expectations
+
+- Run `npm run lint` before opening a pull request.
+- Document public utilities in `docs/` when you change behavior.
+
