@@ -1,0 +1,67 @@
+name: Build AKS deployment image artifact
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AZURE_CONTAINER_REGISTRY: "your-azure-container-registry"
+  CONTAINER_NAME: "your-container-name"
+  RESOURCE_GROUP: "your-resource-group"
+
+jobs:
+  build-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    if: ${{ secrets.AZURE_CLIENT_ID != '' && secrets.AZURE_TENANT_ID != '' && secrets.AZURE_SUBSCRIPTION_ID != '' }}
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Azure login
+        uses: azure/login@2dd0bbf4064d5a1812889dc200bb8eed2597f82a # v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push image to ACR
+        run: |
+          az acr build \
+            --image ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.CONTAINER_NAME }}:${{ github.sha }} \
+            --registry ${{ env.AZURE_CONTAINER_REGISTRY }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            .
+
+      - name: Resolve immutable digest
+        id: digest
+        run: |
+          digest=$(az acr manifest show-metadata \
+            --name ${{ env.CONTAINER_NAME }}:${{ github.sha }} \
+            --registry ${{ env.AZURE_CONTAINER_REGISTRY }} \
+            --query digest -o tsv)
+          if [ -z "$digest" ]; then
+            echo "Failed to resolve image digest" >&2
+            exit 1
+          fi
+          printf '%s\n' "$digest" > image-digest.txt
+          cat > image-release.json <<EOF
+          {
+            "image": "${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.CONTAINER_NAME }}@${digest}",
+            "digest": "${digest}",
+            "commit": "${{ github.sha }}"
+          }
+          EOF
+
+      - name: Upload image metadata artifact
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
+        with:
+          name: aks-image-release
+          path: |
+            image-digest.txt
+            image-release.json
+          if-no-files-found: error

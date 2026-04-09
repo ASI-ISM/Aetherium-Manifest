@@ -1,11 +1,38 @@
-name: Build and deploy an app to AKS with Helm
+name: Deploy app to AKS with Helm
 
 on:
+  workflow_call:
+    inputs:
+      deployment_environment:
+        description: Target environment (dev, staging, prod)
+        required: true
+        type: string
+      image_digest:
+        description: OCI image digest that has already passed promotion gates (sha256:...)
+        required: true
+        type: string
+      gate_passed:
+        description: Gate assertion from upstream workflow
+        required: true
+        type: boolean
   workflow_dispatch:
-
-concurrency:
-  group: aks-helm-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+    inputs:
+      deployment_environment:
+        description: Target environment
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      image_digest:
+        description: OCI image digest that has already passed promotion gates (sha256:...)
+        required: true
+        type: string
+      gate_passed:
+        description: Confirm that this digest passed required gates
+        required: true
+        type: boolean
 
 permissions:
   contents: read
@@ -20,29 +47,16 @@ env:
   CHART_OVERRIDE_PATH: "your-chart-override-path"
 
 jobs:
-  build-image:
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    if: ${{ secrets.AZURE_CLIENT_ID != '' && secrets.AZURE_TENANT_ID != '' && secrets.AZURE_SUBSCRIPTION_ID != '' }}
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Azure login
-        uses: azure/login@2dd0bbf4064d5a1812889dc200bb8eed2597f82a # v3
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Build and push image to ACR
-        run: |
-          az acr build --image ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.CONTAINER_NAME }}:${{ github.sha }} --registry ${{ env.AZURE_CONTAINER_REGISTRY }} -g ${{ env.RESOURCE_GROUP }} .
-
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    needs: [build-image]
-    if: ${{ needs.build-image.result == 'success' }}
+    if: ${{ (inputs.gate_passed || github.event.inputs.gate_passed == 'true') && (inputs.image_digest || github.event.inputs.image_digest) != '' && secrets.AZURE_CLIENT_ID != '' && secrets.AZURE_TENANT_ID != '' && secrets.AZURE_SUBSCRIPTION_ID != '' }}
+    environment:
+      name: ${{ inputs.deployment_environment || github.event.inputs.deployment_environment }}
+    concurrency:
+      group: deploy-${{ inputs.deployment_environment || github.event.inputs.deployment_environment }}
+      cancel-in-progress: false
+
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
@@ -83,4 +97,4 @@ jobs:
           action: deploy
           manifests: ${{ steps.bake.outputs.manifestsBundle }}
           images: |
-            ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.CONTAINER_NAME }}:${{ github.sha }}
+            ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.CONTAINER_NAME }}@${{ inputs.image_digest || github.event.inputs.image_digest }}
