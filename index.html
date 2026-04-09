@@ -1,1480 +1,782 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="th">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AETHERIUM Light UI</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap');
-
-    :root {
-      --void-bg: #020204;
-      --panel-bg: rgba(10, 12, 20, 0.72);
-      --panel-border: rgba(255, 255, 255, 0.08);
-      --border-light: rgba(255, 255, 255, 0.16);
-      --color-manifest: #ffd166;
-      --text: #eef2ff;
-      --muted: #8b93a7;
-      --cyan: #00e5ff;
-      --pink: #ff3d81;
-      --gold: #ffd166;
-      --shadow: 0 18px 58px rgba(0, 0, 0, 0.52);
-    }
-
-    * { box-sizing: border-box; }
-
-    html, body {
-      margin: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background: var(--void-bg);
-      color: var(--text);
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    body {
-      position: relative;
-      user-select: none;
-      touch-action: manipulation;
-    }
-
-    #display-layer {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      display: block;
-      z-index: 1;
-      background:
-        radial-gradient(circle at 50% 32%, rgba(109, 40, 217, 0.16), transparent 36%),
-        radial-gradient(circle at 72% 44%, rgba(0, 229, 255, 0.12), transparent 30%),
-        radial-gradient(circle at 28% 68%, rgba(255, 61, 129, 0.1), transparent 32%),
-        #020204;
-    }
-
-    /*
-      memory-layer ยังเก็บไว้เพื่อใช้เป็น canvas ช่วยคอมไพล์ข้อความเป็น field ของอนุภาค
-      แต่จะไม่แสดงผลให้ผู้ใช้เห็นโดยตรง
-    */
-    #memory-layer,
-    #file-input {
-      display: none;
-    }
-
-    .ambient-label {
-      position: absolute;
-      top: 18px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 3;
-      font-size: 10px;
-      letter-spacing: 0.32em;
-      color: rgba(255,255,255,0.42);
-      text-transform: uppercase;
-      pointer-events: none;
-      text-shadow: 0 0 12px rgba(255,255,255,0.08);
-    }
-
-    .bottom-shell {
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      z-index: 5;
-      padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
-      background: linear-gradient(to top, rgba(2,2,4,0.9), rgba(2,2,4,0.22) 60%, transparent);
-      pointer-events: none;
-    }
-
-    .chat-bar {
-      width: min(980px, 100%);
-      margin: 0 auto;
-      background: var(--panel-bg);
-      border: 1px solid var(--panel-border);
-      border-radius: 24px;
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(26px) saturate(125%);
-      -webkit-backdrop-filter: blur(26px) saturate(125%);
-      padding: 10px;
-      pointer-events: auto;
-    }
-
-    .chat-top {
-      display: flex;
-      align-items: flex-end;
-      gap: 10px;
-    }
-
-    .icon-btn,
-    .send-btn {
-      border: 0;
-      outline: none;
-      appearance: none;
-      cursor: pointer;
-      color: var(--text);
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255,255,255,0.08);
-      transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      flex: 0 0 auto;
-    }
-
-    .icon-btn:hover,
-    .send-btn:hover {
-      transform: translateY(-1px);
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(255,255,255,0.14);
-    }
-
-    .icon-btn {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-    }
-
-    .icon-btn svg,
-    .send-btn svg {
-      width: 18px;
-      height: 18px;
-      display: block;
-    }
-
-    .composer-wrap {
-      flex: 1 1 auto;
-      min-width: 0;
-      background: linear-gradient(140deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 18px;
-      padding: 10px 12px;
-    }
-
-    #chat-input {
-      width: 100%;
-      min-height: 24px;
-      max-height: 120px;
-      resize: none;
-      overflow-y: auto;
-      border: 0;
-      outline: none;
-      background: transparent;
-      color: var(--text);
-      font: inherit;
-      font-size: 14px;
-      line-height: 1.45;
-    }
-
-    #chat-input::placeholder {
-      color: var(--muted);
-    }
-
-    .chat-bottom {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      margin-top: 8px;
-      padding: 0 2px;
-    }
-
-    .status-line {
-      font-size: 10px;
-      color: var(--muted);
-      letter-spacing: 0.08em;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .action-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex: 0 0 auto;
-    }
-
-    .send-btn {
-      width: 46px;
-      height: 46px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, rgba(0,229,255,0.22), rgba(255,61,129,0.24));
-      border-color: rgba(255,255,255,0.14);
-      box-shadow: 0 0 22px rgba(0, 229, 255, 0.12);
-    }
-
-    .send-btn:hover {
-      box-shadow: 0 0 28px rgba(255, 61, 129, 0.18);
-    }
-
-    .recording {
-      border-color: rgba(255, 61, 129, 0.48) !important;
-      background: rgba(255, 61, 129, 0.12) !important;
-      box-shadow: 0 0 18px rgba(255, 61, 129, 0.22);
-    }
-
-    .file-chip {
-      display: none;
-      margin-top: 10px;
-      padding: 8px 12px;
-      border-radius: 14px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.08);
-      font-size: 11px;
-      color: #dbe8ff;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-
-    .file-chip.active {
-      display: flex;
-    }
-
-    .file-remove {
-      border: 0;
-      background: transparent;
-      color: var(--muted);
-      font: inherit;
-      cursor: pointer;
-      padding: 0;
-    }
-
-    @media (max-width: 640px) {
-      .bottom-shell {
-        padding-inline: 10px;
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aetherium Manifest Runtime Console</title>
+    <style>
+      :root {
+        --bg: #06070d;
+        --panel: rgba(12, 14, 24, 0.84);
+        --line: rgba(255, 255, 255, 0.12);
+        --text: #f0f5ff;
+        --muted: #9da8bf;
+        --cyan: #53ecff;
+        --pink: #ff5ea8;
+        --gold: #ffd166;
       }
 
-      .chat-bar {
-        border-radius: 20px;
-        padding: 8px;
+      * { box-sizing: border-box; }
+
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
       }
 
-      .icon-btn,
-      .send-btn {
-        width: 42px;
-        height: 42px;
+      #display-layer {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        background:
+          radial-gradient(circle at 18% 18%, rgba(83, 236, 255, 0.18), transparent 34%),
+          radial-gradient(circle at 80% 75%, rgba(255, 94, 168, 0.14), transparent 38%),
+          linear-gradient(180deg, #06070d 0%, #090b14 100%);
+        z-index: 1;
       }
 
-      #chat-input {
-        font-size: 13px;
+      .shell {
+        position: relative;
+        z-index: 2;
+        height: 100%;
+        display: grid;
+        grid-template-columns: minmax(320px, 420px) minmax(360px, 1fr);
+        gap: 14px;
+        padding: 14px;
       }
-    }
-
-    .floating-button {
-      position: fixed;
-      right: 20px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      z-index: 30;
-      border: 1px solid var(--border-light);
-      border-radius: 999px;
-      padding: 10px 16px;
-      color: white;
-      cursor: pointer;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.8rem;
-      background: rgba(0, 0, 0, 0.7);
-      backdrop-filter: blur(10px);
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    #settings-panel {
-      position: fixed;
-      right: 68px;
-      top: 16px;
-      z-index: 42;
-      width: min(320px, calc(100vw - 24px));
-      padding: 12px;
-      display: none;
-      font-size: 12px;
-    }
-
-    body.ui-open #settings-panel {
-      display: block;
-    }
-
-    .settings-title {
-      margin-bottom: 8px;
-      font-weight: 700;
-    }
-
-    .setting-group { margin-top: 10px; }
-
-    .setting-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 6px;
-      gap: 8px;
-    }
-
-    .seg {
-      display: inline-flex;
-      gap: 6px;
-    }
-
-    .seg button {
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,.08);
-      color: #fff;
-      border-radius: 8px;
-      font-size: 11px;
-      padding: 6px 10px;
-      cursor: pointer;
-    }
-
-    .seg button.active {
-      border-color: rgba(0,255,255,.65);
-      color: #d0ffff;
-    }
-
-    #log {
-      right: 18px;
-      top: 284px;
-      width: 380px;
-      max-height: 46vh;
-      padding: 14px;
-      overflow: auto;
-      font-size: 12px;
-      line-height: 1.45;
-    }
-
-    .save-header h3,
-    .pen-header h3 {
-      margin: 0;
-      font-size: 0.95rem;
-    }
-
-    .close-btn {
-      cursor: pointer;
-      opacity: 0.7;
-    }
-
-    .format-options {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 10px;
-      padding: 12px;
-    }
-
-    .format-option {
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 10px;
-      padding: 10px;
-      cursor: pointer;
-      text-align: center;
-    }
-
-    .format-option.selected {
-      border-color: var(--color-manifest);
-      background: rgba(255, 215, 0, 0.08);
-    }
-
-    .save-options,
-    .pen-actions,
-    .brush-controls {
-      display: flex;
-      gap: 8px;
-      padding: 0 12px 12px;
-      align-items: center;
-    }
-
-    .filename-input,
-    .save-button,
-    .pen-actions button,
-    .brush-controls input {
-      border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      background: rgba(255, 255, 255, 0.05);
-      color: white;
-      padding: 10px;
-      font-family: inherit;
-    }
-
-    .filename-input {
-      flex: 1;
-    }
-
-    .save-button,
-    .pen-actions button {
-      cursor: pointer;
-    }
-
-    .color-palette {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 8px;
-      padding: 12px;
-    }
-
-    .color-option {
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
-      border: 2px solid transparent;
-      cursor: pointer;
-      margin: 0 auto;
-    }
-
-    .color-option.selected {
-      border-color: #fff;
-      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
-    }
-
-    canvas.erase-mode {
-      cursor: crosshair;
-    }
-
-    canvas.draw-mode {
-      cursor: cell;
-    }
-
-    #hud-overlay {
-      position: fixed;
-      left: 16px;
-      top: 56px;
-      z-index: 6;
-      width: min(320px, calc(100% - 32px));
-      background: linear-gradient(165deg, rgba(17, 20, 34, 0.78), rgba(9, 11, 20, 0.56));
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 14px;
-      padding: 12px;
-      backdrop-filter: blur(8px);
-    }
-
-    .stat-row { display: flex; flex-direction: column; gap: 8px; }
-
-    .stat-label {
-      display: flex;
-      justify-content: space-between;
-      font-size: 10px;
-      letter-spacing: 0.08em;
-      color: #dbe8ff;
-    }
-
-    .progress-bar-container {
-      width: 100%;
-      height: 6px;
-      border-radius: 999px;
-      overflow: hidden;
-      background: rgba(255, 255, 255, 0.08);
-    }
-
-    #display-page-2 {
-      position: fixed;
-      inset: 0;
-      z-index: 9;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      background: radial-gradient(circle at 20% 20%, rgba(0,255,255,.08), transparent 38%),
-                  radial-gradient(circle at 80% 80%, rgba(128,0,128,.12), transparent 42%),
-                  rgba(5,5,5,.72);
-      pointer-events: none;
-    }
-
-    body.display-page-2 #display-page-2 {
-      display: flex;
-    }
-
-    .display2-card {
-      width: min(760px, calc(100vw - 36px));
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      background: rgba(10,10,14,.76);
-      backdrop-filter: blur(12px);
-      padding: 16px;
-    }
-
-    .display2-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
-      margin-top: 10px;
-    }
-
-    .display2-cell {
-      border: 1px solid rgba(255,255,255,.15);
-      border-radius: 10px;
-      padding: 10px;
-      background: rgba(255,255,255,.04);
-    }
-
-    .mini-boxes {
-      position: fixed;
-      left: 16px;
-      bottom: 16px;
-      z-index: 11;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .mini-box {
-      min-width: 130px;
-      padding: 8px 10px;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,.2);
-      background: rgba(8,8,10,.76);
-      font-size: 11px;
-      display: none;
-    }
-
-    body.show-box-1 #mini-box-1,
-    body.show-box-2 #mini-box-2,
-    body.show-box-3 #mini-box-3 {
-      display: block;
-    }
-
-    .critical {
-      border-color: var(--critical) !important;
-      animation: flicker .14s infinite alternate;
-    }
-
-    .hud-mode {
-      margin-top: 8px;
-      display: flex;
-      justify-content: space-between;
-      font-size: 10px;
-      letter-spacing: 0.08em;
-      color: #c6d4ff;
-      text-transform: uppercase;
-    }
-
-    .home-tips {
-      margin: 8px auto 0;
-      width: min(980px, 100%);
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      pointer-events: auto;
-    }
-
-    .home-tip {
-      font-size: 10px;
-      color: #c8d3f0;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      background: rgba(255, 255, 255, 0.04);
-      border-radius: 999px;
-      padding: 4px 10px;
-    }
-  </style>
-</head>
-<body>
-  <canvas id="nervous-system"></canvas>
-  <button id="settings-toggle" aria-label="toggle settings">⚙</button>
-  <button id="chat-toggle" aria-label="toggle chat">Chat</button>
-
-  <aside class="hud" id="settings-panel">
-    <div class="settings-title">SETTINGS</div>
-    <div class="setting-group">
-      <div class="setting-row">
-        <span>Display Page</span>
-        <div class="seg" id="display-selector">
-          <button type="button" data-page="1" class="active">Page 1</button>
-          <button type="button" data-page="2">Page 2</button>
-        </div>
-      </div>
-    </div>
-    <div class="setting-group">
-      <div class="setting-row"><span>Mini Box #1</span><button class="btn" id="toggle-box-1">Toggle</button></div>
-      <div class="setting-row"><span>Mini Box #2</span><button class="btn" id="toggle-box-2">Toggle</button></div>
-      <div class="setting-row"><span>Mini Box #3</span><button class="btn" id="toggle-box-3">Toggle</button></div>
-    </div>
-  </aside>
-
-  <aside class="hud" id="status">
-    <div class="row"><strong>AETHERBUS / GUNUI STATUS</strong></div>
-    <div class="row">
-      <div class="row-head"><span>FSM STATE</span><span id="state-text">IDLE</span></div>
-      <span class="chip" id="shape-chip">shape: cloud</span>
-      <span class="chip" id="intent-chip">intent: chat</span>
-      <span class="chip" id="quality-chip">quality: auto</span>
-    </div>
-  </div>
-
-  <div class="bottom-shell">
-    <div class="chat-bar">
-      <div class="chat-top">
-        <button class="icon-btn" id="attach-btn" aria-label="แนบไฟล์">
-          📎
-        </button>
-        <button class="icon-btn" id="voice-btn" aria-label="เปิดโหมดเสียง">
-          🎙️
-        </button>
-        <div class="composer-wrap">
-          <textarea id="chat-input" placeholder="พิมพ์ข้อความที่ต้องการให้ Aetherium ประมวลผล..."></textarea>
-        </div>
-        <button class="icon-btn" id="settings-btn" aria-label="ตั้งค่า">
-          ⚙️
-        </button>
-        <button class="send-btn" id="send-btn" aria-label="ส่งข้อความ">
-          ➤
-        </button>
-      </div>
-
-      <div id="file-chip" class="file-chip">
-        <span id="file-name"></span>
-        <button id="file-remove" class="file-remove" type="button">ลบ</button>
-      </div>
-
-      <div class="chat-bottom">
-        <div class="status-line" id="status-line">กำลังเตรียมระบบ...</div>
-      </div>
-    </div>
-    <div class="home-tips" aria-hidden="true">
-      <div class="home-tip">Enter เพื่อส่ง</div>
-      <div class="home-tip">Shift+Enter ขึ้นบรรทัดใหม่</div>
-      <div class="home-tip">แนบภาพเพื่อสกัดโครงสร้างแสง</div>
-      <div class="home-tip">แตะพื้นที่ว่างเพื่อปลุกอนุภาค</div>
-    </div>
-    <div class="row">
-      <div class="row-head"><span>LOAD (CPU HEAT)</span><span id="load-text">0%</span></div>
-      <div class="bar-track"><div class="bar" id="load-bar"></div></div>
-    </div>
-  </aside>
-
-  <aside class="hud" id="log"><pre id="intent-json">Intent Vector จะปรากฏที่นี่...</pre></aside>
-
-  <aside class="hud" id="conversation">
-    <div><strong>CONVERSATION CONTEXT</strong></div>
-    <div id="chat-stream"></div>
-    <div id="sources">sources: none</div>
-  </aside>
-
-  <section class="hud" id="composer">
-    <input id="intent-input" placeholder="พิมพ์ intent เช่น: ด่วน! สรุปข้อมูลให้หน่อย หรือ I feel confused and tired" />
-    <button class="btn" id="voice-btn" title="Voice chat" aria-label="voice chat">🎤</button>
-    <button class="btn" id="send-btn">Emit Intent</button>
-    <button class="btn" id="nirodha-btn">Nirodha</button>
-  </section>
-
-  <aside class="hud" id="compat">
-    <div><strong>COMPATIBILITY RENDER</strong></div>
-    <div class="compat-note" id="compat-note">mode: realtime</div>
-    <img id="compat-frame" alt="compatibility-frame" />
-  </aside>
-
-  <section id="display-page-2" aria-label="display page two">
-    <div class="display2-card">
-      <div><strong>DISPLAY PAGE 2</strong></div>
-      <div style="margin-top:6px;color:#b8daff;font-size:12px;">หน้านี้เป็นโหมดแสดงผลเพิ่มเติม โดยยังคงใช้ความสามารถระบบเดิมทั้งหมด</div>
-      <div class="display2-grid">
-        <div class="display2-cell">State: <span id="page2-state">IDLE</span></div>
-        <div class="display2-cell">Energy: <span id="page2-energy">100%</span></div>
-        <div class="display2-cell">Entropy: <span id="page2-entropy">0%</span></div>
-      </div>
-    </div>
-  </section>
-
-  <section class="mini-boxes" aria-label="mini display boxes">
-    <div class="mini-box" id="mini-box-1">Mini Box 1 : System Pulse</div>
-    <div class="mini-box" id="mini-box-2">Mini Box 2 : Intent Monitor</div>
-    <div class="mini-box" id="mini-box-3">Mini Box 3 : Source Signals</div>
-  </section>
-
-  <script>
-    const display = document.getElementById('display-layer');
-    const ctx = display.getContext('2d', { alpha: false });
-    const memCanvas = document.getElementById('memory-layer');
-    const memCtx = memCanvas.getContext('2d', { willReadFrequently: true });
-
-    const chatInput = document.getElementById('chat-input');
-    const sendBtn = document.getElementById('send-btn');
-    const attachBtn = document.getElementById('attach-btn');
-    const voiceBtn = document.getElementById('voice-btn');
-    const settingsBtn = document.getElementById('settings-btn');
-    const fileInput = document.getElementById('file-input');
-    const fileChip = document.getElementById('file-chip');
-    const fileNameEl = document.getElementById('file-name');
-    const fileRemoveBtn = document.getElementById('file-remove');
-    const statusLine = document.getElementById('status-line');
-    const energyBar = document.getElementById('bar-energy');
-    const energyValue = document.getElementById('val-energy');
-    const energyState = document.getElementById('energy-state');
-    const freezeBtn = document.getElementById('freeze-btn');
-    const saveBtn = document.getElementById('save-btn');
-    const eraseBtn = document.getElementById('erase-btn');
-    const penBtn = document.getElementById('pen-btn');
-    const shareBtn = document.getElementById('share-btn');
-
-    let W = 0;
-    let H = 0;
-    let CX = 0;
-    let CY = 0;
-    let renderTime = 0;
-    let selectedFile = null;
-    let learnedImageMemory = null;
-    let recording = false;
-    let lastInteractionTime = performance.now();
-    let fadingOut = false;
-    let visibilityStrength = 1;
-    let targetField = [];
-    let compileState = 'idle';
-    let compileExpireAt = 0;
-    let isFrozen = false;
-    let lastSubmittedMessage = '';
-
-    const NUM_PHOTONS = 2000;
-    const PARTICLE_SPEED = 4.0;
-    const IMAGE_MEMORY_TTL_MS = 60 * 60 * 1000;
-    const MESSAGE_COMPILE_HOLD_MS = 3200;
-    const photons = [];
-    const touchBursts = [];
-
-    const THEMES = {
-      idle: { palette: ['#031b44', '#0b4fd9', '#00b7ff', '#d8f6ff'], force: 0.021, noise: 0.08, trail: 0.08 },
-      sent: { palette: ['#00e5ff', '#ff3d81', '#ffd166'], force: 0.036, noise: 0.14, trail: 0.16 },
-      voice: { palette: ['#ff3d81', '#ffd166', '#ffffff'], force: 0.03, noise: 0.16, trail: 0.16 }
-    };
-    let theme = 'idle';
-
-    const fsm = {
-      state: 'IDLE',
-      energy: 100,
-      entropy: 8,
-      load: 5,
-      shape: 'cloud',
-      intentCategory: 'chat',
-      turbulence: 0.18,
-      particleDensity: 0.45,
-      emotionalValence: 0,
-      energyLevel: 0.2,
-      desiredForm: 'abstract',
-      sourceHints: [],
-      qualityTier: 'auto',
-      targetFps: 60
-    };
-
-    const refs = {
-      stateText: document.getElementById('state-text'),
-      energyText: document.getElementById('energy-text'),
-      entropyText: document.getElementById('entropy-text'),
-      loadText: document.getElementById('load-text'),
-      energyBar: document.getElementById('energy-bar'),
-      entropyBar: document.getElementById('entropy-bar'),
-      loadBar: document.getElementById('load-bar'),
-      shapeChip: document.getElementById('shape-chip'),
-      intentChip: document.getElementById('intent-chip'),
-      qualityChip: document.getElementById('quality-chip'),
-      json: document.getElementById('intent-json'),
-      status: document.getElementById('status'),
-      compatNote: document.getElementById('compat-note'),
-      compatFrame: document.getElementById('compat-frame'),
-      chatStream: document.getElementById('chat-stream'),
-      sources: document.getElementById('sources'),
-      settingsToggle: document.getElementById('settings-toggle'),
-      chatToggle: document.getElementById('chat-toggle'),
-      displayPage2State: document.getElementById('page2-state'),
-      displayPage2Energy: document.getElementById('page2-energy'),
-      displayPage2Entropy: document.getElementById('page2-entropy')
-    };
-
-    const displayButtons = Array.from(document.querySelectorAll('#display-selector button'));
-
-    function setDisplayPage(page) {
-      document.body.classList.toggle('display-page-2', page === '2');
-      displayButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.page === page));
-    }
-
-    function toggleMiniBox(index) {
-      document.body.classList.toggle(`show-box-${index}`);
-    }
-
-    const mouse = { x: -9999, y: -9999, active: false };
-    let width = 0;
-    let height = 0;
-    let particles = [];
-    let compatMode = false;
-    let compatLastFrameAt = 0;
-
-    function resize() {
-      W = display.width = window.innerWidth;
-      H = display.height = window.innerHeight;
-      memCanvas.width = W;
-      memCanvas.height = H;
-      CX = W * 0.5;
-      CY = H * 0.5;
-    }
-
-    function autoResizeTextarea() {
-      chatInput.style.height = '24px';
-      chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
-    }
-
-    function markInteraction(reasonText) {
-      lastInteractionTime = performance.now();
-      fadingOut = false;
-      visibilityStrength = Math.min(1, visibilityStrength + 0.14);
-      if (reasonText) setStatus(reasonText);
-    }
-
-    function initPhotons() {
-      photons.length = 0;
-      for (let i = 0; i < NUM_PHOTONS; i++) {
-        photons.push({
-          x: CX + (Math.random() - 0.5) * W * 0.25,
-          y: CY + (Math.random() - 0.5) * H * 0.25,
-          vx: (Math.random() - 0.5) * 0.8,
-          vy: (Math.random() - 0.5) * 0.8
+
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        backdrop-filter: blur(8px);
+      }
+
+      .column {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-height: 0;
+      }
+
+      .panel-head {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--line);
+        font-size: 12px;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: #c8d5f6;
+      }
+
+      .panel-body {
+        padding: 12px 14px;
+        min-height: 0;
+      }
+
+      #status-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+
+      .metric {
+        display: grid;
+        gap: 4px;
+      }
+
+      .metric-head {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+      }
+
+      .bar {
+        width: 100%;
+        height: 7px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        overflow: hidden;
+      }
+
+      .bar > span {
+        display: block;
+        height: 100%;
+        width: 0;
+        transition: width 220ms ease;
+      }
+
+      .chips {
+        margin-top: 10px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .chip {
+        font-size: 11px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 3px 10px;
+        color: #dbe8ff;
+      }
+
+      #chat-stream {
+        min-height: 140px;
+        max-height: 260px;
+        overflow: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding-right: 4px;
+      }
+
+      .bubble {
+        font-size: 12px;
+        line-height: 1.45;
+        border-radius: 10px;
+        padding: 8px 10px;
+      }
+
+      .bubble.user { background: rgba(83, 236, 255, 0.14); border: 1px solid rgba(83, 236, 255, 0.25); }
+      .bubble.system { background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line); }
+      .bubble.error { background: rgba(255, 82, 82, 0.12); border: 1px solid rgba(255, 82, 82, 0.35); }
+
+      #intent-json {
+        margin: 0;
+        max-height: 220px;
+        overflow: auto;
+        font-size: 11px;
+        background: rgba(0, 0, 0, 0.25);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+      }
+
+      .composer {
+        display: flex;
+        gap: 8px;
+        align-items: flex-end;
+      }
+
+      textarea,
+      input,
+      select,
+      button {
+        font: inherit;
+      }
+
+      textarea,
+      input,
+      select {
+        width: 100%;
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px 10px;
+      }
+
+      textarea {
+        min-height: 76px;
+        resize: vertical;
+      }
+
+      .btn-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      button {
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px 11px;
+        cursor: pointer;
+      }
+
+      button.primary {
+        background: linear-gradient(135deg, rgba(83, 236, 255, 0.34), rgba(255, 94, 168, 0.32));
+      }
+
+      #status-line { font-size: 12px; color: var(--muted); }
+      #sources { font-size: 11px; color: #c2d1f7; margin-top: 8px; }
+      #ws-status { font-size: 11px; color: var(--gold); margin-top: 6px; }
+
+      #compat-frame {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #05060b;
+      }
+
+      #memory-layer,
+      #file-input {
+        display: none;
+      }
+
+      @media (max-width: 1024px) {
+        .shell {
+          grid-template-columns: 1fr;
+          overflow: auto;
+          height: auto;
+          min-height: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="display-layer"></canvas>
+    <canvas id="memory-layer"></canvas>
+    <input id="file-input" type="file" accept="image/*" />
+
+    <main class="shell">
+      <section class="column">
+        <article class="card">
+          <div class="panel-head">Runtime State</div>
+          <div class="panel-body">
+            <div id="status-grid">
+              <div class="metric">
+                <div class="metric-head"><span>Energy</span><span id="energy-text">100%</span></div>
+                <div class="bar"><span id="energy-bar" style="background:#53ecff"></span></div>
+              </div>
+              <div class="metric">
+                <div class="metric-head"><span>Entropy</span><span id="entropy-text">0%</span></div>
+                <div class="bar"><span id="entropy-bar" style="background:#ff5ea8"></span></div>
+              </div>
+              <div class="metric">
+                <div class="metric-head"><span>Load</span><span id="load-text">0%</span></div>
+                <div class="bar"><span id="load-bar" style="background:#ffd166"></span></div>
+              </div>
+            </div>
+            <div class="chips">
+              <span class="chip" id="state-chip">state: IDLE</span>
+              <span class="chip" id="shape-chip">shape: cloud</span>
+              <span class="chip" id="intent-chip">intent: chat</span>
+              <span class="chip" id="quality-chip">quality: auto</span>
+            </div>
+            <div id="ws-status">ws: disconnected</div>
+          </div>
+        </article>
+
+        <article class="card" style="min-height: 0; flex: 1;">
+          <div class="panel-head">Conversation + Intent</div>
+          <div class="panel-body">
+            <div id="chat-stream"></div>
+            <div id="sources">sources: none</div>
+            <pre id="intent-json">{ "status": "ready" }</pre>
+          </div>
+        </article>
+      </section>
+
+      <section class="column">
+        <article class="card">
+          <div class="panel-head">Control Surface</div>
+          <div class="panel-body">
+            <label for="chat-input">Intent Input</label>
+            <textarea id="chat-input" placeholder="พิมพ์ข้อความเพื่อส่งเข้า Aetherium pipeline"></textarea>
+            <div class="composer" style="margin-top:8px;">
+              <button id="attach-btn" type="button">แนบภาพ</button>
+              <button id="voice-btn" type="button">Voice (Mock)</button>
+              <button id="send-btn" class="primary" type="button">Emit</button>
+            </div>
+            <div id="file-chip" style="display:none; margin-top:8px; font-size:12px;"></div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:12px;">
+              <label>
+                API Base
+                <input id="api-base" value="http://localhost:8080" />
+              </label>
+              <label>
+                WS Base
+                <input id="ws-base" value="ws://localhost:8080" />
+              </label>
+              <label>
+                API Key
+                <input id="api-key" value="local-dev-key" />
+              </label>
+              <label>
+                Room ID
+                <input id="room-id" value="demo-room" />
+              </label>
+            </div>
+
+            <div class="btn-row" style="margin-top:10px;">
+              <button id="connect-ws-btn" type="button">Connect WS</button>
+              <button id="validate-btn" type="button">Validate</button>
+              <button id="generate-btn" type="button">Generate</button>
+              <button id="telemetry-btn" type="button">Ingest Telemetry</button>
+              <button id="reliability-btn" type="button">Reliability</button>
+            </div>
+            <div id="status-line">ready</div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="panel-head">Compatibility Frame</div>
+          <div class="panel-body">
+            <img id="compat-frame" alt="compatibility frame" />
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <script>
+      const display = document.getElementById('display-layer');
+      const ctx = display.getContext('2d', { alpha: false });
+      const memory = document.getElementById('memory-layer');
+      const memoryCtx = memory.getContext('2d', { willReadFrequently: true });
+
+      const refs = {
+        input: document.getElementById('chat-input'),
+        stream: document.getElementById('chat-stream'),
+        statusLine: document.getElementById('status-line'),
+        sources: document.getElementById('sources'),
+        intentJson: document.getElementById('intent-json'),
+        fileInput: document.getElementById('file-input'),
+        fileChip: document.getElementById('file-chip'),
+        attachBtn: document.getElementById('attach-btn'),
+        voiceBtn: document.getElementById('voice-btn'),
+        sendBtn: document.getElementById('send-btn'),
+        validateBtn: document.getElementById('validate-btn'),
+        generateBtn: document.getElementById('generate-btn'),
+        telemetryBtn: document.getElementById('telemetry-btn'),
+        reliabilityBtn: document.getElementById('reliability-btn'),
+        connectWsBtn: document.getElementById('connect-ws-btn'),
+        apiBase: document.getElementById('api-base'),
+        wsBase: document.getElementById('ws-base'),
+        apiKey: document.getElementById('api-key'),
+        roomId: document.getElementById('room-id'),
+        energyText: document.getElementById('energy-text'),
+        entropyText: document.getElementById('entropy-text'),
+        loadText: document.getElementById('load-text'),
+        energyBar: document.getElementById('energy-bar'),
+        entropyBar: document.getElementById('entropy-bar'),
+        loadBar: document.getElementById('load-bar'),
+        stateChip: document.getElementById('state-chip'),
+        shapeChip: document.getElementById('shape-chip'),
+        intentChip: document.getElementById('intent-chip'),
+        qualityChip: document.getElementById('quality-chip'),
+        wsStatus: document.getElementById('ws-status'),
+        compatFrame: document.getElementById('compat-frame')
+      };
+
+      const fsm = {
+        state: 'IDLE',
+        shape: 'cloud',
+        intent: 'chat',
+        quality: 'auto',
+        energy: 100,
+        entropy: 10,
+        load: 5,
+        turbulence: 0.2,
+        particleDensity: 0.4
+      };
+
+      let ws = null;
+      let fileAttachment = null;
+      let targetField = [];
+      let lastTick = performance.now();
+      const particles = [];
+      const PARTICLE_COUNT = 1200;
+
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+
+      function setStatus(message) {
+        refs.statusLine.textContent = message;
+      }
+
+      function bubble(role, text) {
+        const el = document.createElement('div');
+        el.className = `bubble ${role}`;
+        el.textContent = text;
+        refs.stream.prepend(el);
+      }
+
+      function resize() {
+        display.width = window.innerWidth;
+        display.height = window.innerHeight;
+        memory.width = display.width;
+        memory.height = display.height;
+      }
+
+      function initParticles() {
+        particles.length = 0;
+        for (let i = 0; i < PARTICLE_COUNT; i++) {
+          particles.push({
+            x: Math.random() * display.width,
+            y: Math.random() * display.height,
+            vx: (Math.random() - 0.5) * 1.2,
+            vy: (Math.random() - 0.5) * 1.2
+          });
+        }
+      }
+
+      function inferIntent(text) {
+        const lower = text.toLowerCase();
+        const urgent = /(ด่วน|urgent|asap|critical)/.test(lower);
+        const error = /(error|fail|พัง|broken)/.test(lower);
+        const request = /(ขอ|request|ช่วย|explain|analy|สรุป)/.test(lower);
+
+        fsm.intent = error ? 'error_recovery' : request ? 'request' : 'chat';
+        fsm.shape = error ? 'cracks' : /(water|flow|river|น้ำ|ไหล)/.test(lower) ? 'river' : /(mountain|ภูเขา)/.test(lower) ? 'mountain' : 'sphere';
+        fsm.state = 'PROCESSING';
+        fsm.energy = clamp(24 + Math.round((text.length / 120) * 70) + (urgent ? 15 : 0), 0, 100);
+        fsm.entropy = clamp(Math.round((error ? 44 : 16) + Math.random() * 24), 0, 100);
+        fsm.load = clamp(Math.round(10 + fsm.energy * 0.6), 0, 100);
+        fsm.turbulence = Number(clamp(0.1 + fsm.entropy / 100, 0.1, 0.95).toFixed(2));
+        fsm.particleDensity = Number(clamp(0.25 + fsm.energy / 160, 0.2, 0.95).toFixed(2));
+
+        return {
+          intent_category: fsm.intent,
+          energy_level: Number((fsm.energy / 100).toFixed(2)),
+          emotional_valence: error ? -0.5 : 0.2,
+          semantic_concepts: [fsm.shape],
+          visual_parameters: {
+            base_shape: fsm.shape,
+            turbulence: fsm.turbulence,
+            particle_density: fsm.particleDensity
+          }
+        };
+      }
+
+      function updateHUD() {
+        refs.stateChip.textContent = `state: ${fsm.state}`;
+        refs.shapeChip.textContent = `shape: ${fsm.shape}`;
+        refs.intentChip.textContent = `intent: ${fsm.intent}`;
+        refs.qualityChip.textContent = `quality: ${fsm.quality}`;
+
+        refs.energyText.textContent = `${fsm.energy}%`;
+        refs.entropyText.textContent = `${fsm.entropy}%`;
+        refs.loadText.textContent = `${fsm.load}%`;
+        refs.energyBar.style.width = `${fsm.energy}%`;
+        refs.entropyBar.style.width = `${fsm.entropy}%`;
+        refs.loadBar.style.width = `${fsm.load}%`;
+
+        const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='640' height='180'>
+          <rect width='640' height='180' fill='#05060b'/>
+          <text x='16' y='28' fill='#ffffff' font-size='14' font-family='monospace'>AETHERIUM COMPAT FRAME</text>
+          <text x='16' y='52' fill='#53ecff' font-size='13' font-family='monospace'>STATE: ${fsm.state}</text>
+          <text x='16' y='74' fill='#d5e7ff' font-size='12' font-family='monospace'>SHAPE: ${fsm.shape} | INTENT: ${fsm.intent}</text>
+          <text x='16' y='98' fill='#ffd166' font-size='12' font-family='monospace'>ENERGY ${fsm.energy}% | ENTROPY ${fsm.entropy}% | LOAD ${fsm.load}%</text>
+          <rect x='16' y='116' width='608' height='12' rx='6' fill='#1b2235'/>
+          <rect x='16' y='116' width='${(608 * fsm.energy) / 100}' height='12' rx='6' fill='#53ecff'/>
+        </svg>`;
+        refs.compatFrame.src = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+      }
+
+      function makeTargetField(text) {
+        memoryCtx.clearRect(0, 0, memory.width, memory.height);
+        memoryCtx.fillStyle = '#fff';
+        memoryCtx.font = `700 ${Math.max(30, Math.floor(memory.width * 0.05))}px sans-serif`;
+        memoryCtx.textAlign = 'center';
+        memoryCtx.textBaseline = 'middle';
+        memoryCtx.fillText(text.slice(0, 48), memory.width / 2, memory.height / 2);
+
+        const img = memoryCtx.getImageData(0, 0, memory.width, memory.height).data;
+        const nextField = [];
+        const step = Math.max(4, Math.floor(Math.min(memory.width, memory.height) / 180));
+        for (let y = 0; y < memory.height; y += step) {
+          for (let x = 0; x < memory.width; x += step) {
+            const a = img[(y * memory.width + x) * 4 + 3];
+            if (a > 70) nextField.push({ x, y });
+          }
+        }
+        targetField = nextField;
+      }
+
+      async function analyzeImage(file) {
+        if (!file || !file.type.startsWith('image/')) return;
+        const bitmap = await createImageBitmap(file);
+        memoryCtx.clearRect(0, 0, memory.width, memory.height);
+        const fit = Math.min(memory.width / bitmap.width, memory.height / bitmap.height);
+        const dw = Math.floor(bitmap.width * fit);
+        const dh = Math.floor(bitmap.height * fit);
+        memoryCtx.drawImage(bitmap, (memory.width - dw) / 2, (memory.height - dh) / 2, dw, dh);
+        bitmap.close();
+
+        const img = memoryCtx.getImageData(0, 0, memory.width, memory.height).data;
+        const points = [];
+        for (let y = 0; y < memory.height; y += 5) {
+          for (let x = 0; x < memory.width; x += 5) {
+            const idx = (y * memory.width + x) * 4;
+            const alpha = img[idx + 3];
+            if (alpha > 48) points.push({ x, y });
+          }
+        }
+        targetField = points;
+      }
+
+      function drawFrame(now) {
+        const dt = Math.max(0.001, (now - lastTick) / 16.667);
+        lastTick = now;
+
+        ctx.fillStyle = 'rgba(5,7,13,0.17)';
+        ctx.fillRect(0, 0, display.width, display.height);
+
+        for (let i = 0; i < particles.length; i++) {
+          const p = particles[i];
+          const target = targetField.length
+            ? targetField[i % targetField.length]
+            : { x: display.width * 0.5 + Math.cos(i * 0.08 + now / 700) * 180, y: display.height * 0.5 + Math.sin(i * 0.06 + now / 760) * 120 };
+
+          const dx = target.x - p.x;
+          const dy = target.y - p.y;
+          const dist = Math.hypot(dx, dy) || 1;
+          p.vx += (dx / dist) * fsm.turbulence * 0.09;
+          p.vy += (dy / dist) * fsm.turbulence * 0.09;
+          p.vx += (Math.random() - 0.5) * 0.04;
+          p.vy += (Math.random() - 0.5) * 0.04;
+
+          p.vx *= 0.94;
+          p.vy *= 0.94;
+          p.x += p.vx * dt * 1.8;
+          p.y += p.vy * dt * 1.8;
+
+          if (p.x < 0) p.x += display.width;
+          if (p.x > display.width) p.x -= display.width;
+          if (p.y < 0) p.y += display.height;
+          if (p.y > display.height) p.y -= display.height;
+
+          ctx.fillStyle = `rgba(83,236,255,${0.2 + fsm.particleDensity * 0.5})`;
+          ctx.fillRect(p.x, p.y, 1.8, 1.8);
+        }
+
+        requestAnimationFrame(drawFrame);
+      }
+
+      function buildPayload(message, intentVector) {
+        return {
+          session_id: refs.roomId.value || 'demo-room',
+          model_response: {
+            trace_id: crypto.randomUUID(),
+            visual_manifestation: {
+              intent: intentVector,
+              text: message,
+              has_file: Boolean(fileAttachment)
+            }
+          },
+          governor_context: {
+            source: 'index.html-runtime-console',
+            requested_at: new Date().toISOString(),
+            renderer_controls: {
+              particle_count: Math.round(PARTICLE_COUNT * fsm.particleDensity)
+            }
+          }
+        };
+      }
+
+      function apiHeaders() {
+        return {
+          'Content-Type': 'application/json',
+          'X-API-Key': refs.apiKey.value || 'local-dev-key',
+          'X-Model-Provider': 'manifest-ui',
+          'X-Model-Version': 'v1'
+        };
+      }
+
+      async function callApi(path, options) {
+        const url = `${refs.apiBase.value.replace(/\/$/, '')}${path}`;
+        const response = await fetch(url, options);
+        let body;
+        try {
+          body = await response.json();
+        } catch {
+          body = { detail: 'invalid json response' };
+        }
+        if (!response.ok) {
+          throw new Error(body.detail || `${response.status} ${response.statusText}`);
+        }
+        return body;
+      }
+
+      async function emitMessage() {
+        const message = refs.input.value.trim();
+        if (!message && !fileAttachment) {
+          setStatus('กรุณาพิมพ์ข้อความหรือแนบไฟล์ก่อน');
+          return;
+        }
+
+        refs.sendBtn.disabled = true;
+        bubble('user', message || '[file-only]');
+        setStatus('emitting cognitive intent...');
+
+        const intentVector = inferIntent(message || '[file]');
+        refs.intentJson.textContent = JSON.stringify(intentVector, null, 2);
+        makeTargetField(message || 'FILE');
+        refs.sources.textContent = fileAttachment ? `sources: attachment:${fileAttachment.name}` : 'sources: text-input';
+
+        const payload = buildPayload(message || '[file-only]', intentVector);
+        try {
+          const data = await callApi('/api/v1/cognitive/emit', {
+            method: 'POST',
+            headers: apiHeaders(),
+            body: JSON.stringify(payload)
+          });
+          bubble('system', `emit success · trace=${data?.data?.trace_id || 'n/a'}`);
+          fsm.state = 'STABLE';
+          setStatus('emit success');
+
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'state_delta', from: 'ui', delta: { state: fsm.state, shape: fsm.shape } }));
+          }
+        } catch (error) {
+          bubble('error', `emit failed: ${error.message}`);
+          fsm.state = 'DEGRADED';
+          setStatus('emit failed (using local visualization fallback)');
+        } finally {
+          refs.sendBtn.disabled = false;
+          refs.input.value = '';
+          fileAttachment = null;
+          refs.fileInput.value = '';
+          refs.fileChip.style.display = 'none';
+          updateHUD();
+        }
+      }
+
+      async function validatePayload() {
+        const payload = buildPayload('validation probe', inferIntent('validation probe'));
+        try {
+          const result = await callApi('/api/v1/cognitive/validate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-API-Key': refs.apiKey.value || 'local-dev-key' },
+            body: JSON.stringify(payload)
+          });
+          bubble('system', `validate success · violations=${(result.violations || []).length}`);
+          setStatus('validate success');
+        } catch (error) {
+          bubble('error', `validate failed: ${error.message}`);
+          setStatus('validate failed');
+        }
+      }
+
+      async function generatePayload() {
+        try {
+          await callApi('/api/v1/cognitive/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-API-Key': refs.apiKey.value || 'local-dev-key' },
+            body: JSON.stringify({ model: 'manifest-ui', prompt: 'generate sample' })
+          });
+          bubble('system', 'generate success');
+          setStatus('generate success');
+        } catch (error) {
+          bubble('error', `generate failed: ${error.message}`);
+          setStatus('generate failed');
+        }
+      }
+
+      async function ingestTelemetry() {
+        try {
+          await callApi('/api/v1/telemetry/ingest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-API-Key': refs.apiKey.value || 'local-dev-key' },
+            body: JSON.stringify({
+              points: [
+                { metric: 'ui.energy', value: fsm.energy, tags: { room: refs.roomId.value, state: fsm.state } },
+                { metric: 'ui.entropy', value: fsm.entropy, tags: { room: refs.roomId.value, state: fsm.state } }
+              ]
+            })
+          });
+          bubble('system', 'telemetry ingested (2 points)');
+          setStatus('telemetry ingested');
+        } catch (error) {
+          bubble('error', `telemetry failed: ${error.message}`);
+          setStatus('telemetry failed');
+        }
+      }
+
+      async function getReliability() {
+        try {
+          const result = await callApi('/api/v1/reliability/temporal-morphogenesis', {
+            method: 'GET',
+            headers: { 'X-API-Key': refs.apiKey.value || 'local-dev-key' }
+          });
+          bubble('system', `reliability · recall=${result.drift_detector_recall} containment=${result.containment_efficiency}`);
+          setStatus('reliability fetched');
+        } catch (error) {
+          bubble('error', `reliability failed: ${error.message}`);
+          setStatus('reliability failed');
+        }
+      }
+
+      function connectWs() {
+        if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+          ws.close();
+        }
+
+        const base = refs.wsBase.value.replace(/\/$/, '');
+        const room = encodeURIComponent(refs.roomId.value || 'demo-room');
+        const key = encodeURIComponent(refs.apiKey.value || 'local-dev-key');
+        const url = `${base}/ws/state-sync/${room}?api_key=${key}`;
+        ws = new WebSocket(url);
+
+        ws.addEventListener('open', () => {
+          refs.wsStatus.textContent = 'ws: connected';
+          bubble('system', `ws connected → ${room}`);
+        });
+
+        ws.addEventListener('message', (event) => {
+          bubble('system', `ws ack: ${event.data}`);
+        });
+
+        ws.addEventListener('close', () => {
+          refs.wsStatus.textContent = 'ws: disconnected';
+        });
+
+        ws.addEventListener('error', () => {
+          refs.wsStatus.textContent = 'ws: error';
+          bubble('error', 'ws error');
         });
       }
-    }
 
-    function hexToRgb(hex) {
-      const v = hex.replace('#', '');
-      const full = v.length === 3 ? v.split('').map(s => s + s).join('') : v;
-      return [parseInt(full.slice(0, 2), 16), parseInt(full.slice(2, 4), 16), parseInt(full.slice(4, 6), 16)];
-    }
-
-    function paletteColor(t, palette) {
-      const a = hexToRgb(palette[Math.floor(t * palette.length) % palette.length]);
-      const b = hexToRgb(palette[(Math.floor(t * palette.length) + 1) % palette.length]);
-      const m = (Math.sin(t * Math.PI * 2) + 1) * 0.5;
-      return [a[0] + (b[0] - a[0]) * m, a[1] + (b[1] - a[1]) * m, a[2] + (b[2] - a[2]) * m];
-    }
-
-    function getStandbyTarget(index) {
-      const t = index / NUM_PHOTONS;
-      const angle = t * Math.PI * 16 + renderTime * 0.95;
-      const radius = Math.min(W, H) * (0.05 + t * 0.3);
-      return {
-        x: CX + Math.cos(angle) * radius,
-        y: CY + Math.sin(angle) * radius * 0.86,
-        color: paletteColor(t, THEMES.idle.palette)
-      };
-    }
-
-    function addTouchBurst(x, y) {
-      touchBursts.push({ x, y, bornAt: renderTime, life: 1.15, strength: 1.2 });
-      if (touchBursts.length > 6) touchBursts.shift();
-    }
-
-    function applyTouchBursts(photon) {
-      let fx = 0;
-      let fy = 0;
-      for (const burst of touchBursts) {
-        const age = renderTime - burst.bornAt;
-        if (age > burst.life) continue;
-        const dx = photon.x - burst.x;
-        const dy = photon.y - burst.y;
-        const dist = Math.hypot(dx, dy) || 1;
-        const ageFactor = 1 - age / burst.life;
-        const falloff = Math.max(0, 1 - dist / 170) * ageFactor * burst.strength;
-        fx += (dx / dist) * falloff;
-        fy += (dy / dist) * falloff;
-      }
-      return { fx, fy };
-    }
-
-    function pruneTouchBursts() {
-      for (let i = touchBursts.length - 1; i >= 0; i--) {
-        if (renderTime - touchBursts[i].bornAt > touchBursts[i].life) touchBursts.splice(i, 1);
-      }
-    }
-
-    function buildMessageField(text) {
-      const value = (text || '').trim();
-      if (!value) {
-        targetField = [];
-        return;
-      }
-      memCtx.clearRect(0, 0, W, H);
-      const fontSize = clamp(Math.floor(Math.min(W * 0.08, H * 0.14)), 34, 94);
-      memCtx.fillStyle = '#fff';
-      memCtx.textAlign = 'center';
-      memCtx.textBaseline = 'middle';
-      memCtx.font = `700 ${fontSize}px "JetBrains Mono", monospace`;
-      memCtx.fillText(value.slice(0, 72), CX, CY);
-
-      const img = memCtx.getImageData(0, 0, W, H).data;
-      const points = [];
-      const step = Math.max(4, Math.floor(Math.min(W, H) / 160));
-      for (let y = 0; y < H; y += step) {
-        for (let x = 0; x < W; x += step) {
-          const alpha = img[(y * W + x) * 4 + 3];
-          if (alpha > 80) points.push({ x, y });
+      refs.attachBtn.addEventListener('click', () => refs.fileInput.click());
+      refs.fileInput.addEventListener('change', async () => {
+        fileAttachment = refs.fileInput.files?.[0] || null;
+        if (!fileAttachment) {
+          refs.fileChip.style.display = 'none';
+          return;
         }
-      }
-      targetField = points.length ? points : [];
-      compileState = targetField.length ? 'compiled' : 'idle';
-      compileExpireAt = performance.now() + MESSAGE_COMPILE_HOLD_MS;
-    }
-
-      if (fsm.energy <= 1) fsm.state = 'NIRODHA';
-    }
-
-
-    const voicePipeline = {
-      vad: null,
-      listening: false,
-      capturedFrames: 0,
-      startedAt: 0,
-      samples: []
-    };
-
-    const INTENT_TEMPLATES = Object.freeze({
-      request_creation: {
-        intent_category: 'request_creation',
-        emotional_valence: 0.6,
-        energy_level: 0.78,
-        semantic_concepts: ['creation', 'manifest', 'lightform']
-      },
-      analysis: {
-        intent_category: 'analysis',
-        emotional_valence: 0.15,
-        energy_level: 0.48,
-        semantic_concepts: ['analysis', 'structure', 'inference']
-      },
-      error_recovery: {
-        intent_category: 'error_recovery',
-        emotional_valence: -0.5,
-        energy_level: 0.64,
-        semantic_concepts: ['repair', 'stability', 'fallback']
-      }
-    });
-
-    function detectGraphicsTier() {
-      const cores = navigator.hardwareConcurrency || 4;
-      const memory = navigator.deviceMemory || 4;
-      const lowPower = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      if (lowPower || cores <= 4 || memory <= 4) return 'low';
-      if (cores >= 12 && memory >= 8) return 'high';
-      return 'medium';
-    }
-
-    function clampParticleDensityByTier(raw, tier = fsm.qualityTier) {
-      const ceiling = tier === 'low'
-        ? 0.5
-        : tier === 'medium'
-          ? 0.75
-          : 0.95;
-      return Number(clamp(raw, 0, ceiling).toFixed(2));
-    }
-
-    function applyQualityTier(tier) {
-      fsm.qualityTier = tier;
-      if (tier === 'low') {
-        fsm.targetFps = 30;
-      } else if (tier === 'high') {
-        fsm.targetFps = 60;
-      } else {
-        fsm.targetFps = 45;
-      }
-      fsm.particleDensity = clampParticleDensityByTier(fsm.particleDensity, tier);
-    }
-
-    function setFrameRateActive(isActive) {
-      if (!isActive) {
-        fsm.targetFps = Math.min(fsm.targetFps, 24);
-      } else {
-        applyQualityTier(fsm.qualityTier);
-      }
-    }
-
-    async function transcribeAudio(audioBlob) {
-      const estimatedSeconds = Number(((audioBlob.size || 4096) / 32000).toFixed(2));
-      return `[mock-stt:${estimatedSeconds}s] สร้างสภาวะแสงที่สงบและชัดเจน`;
-    }
-
-    async function analyzeIntentWithLLM(transcript) {
-      const t = transcript.toLowerCase();
-      const template = /(error|fail|critical|พัง|ผิด)/.test(t)
-        ? INTENT_TEMPLATES.error_recovery
-        : /(analy|สรุป|ตรวจ|explain|data|ข้อมูล)/.test(t)
-          ? INTENT_TEMPLATES.analysis
-          : INTENT_TEMPLATES.request_creation;
-
-      const semantic = new Set(template.semantic_concepts);
-      if (/(water|น้ำ|river|ทะเล|stream)/.test(t)) semantic.add('flow');
-      if (/(mountain|ภูเขา)/.test(t)) semantic.add('mountain');
-      if (/(face|human|ใบหน้า|มนุษย์)/.test(t)) semantic.add('human');
-
-      return {
-        ...template,
-        semantic_concepts: Array.from(semantic)
-      };
-    }
-
-    function mapIntentToVisual(intent) {
-      const concepts = intent.semantic_concepts || [];
-      let baseShape = 'sphere';
-      if (intent.intent_category === 'error_recovery') baseShape = 'cracks';
-      else if (concepts.includes('mountain')) baseShape = 'mountain';
-      else if (concepts.includes('flow')) baseShape = 'river';
-      else if (concepts.includes('human')) baseShape = 'human';
-
-      const warm = intent.emotional_valence >= 0 ? '#FFD166' : '#7FDBFF';
-
-      return {
-        intent_category: intent.intent_category,
-        emotional_valence: intent.emotional_valence,
-        energy_level: intent.energy_level,
-        semantic_concepts: concepts,
-        visual_parameters: {
-          base_shape: baseShape,
-          color_palette: warm,
-          particle_density: clampParticleDensityByTier(clamp(0.32 + intent.energy_level * 0.6, 0.2, 0.95), fsm.qualityTier),
-          turbulence: Number(clamp(0.12 + intent.energy_level * 0.7, 0.08, 0.95).toFixed(2)),
-          flow_direction: intent.emotional_valence >= 0 ? 'upward' : 'inward'
-        }
-      };
-    }
-
-    function initializeVoiceSystem(onSpeechEnd) {
-      return {
-        start() {
-          voicePipeline.listening = true;
-          voicePipeline.startedAt = performance.now();
-          voicePipeline.capturedFrames = 0;
-          addBubble('system', 'voice listening started (VAD mock)');
-        },
-        stop() {
-          if (!voicePipeline.listening) return;
-          voicePipeline.listening = false;
-          const elapsed = Math.max(600, performance.now() - voicePipeline.startedAt);
-          const byteSize = Math.round((elapsed / 1000) * 32000);
-          const payload = new Blob([new Uint8Array(byteSize)], { type: 'audio/wav' });
-          onSpeechEnd(payload);
-        }
-      };
-    }
-
-    async function processTranscript(transcript, source = 'text') {
-      const references = await fetchReferenceSignals(transcript);
-      fsm.sourceHints = references;
-      refs.sources.textContent = references.length
-        ? `sources: ${references.join(' | ')}`
-        : 'sources: none (offline/no match)';
-
-      const baseIntent = await analyzeIntentWithLLM(`${transcript} ${references.join(' ')}`.trim());
-      const vector = mapIntentToVisual(baseIntent);
-      applyIntent(vector);
-      addBubble('system', `[${source}] intent=${vector.intent_category}, form=${vector.visual_parameters.base_shape}, refs=${references.length}`);
-    }
-
-    function inferIntentVector(text) {
-      const t = text.toLowerCase();
-      let intentCategory = 'chat';
-      if (/^(run|execute|deploy|start|stop|สั่ง|ทำ)/.test(t)) intentCategory = 'command';
-      if (/(สรุป|explain|what|หา|ค้น|ข้อมูล|request|ช่วยหา)/.test(t)) intentCategory = 'request';
-      if (/(error|ผิด|พัง|fail|broken)/.test(t)) intentCategory = 'error';
-
-      let emotionalValence = 0;
-      if (/(ดีใจ|great|awesome|thanks|ขอบคุณ)/.test(t)) emotionalValence = 0.65;
-      if (/(เครียด|angry|sad|confused|tired|เหนื่อย|งง)/.test(t)) emotionalValence = -0.65;
-
-      const urgent = /(ด่วน|urgent|now|asap|ทันที|เร็ว)/.test(t);
-      const energyLevel = clamp((text.length / 120) + (urgent ? 0.36 : 0.08), 0, 1);
-
-      const concepts = [];
-      if (/(fire|heat|hot|แดง|วิกฤต)/.test(t)) concepts.push('fire');
-      if (/(flow|water|stream|ไหล)/.test(t)) concepts.push('flow');
-      if (/(structure|table|schema|json|order|ระเบียบ)/.test(t)) concepts.push('structure');
-      if (/(mountain|ภูเขา|hill)/.test(t)) concepts.push('mountain');
-      if (/(river|แม่น้ำ|waterfall)/.test(t)) concepts.push('river');
-      if (/(human|มนุษย์|body|ร่างกาย)/.test(t)) concepts.push('human');
-      if (/(face|ใบหน้า|portrait)/.test(t)) concepts.push('face');
-      if (concepts.length === 0) concepts.push('balance');
-
-      let baseShape = 'sphere';
-      if (intentCategory === 'error') baseShape = 'cracks';
-      else if (concepts.includes('mountain')) baseShape = 'mountain';
-      else if (concepts.includes('river')) baseShape = 'river';
-      else if (concepts.includes('face')) baseShape = 'face';
-      else if (concepts.includes('human')) baseShape = 'human';
-      else if (concepts.includes('flow')) baseShape = 'vortex';
-      else if (concepts.includes('structure')) baseShape = 'cube';
-      else if (energyLevel < 0.25) baseShape = 'cloud';
-
-      return {
-        intent_category: intentCategory,
-        emotional_valence: Number(emotionalValence.toFixed(2)),
-        energy_level: Number(energyLevel.toFixed(2)),
-        semantic_concepts: concepts,
-        visual_parameters: {
-          base_shape: baseShape,
-          turbulence: Number(clamp(0.1 + energyLevel * 0.8, 0, 1).toFixed(2)),
-          particle_density: clampParticleDensityByTier(clamp(0.35 + energyLevel * 0.55, 0, 1), fsm.qualityTier)
-        }
-      };
-    }
-
-    function applyIntent(intentVector) {
-      const visual = intentVector?.visual_parameters || {};
-      fsm.intentCategory = intentVector?.intent_category || 'chat';
-      fsm.shape = visual.base_shape || fsm.shape;
-      fsm.emotionalValence = Number((intentVector?.emotional_valence ?? 0).toFixed(2));
-      fsm.energyLevel = Number(clamp(intentVector?.energy_level ?? 0.2, 0, 1).toFixed(2));
-      fsm.turbulence = Number(clamp(visual.turbulence ?? fsm.turbulence, 0, 1).toFixed(2));
-      fsm.particleDensity = clampParticleDensityByTier(
-        visual.particle_density ?? fsm.particleDensity,
-        fsm.qualityTier
-      );
-      fsm.state = 'PROCESSING';
-      refs.json.textContent = JSON.stringify(intentVector, null, 2);
-    }
-
-    function getImagePatternMemory() {
-      if (!learnedImageMemory) return null;
-      if (Date.now() > learnedImageMemory.expiresAt) {
-        learnedImageMemory = null;
-        return null;
-      }
-      return learnedImageMemory;
-    }
-
-    function buildFieldFromImage(imageBitmap) {
-      memCtx.clearRect(0, 0, W, H);
-      const fit = Math.min(W / imageBitmap.width, H / imageBitmap.height);
-      const drawW = Math.max(1, Math.floor(imageBitmap.width * fit));
-      const drawH = Math.max(1, Math.floor(imageBitmap.height * fit));
-      const offsetX = Math.floor((W - drawW) * 0.5);
-      const offsetY = Math.floor((H - drawH) * 0.5);
-      memCtx.drawImage(imageBitmap, offsetX, offsetY, drawW, drawH);
-
-      const img = memCtx.getImageData(0, 0, W, H).data;
-      const points = [];
-      const step = Math.max(2, Math.floor(Math.min(W, H) / 220));
-      for (let y = 0; y < H; y += step) {
-        for (let x = 0; x < W; x += step) {
-          const idx = (y * W + x) * 4;
-          const alpha = img[idx + 3];
-          if (alpha < 24) continue;
-          const r = img[idx];
-          const g = img[idx + 1];
-          const b = img[idx + 2];
-          const brightness = (r + g + b) / 3;
-          if (brightness < 12) continue;
-          points.push({ x, y, color: [r, g, b] });
-        }
-      }
-
-      if (!points.length) return null;
-
-      const average = points.reduce((acc, p) => {
-        acc[0] += p.color[0];
-        acc[1] += p.color[1];
-        acc[2] += p.color[2];
-        return acc;
-      }, [0, 0, 0]);
-      const n = points.length;
-
-      return {
-        targetField: points,
-        averageColor: average.map(v => Math.round(v / n)),
-        structure: { width: imageBitmap.width, height: imageBitmap.height, sampled_points: points.length }
-      };
-    }
-
-    async function analyzeAttachedImage(file) {
-      if (!file || !file.type.startsWith('image/')) return null;
-      try {
-        const bitmap = await createImageBitmap(file);
-        const pattern = buildFieldFromImage(bitmap);
-        bitmap.close();
-        if (!pattern) return null;
-        rememberImagePattern(pattern);
-        return pattern;
-      } catch (error) {
-        console.warn('[AETHERIUM][image-analysis-failed]', error);
-        return null;
-      }
-    }
-
-    async function processUserInput(text) {
-      addBubble('user', text);
-      fsm.state = 'LISTENING';
-      await processTranscript(text, 'text');
-    }
-
-    function renderHUD() {
-      const energy = Math.round(fsm.energy);
-      const entropy = Math.round(fsm.entropy);
-      const load = Math.round(fsm.load);
-
-      refs.stateText.textContent = fsm.state;
-      refs.energyText.textContent = `${energy}%`;
-      refs.entropyText.textContent = `${entropy}%`;
-      refs.loadText.textContent = `${load}%`;
-
-      refs.energyBar.style.width = `${fsm.energy}%`;
-      refs.entropyBar.style.width = `${fsm.entropy}%`;
-      refs.loadBar.style.width = `${fsm.load}%`;
-
-      refs.energyBar.style.backgroundColor = palette[fsm.state] || palette.IDLE;
-      refs.entropyBar.style.backgroundColor = '#00ffff';
-      refs.loadBar.style.backgroundColor = fsm.load > 65 ? '#ffd700' : '#ffffff';
-
-      refs.shapeChip.textContent = `shape: ${fsm.shape}`;
-      refs.intentChip.textContent = `intent: ${fsm.intentCategory}`;
-      refs.qualityChip.textContent = `quality: ${fsm.qualityTier} @${fsm.targetFps}fps`;
-
-      if (document.body.classList.contains('display-page-2') && !document.hidden) {
-        refs.displayPage2State.textContent = fsm.state;
-        refs.displayPage2Energy.textContent = `${energy}%`;
-        refs.displayPage2Entropy.textContent = `${entropy}%`;
-      }
-
-      refs.status.classList.toggle('critical', fsm.state === 'CRITICAL');
-      refs.compatNote.textContent = compatMode
-        ? 'mode: compatibility (deterministic SVG snapshots every 500ms)'
-        : 'mode: realtime';
-    }
-
-    function renderCompatFrame() {
-      const stroke = palette[fsm.state] || palette.IDLE;
-      const energy = Math.round(fsm.energy);
-      const entropy = Math.round(fsm.entropy);
-      const load = Math.round(fsm.load);
-
-      const svg = `
-<svg xmlns='http://www.w3.org/2000/svg' width='640' height='180' viewBox='0 0 640 180'>
-  <rect width='640' height='180' fill='#050505'/>
-  <text x='16' y='26' fill='#ffffff' font-size='14' font-family='monospace'>AETHERIUM COMPAT FRAME</text>
-  <text x='16' y='48' fill='${stroke}' font-size='13' font-family='monospace'>STATE: ${fsm.state}</text>
-  <rect x='16' y='64' width='608' height='10' fill='#222'/>
-  <rect x='16' y='64' width='${(608 * energy) / 100}' height='10' fill='${stroke}'/>
-  <text x='16' y='90' fill='#00ffff' font-size='12' font-family='monospace'>ENERGY ${energy}%</text>
-  <text x='180' y='90' fill='#00ffff' font-size='12' font-family='monospace'>ENTROPY ${entropy}%</text>
-  <text x='360' y='90' fill='#ffd700' font-size='12' font-family='monospace'>LOAD ${load}%</text>
-  <text x='16' y='116' fill='#cccccc' font-size='12' font-family='monospace'>shape=${fsm.shape} intent=${fsm.intentCategory}</text>
-  <circle cx='580' cy='112' r='18' fill='none' stroke='${stroke}' stroke-width='2'/>
-  <circle cx='580' cy='112' r='${4 + (fsm.energyLevel * 12)}' fill='${stroke}' opacity='0.7'/>
-  <text x='16' y='144' fill='#9db5ff' font-size='11' font-family='monospace'>Designed for low-feature / unstable headless environments.</text>
-</svg>`;
-      refs.compatFrame.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-    }
-
-    function detectCompatibilityMode() {
-      const params = new URLSearchParams(window.location.search);
-      const forceCompat = params.get('render') === 'compat';
-      const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      compatMode = Boolean(forceCompat || reduceMotion);
-      if (compatMode) {
-        fsm.shape = 'sphere';
-        fsm.turbulence = 0.08;
-      }
-    }
-
-    async function submitMessage() {
-      const text = chatInput.value.trim();
-      if (!text && !selectedFile) {
-        setStatus('โปรดพิมพ์ข้อความหรือแนบไฟล์ก่อนส่ง');
-        markInteraction();
-        return;
-      }
-
-      sendBtn.disabled = true;
-      setTheme(recording ? 'voice' : 'sent');
-      setStatus('กำลังส่งข้อความ...');
-      markInteraction();
-
-      const imageMemory = getImagePatternMemory();
-      if (imageMemory?.targetField?.length) {
-        targetField = imageMemory.targetField;
-        compileState = 'compiled';
-        compileExpireAt = performance.now() + MESSAGE_COMPILE_HOLD_MS;
-      } else {
-        buildMessageField(text || 'FILE');
-      }
-      const result = await deliverMessage(text || '[file-only]');
-
-      if (result.ok) {
-        setStatus('ส่งข้อความสำเร็จ');
-        lastSubmittedMessage = text || lastSubmittedMessage;
-        trackUxEvent('message_sent', { has_file: String(Boolean(selectedFile)) });
-      } else {
-        setStatus('ส่งผ่าน API ไม่สำเร็จ แสดงผลในโหมดจำลองแทน');
-      }
-
-      chatInput.value = '';
-      autoResizeTextarea();
-      selectedFile = null;
-      fileInput.value = '';
-      fileChip.classList.remove('active');
-
-      window.setTimeout(() => {
-        if (!recording) setTheme('idle');
-      }, 1800);
-      sendBtn.disabled = false;
-    }
-
-    let lastFrameAt = 0;
-    function tick(t) {
-      const frameInterval = 1000 / Math.max(12, fsm.targetFps || 60);
-      if (t - lastFrameAt < frameInterval) {
-        requestAnimationFrame(tick);
-        return;
-      }
-      lastFrameAt = t;
-
-      drawBackground();
-      evolveState();
-
-      const trailStrength = isFrozen ? 0.04 : cfg.trail;
-      ctx.fillStyle = `rgba(2, 2, 5, ${trailStrength})`;
-      ctx.fillRect(0, 0, W, H);
-      const uiEnergy = Math.max(18, Math.round(visibilityStrength * 100));
-      energyBar.style.width = `${uiEnergy}%`;
-      energyValue.textContent = `${uiEnergy}%`;
-      energyState.textContent = uiEnergy > 42 ? 'Stable' : 'Nirodha';
-      energyState.style.color = uiEnergy > 42 ? '#9fe8ff' : '#ffd166';
-
-      for (let i = 0; i < photons.length; i++) {
-        const p = photons[i];
-        const target = targetField.length ? targetField[i % targetField.length] : getStandbyTarget(i);
-
-        const dx = target.x - p.x;
-        const dy = target.y - p.y;
-        const dist = Math.hypot(dx, dy) || 1;
-        const force = cfg.force + (dist > 80 ? 0.005 : 0);
-        if (!isFrozen) {
-          p.vx += (dx / dist) * force;
-          p.vy += (dy / dist) * force;
-        }
-
-        const burst = applyTouchBursts(p);
-        if (!isFrozen) {
-          p.vx += burst.fx * 0.2;
-          p.vy += burst.fy * 0.2;
-        }
-
-        if (!isFrozen) {
-          p.vx += (Math.random() - 0.5) * cfg.noise;
-          p.vy += (Math.random() - 0.5) * cfg.noise;
-        }
-
-        if (!isFrozen) {
-          p.vx *= 0.91;
-          p.vy *= 0.91;
-          p.x += p.vx * PARTICLE_SPEED;
-          p.y += p.vy * PARTICLE_SPEED;
-        }
-
-        if (p.x < -20) p.x = W + 20;
-        else if (p.x > W + 20) p.x = -20;
-        if (p.y < -20) p.y = H + 20;
-        else if (p.y > H + 20) p.y = -20;
-
-        const [r, g, b] = target.color || paletteColor((i / NUM_PHOTONS) + renderTime * 0.01, cfg.palette);
-        ctx.fillStyle = `rgba(${r|0}, ${g|0}, ${b|0}, ${0.18 + visibilityStrength * 0.72})`;
-        ctx.fillRect(p.x, p.y, 1.8, 1.8);
-      }
-
-      if (!isFrozen) pruneTouchBursts();
-      requestAnimationFrame(tick);
-    }
-
-    attachBtn.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', async () => {
-      selectedFile = fileInput.files?.[0] || null;
-      if (selectedFile) {
-        fileNameEl.textContent = `${selectedFile.name} · ${Math.max(1, Math.round(selectedFile.size / 1024))} KB`;
-        fileChip.classList.add('active');
-        const imagePattern = await analyzeAttachedImage(selectedFile);
-        if (imagePattern?.targetField?.length) {
-          targetField = imagePattern.targetField;
-          const [r, g, b] = imagePattern.averageColor;
-          markInteraction(`วิเคราะห์ภาพแล้ว · โครงสร้าง ${imagePattern.structure.sampled_points} จุด · สีเฉลี่ย rgb(${r}, ${g}, ${b}) · จำ 1 ชม.`);
-        } else {
-          markInteraction('แนบไฟล์แล้ว พร้อมส่ง');
-        }
-      } else {
-        fileChip.classList.remove('active');
-      }
-    });
-
-    fileRemoveBtn.addEventListener('click', () => {
-      selectedFile = null;
-      fileInput.value = '';
-      fileChip.classList.remove('active');
-      learnedImageMemory = null;
-      markInteraction('ลบไฟล์แนบแล้ว');
-    });
-
-    voiceBtn.addEventListener('click', () => {
-      recording = !recording;
-      voiceBtn.classList.toggle('recording', recording);
-      setTheme(recording ? 'voice' : 'idle');
-      markInteraction(recording ? 'โหมดเสียงพร้อมใช้งาน' : 'ปิดโหมดเสียง');
-    });
-
-    settingsBtn.addEventListener('click', () => {
-      markInteraction('ตั้งค่าจะพร้อมใช้งานในเวอร์ชันถัดไป');
-    });
-
-    sendBtn.addEventListener('click', submitMessage);
-
-    chatInput.addEventListener('input', () => {
-      autoResizeTextarea();
-      markInteraction();
-    });
-
-    chatInput.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        submitMessage();
-      }
-    });
-
-    displayButtons.forEach(btn => {
-      btn.addEventListener('click', () => setDisplayPage(btn.dataset.page));
-    });
-
-    [1, 2, 3].forEach((i) => {
-      const btn = document.getElementById(`toggle-box-${i}`);
-      if (btn) btn.addEventListener('click', () => toggleMiniBox(i));
-    });
-
-    const voiceSystem = initializeVoiceSystem(async (audioBlob) => {
-      fsm.state = 'PROCESSING';
-      const transcript = await transcribeAudio(audioBlob);
-      addBubble('user', transcript);
-      await processTranscript(transcript, 'voice');
-    });
-
-    const voiceToggleBtn = document.getElementById('voice-btn');
-    if (voiceToggleBtn) {
-      voiceToggleBtn.addEventListener('click', () => {
-        if (voicePipeline.listening) {
-          voiceSystem.stop();
-        } else {
-          voiceSystem.start();
+        refs.fileChip.style.display = 'block';
+        refs.fileChip.textContent = `ไฟล์: ${fileAttachment.name} (${Math.round(fileAttachment.size / 1024)} KB)`;
+        await analyzeImage(fileAttachment);
+      });
+
+      refs.voiceBtn.addEventListener('click', () => {
+        const mockTranscript = 'voice mock: ช่วยสรุปสถานะระบบให้ชัดเจน';
+        refs.input.value = mockTranscript;
+        bubble('system', 'voice mock transcript injected');
+        makeTargetField('VOICE');
+        setStatus('voice mock ready');
+      });
+
+      refs.sendBtn.addEventListener('click', emitMessage);
+      refs.validateBtn.addEventListener('click', validatePayload);
+      refs.generateBtn.addEventListener('click', generatePayload);
+      refs.telemetryBtn.addEventListener('click', ingestTelemetry);
+      refs.reliabilityBtn.addEventListener('click', getReliability);
+      refs.connectWsBtn.addEventListener('click', connectWs);
+
+      refs.input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+          event.preventDefault();
+          emitMessage();
         }
       });
-    }
 
-    refs.chatToggle.addEventListener('click', () => {
-      document.body.classList.toggle('chat-open');
-    });
-
-    freezeBtn.addEventListener('click', () => {
-      isFrozen = !isFrozen;
-      freezeBtn.classList.toggle('mode-active', isFrozen);
-      freezeBtn.querySelector('span').textContent = isFrozen ? 'Unfreeze' : 'Freeze';
-      markInteraction(isFrozen ? 'หยุดเวลาอนุภาคแล้ว' : 'คืนการไหลของอนุภาคแล้ว');
-    });
-
-
-    document.addEventListener('visibilitychange', () => {
-      setFrameRateActive(!document.hidden);
-    });
-
-    document.body.classList.remove('ui-open');
-    document.body.classList.remove('chat-open');
-    document.body.classList.remove('display-page-2');
-    resize();
-    detectCompatibilityMode();
-    applyQualityTier(detectGraphicsTier());
-    particles = Array.from({ length: 560 }, () => new Particle());
-    renderCompatFrame();
-    renderBlueprintLock();
-    renderHUD();
-    requestAnimationFrame(tick);
-  </script>
-</body>
+      window.addEventListener('resize', resize);
+      resize();
+      initParticles();
+      updateHUD();
+      bubble('system', 'runtime console ready');
+      requestAnimationFrame(drawFrame);
+    </script>
+  </body>
 </html>

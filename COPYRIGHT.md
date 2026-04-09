@@ -2,13 +2,10 @@
 
 Copyright (c) 2026 Aetherium Manifest contributors.
 
-This repository content (source code, documentation, schemas, and assets) is protected by copyright.
-Unless a file states otherwise, usage and redistribution are governed by the project license.
+This repository's source code, schemas, documentation, and assets are licensed under the MIT License unless a subdirectory/file explicitly states a different license.
 
-## Third-Party Material
+See [LICENSE](LICENSE) for full terms.
 
-Any third-party libraries, tools, or assets remain the property of their respective owners and are governed by their own license terms.
+## Third-party materials
 
-## Attribution
-
-When redistributing substantial portions of this project, preserve copyright notices and license references.
+Third-party dependencies and assets remain under their respective licenses.

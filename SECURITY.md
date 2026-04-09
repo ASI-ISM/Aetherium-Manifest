@@ -1,42 +1,40 @@
 # Security Policy
 
-## Supported Versions
+## Supported versions
 
-The repository is currently pre-1.0 and maintained on a rolling basis from `main`.
-Security fixes are prioritized for the latest commit history and active release artifacts.
+Aetherium Manifest is pre-1.0 and maintained as a rolling `main` branch.
 
 | Version | Supported |
 | --- | --- |
-| main (latest) | ✅ |
-| historical snapshots | ⚠️ best effort only |
+| `main` (latest) | ✅ Yes |
+| Historical commits/snapshots | ⚠️ Best effort |
 
-## Reporting a Vulnerability
+## Report a vulnerability
 
-Please report vulnerabilities privately and include enough detail for deterministic reproduction.
+Please report security issues privately to maintainers and do **not** disclose unpatched vulnerabilities publicly.
 
-- Preferred channel: create a private security report to project maintainers (do **not** open a public issue for unpatched vulnerabilities).
-- Include:
-  - affected component/file path
-  - impact assessment (confidentiality/integrity/availability/safety)
-  - reproduction steps and payload samples
-  - observed logs/trace IDs and runtime context
-  - suggested mitigation (if available)
+Include:
 
-## Response Targets
+1. affected component and file path
+2. reproduction steps and payload example
+3. impact (confidentiality/integrity/availability/safety)
+4. logs, trace IDs, and runtime context
+5. suggested mitigation (optional)
 
-- Initial acknowledgement: within **3 business days**.
-- Triage decision and severity classification: within **7 business days** after acknowledgement.
-- Mitigation plan or compensating control: as soon as validated, based on severity and exploitability.
+## Response targets
 
-## Scope Notes
+- Acknowledgement: within **3 business days**
+- Triage and severity: within **7 business days** after acknowledgement
+- Mitigation plan: as soon as validated based on severity/exploitability
 
-Given the architecture of Aetherium Manifest:
+## System-specific security rules
 
-- Treat all model output as untrusted input.
-- Runtime Governor policy checks are the canonical control boundary.
-- Prototype telemetry/state-sync stores are currently in-memory and non-durable.
-- Contract/schema changes are ABI changes and require governance review.
+1. Treat all model output as **untrusted input**.
+2. Keep governor policy path as canonical mutation boundary.
+3. Enforce deny-by-default behavior for renderer controls and external proxying.
+4. Consider schema changes as ABI-impacting and require compatibility review.
+5. Prefer deterministic observability: log trace/session IDs for replay and incident response.
 
-## Safe Harbor
+## Safe harbor
 
-Good-faith security research and responsible disclosure are welcomed. Please avoid privacy violations, destructive testing, service disruption, and social engineering.
+Good-faith, non-destructive security research is welcome. Avoid privacy violations, service disruption, data exfiltration, and social engineering.
