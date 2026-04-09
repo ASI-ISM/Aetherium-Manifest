@@ -1,0 +1,6 @@
+# CODEOWNERS
+# Platform/Security-owned automation and policy surfaces.
+
+.github/workflows/** @aetherium-manifest/platform-security
+.github/workflows/action.yml @aetherium-manifest/platform-security
+.github/codex/prompts/** @aetherium-manifest/platform-security
