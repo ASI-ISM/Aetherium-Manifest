@@ -8,6 +8,17 @@ on:
   schedule:
     - cron: "0 2 * * *"
   workflow_dispatch:
+    inputs:
+      run_full_nightly:
+        description: Run full fuzz/benchmark suite in this manual execution
+        required: false
+        default: false
+        type: boolean
+      run_aks_deploy:
+        description: Run reusable AKS deployment (requires Azure secrets)
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: sdlc-${{ github.workflow }}-${{ github.ref }}
@@ -17,152 +28,46 @@ permissions:
   contents: read
 
 jobs:
-  lint-and-typecheck:
-    name: Lint + Typecheck (Python)
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: "3.11"
-          cache: "pip"
-          cache-dependency-path: api_gateway/requirements.txt
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r api_gateway/requirements.txt
-          pip install ruff mypy
-      - name: Lint (syntax + correctness rules)
-        run: ruff check api_gateway tools --select E9,F63,F7,F82
-      - name: Typecheck critical transport module
-        run: mypy --ignore-missing-imports api_gateway/aetherbus_extreme.py
+  pr-fast-gate:
+    if: ${{ github.event_name == 'pull_request' }}
+    uses: ./.github/workflows/reusable-ci.yml
+    with:
+      fast-gate: true
+      check-pr-body: true
+      run-full-contracts: false
 
-  ecosystem-compatibility-checklist:
-    name: Ecosystem Compatibility Checklist
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: "3.11"
-      - name: Lint ecosystem memory + contract impact checklist
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            python tools/ci/ecosystem_compatibility_check.py --check-pr-body
-          else
-            python tools/ci/ecosystem_compatibility_check.py
-          fi
+  continuous-ci:
+    if: ${{ github.event_name == 'push' }}
+    uses: ./.github/workflows/reusable-ci.yml
+    with:
+      fast-gate: false
+      check-pr-body: false
+      run-full-contracts: false
 
-  contract-runtime-quality:
-    name: Contracts + Runtime Quality
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    needs:
-      - lint-and-typecheck
-      - ecosystem-compatibility-checklist
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: "3.11"
-          cache: "pip"
-          cache-dependency-path: api_gateway/requirements.txt
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r api_gateway/requirements.txt
-      - name: Validate schema contracts
-        run: python tools/contracts/contract_checker.py --strict
-      - name: Locale QA checks
-        run: python tools/contracts/locale_qa.py
-      - name: Deterministic replay lockstep check
-        run: python -m api_gateway.deterministic_replay --seed 777 --event-log tools/benchmarks/replay_event_log.sample.json --nodes 3
-      - name: Runtime unit tests
-        run: python -m unittest api_gateway.test_api api_gateway.test_aetherbus_extreme api_gateway.test_runtime_quality
+  nightly-heavy:
+    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_full_nightly) }}
+    uses: ./.github/workflows/reusable-ci.yml
+    with:
+      fast-gate: false
+      check-pr-body: false
+      run-full-contracts: true
 
-  psycho-safety-parity:
-    name: Psycho-safety Parity (TS)
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: lint-and-typecheck
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: "20"
-      - name: Run governor psycho-safety parity test
-        run: npx --yes tsx --test test_runtime_governor_psycho_safety.test.ts
+  manual-ci-default:
+    if: ${{ github.event_name == 'workflow_dispatch' && !inputs.run_full_nightly }}
+    uses: ./.github/workflows/reusable-ci.yml
+    with:
+      fast-gate: false
+      check-pr-body: false
+      run-full-contracts: false
 
-  frontend-js-tests:
-    name: Frontend JS Tests
-    runs-on: ubuntu-latest
-    needs: lint-and-typecheck
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: "20"
-      - name: Run Node test suite
-        run: node --test tests/lcl_pipeline.test.js
-
-  k8s-helm-regression:
-    name: K8s Helm Regression
-    runs-on: ubuntu-latest
-    needs: lint-and-typecheck
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: "3.11"
-      - name: Install Helm
-        uses: azure/setup-helm@f0accbfd55e3332a28f721b8202b1016cecf90d5 # v5
-      - name: Install regression check dependency
-        run: python -m pip install --upgrade pip pyyaml
-      - name: Helm dependency build
-        run: helm dependency build charts/aetherium-manifest
-      - name: Helm lint
-        run: helm lint charts/aetherium-manifest
-      - name: Helm template render validation
-        run: helm template ci charts/aetherium-manifest > /tmp/aetherium-manifest.rendered.yaml
-      - name: HPA defaults regression check
-        run: python tools/ci/check_hpa_defaults.py
-
-  performance-benchmarks:
-    name: Performance Benchmarks
-    runs-on: ubuntu-latest
-    needs: contract-runtime-quality
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: "3.11"
-          cache: "pip"
-          cache-dependency-path: api_gateway/requirements.txt
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r api_gateway/requirements.txt
-      - name: Latency perception benchmark
-        run: python tools/benchmarks/latency_perception_benchmark.py --input tools/benchmarks/latency_samples.sample.json
-      - name: Stage handoff latency benchmark
-        run: python tools/benchmarks/stage_handoff_latency_benchmark.py
-      - name: Runtime semantic benchmark
-        run: python tools/benchmarks/runtime_semantic_benchmark.py --input tools/benchmarks/runtime_semantic_samples.sample.json
-      - name: Creative stress scenarios
-        run: python tools/benchmarks/creative_stress_scenarios.py
-
-  docker-build-smoke:
-    name: Container Build Smoke Test
-    runs-on: ubuntu-latest
-    needs: contract-runtime-quality
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - name: Build API gateway image
-        run: docker build -t aetherium-gateway-ci -f api_gateway/Dockerfile api_gateway
+  deploy-aks:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_aks_deploy }}
+    uses: ./.github/workflows/reusable-deploy-aks.yml
+    with:
+      azure-container-registry: your-azure-container-registry
+      container-name: your-container-name
+      resource-group: your-resource-group
+      cluster-name: your-cluster-name
+      chart-path: your-chart-path
+      chart-override-path: your-chart-override-path
+    secrets: inherit
