@@ -611,7 +611,11 @@
 
         const intentVector = inferIntent(message || '[file]');
         refs.intentJson.textContent = JSON.stringify(intentVector, null, 2);
-        makeTargetField(message || 'FILE');
+        if (message) {
+          makeTargetField(message);
+        } else if (!fileAttachment) {
+          makeTargetField('FILE');
+        }
         refs.sources.textContent = fileAttachment ? `sources: attachment:${fileAttachment.name}` : 'sources: text-input';
 
         const payload = buildPayload(message || '[file-only]', intentVector);
@@ -626,7 +630,7 @@
           setStatus('emit success');
 
           if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'state_delta', from: 'ui', delta: { state: fsm.state, shape: fsm.shape } }));
+            ws.send(JSON.stringify({ state: fsm.state, shape: fsm.shape }));
           }
         } catch (error) {
           bubble('error', `emit failed: ${error.message}`);

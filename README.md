@@ -59,10 +59,10 @@ cd ws_gateway
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+uvicorn main:app --host 0.0.0.0 --port 8090 --reload
 ```
 
-> In local development, if API and WS run on different ports, set **API Base** and **WS Base** in the UI panel.
+> Default local ports are `8080` (API) and `8090` (WS) to avoid bind conflicts. Set **API Base** and **WS Base** in the UI panel accordingly.
 
 ## Recommended verification
 
