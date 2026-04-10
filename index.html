@@ -613,8 +613,6 @@
         refs.intentJson.textContent = JSON.stringify(intentVector, null, 2);
         if (message) {
           makeTargetField(message);
-        } else if (!fileAttachment) {
-          makeTargetField('FILE');
         }
         refs.sources.textContent = fileAttachment ? `sources: attachment:${fileAttachment.name}` : 'sources: text-input';
 
