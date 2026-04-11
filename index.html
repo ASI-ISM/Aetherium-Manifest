@@ -558,7 +558,13 @@
                     await new Promise(r => setTimeout(r, 1000));
 
                     // Update UI
-                    UI.scholarSummary.innerHTML = scholar.summary.split('\n').map(p => `<p>${p}</p>`).join('');
+                    // Update UI safely
+                    UI.scholarSummary.innerHTML = '';
+                    scholar.summary.split('\n').forEach(paraText => {
+                        const p = document.createElement('p');
+                        p.textContent = paraText;
+                        UI.scholarSummary.appendChild(p);
+                    });
 
                     if (scholar.code_snippet) {
                         UI.scholarCode.textContent = scholar.code_snippet;
