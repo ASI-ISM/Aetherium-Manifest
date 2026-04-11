@@ -17,7 +17,7 @@ The runtime keeps the same embodiment grammar from the current prototype:
 - fade
 - tilt sensor
 
-Operational responsibilities:
+### Operational responsibilities
 
 - intent capture (text, file, voice-mock)
 - deterministic local particle rendering fallback
