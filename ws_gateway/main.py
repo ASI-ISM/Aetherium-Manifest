@@ -31,8 +31,9 @@ async def _authorize(websocket: WebSocket, api_key: Optional[str], x_api_key: Op
         await websocket.close(code=1008)
         return False
 
+    import hmac
     expected_key = os.getenv("AETHERIUM_API_KEY")
-    if expected_key and key != expected_key:
+    if expected_key and not hmac.compare_digest(key, expected_key):
         await websocket.close(code=1008)
         return False
 
