@@ -6,7 +6,7 @@ This document describes the production-safe baseline behavior of the single-file
 
 `index.html` is the zero-build operational console for **Aetherium = Light-native Creative OS**.
 
-Users do not command visual "effects" directly. They converse with light to shape outputs such as posters, brand visuals, UI concepts, diagrams, ambient scenes, concept art, motion identity, and document visuals.
+Users do not command visual "effects" directly. They converse with light to shape outputs such as poster, brand visual, UI concept, diagram, ambient scene, concept art, motion identity, and document visual.
 
 The runtime keeps the same embodiment grammar from the current prototype:
 
