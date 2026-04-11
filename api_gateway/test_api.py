@@ -213,3 +213,30 @@ def test_emit_rejects_missing_governor_context(client: TestClient) -> None:
     )
 
     assert response.status_code == 422
+
+def test_emit_rejects_invalid_api_key(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AETHERIUM_API_KEY", "correct-key")
+    response = client.post(
+        "/api/v1/cognitive/emit",
+        json=_valid_emit_payload(),
+        headers={
+            "X-API-Key": "wrong-key",
+            "X-Model-Provider": "openai",
+            "X-Model-Version": "2026-03"
+        },
+    )
+    assert response.status_code == 403
+    assert "invalid X-API-Key" in response.text
+
+def test_emit_accepts_valid_api_key(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AETHERIUM_API_KEY", "correct-key")
+    response = client.post(
+        "/api/v1/cognitive/emit",
+        json=_valid_emit_payload(),
+        headers={
+            "X-API-Key": "correct-key",
+            "X-Model-Provider": "openai",
+            "X-Model-Version": "2026-03"
+        },
+    )
+    assert response.status_code == 200
