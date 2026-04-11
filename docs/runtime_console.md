@@ -58,3 +58,37 @@ The UI sends state deltas after successful emit, and logs WS acknowledgements in
 - API base and WS base are user-configurable from UI for local/staging deployments.
 - File attachments are sampled into point fields and reused by the renderer target field.
 - Voice path is intentionally mock-based in this static runtime to keep deterministic behavior in non-secure contexts.
+
+## Light-native runtime narrative (v3.31)
+
+The console now treats WebGL particles as the primary cognition surface and renders intent-processing as visible state transitions.
+
+### Governing flow
+
+All emits visually and textually follow:
+
+`Intent -> Light Reasoning -> Contract Proposal -> Governor Approval -> Manifestation -> Branching -> Memory`
+
+Terminal feed must show governor gate explicitly before any manifestation branch starts.
+
+### State model
+
+Runtime now uses a dual-layer state language:
+
+- Operational: `IDLE`, `EVALUATING`, `MANIFESTING`, `STREAMING`, `SEARCHING`
+- Phenomenological: `LISTENING`, `INTERPRETING`, `CONVERGING`, `PROPOSING`, `REFINING`, `EXPORTING`, `NIRODHA`
+
+### Interaction surface additions
+
+- Bottom glass composer includes **Attach**, **Voice**, and intent input (`สนทนากับแสง...`).
+- Right-side **Design Lineage** panel stores node history, supports time-shift to prior nodes, and branch pruning (delete).
+- Right-side **Scholar Agent** panel is isolated from manifest branches and is activated only for search-routed intents.
+
+### Intent routing
+
+Single intent is classified into one route and rendered accordingly:
+
+- `image` => coalesced formation
+- `video` => streaming flow field
+- `search` => scholar panel synthesis path
+- `pure_light` => chroma/field modulation

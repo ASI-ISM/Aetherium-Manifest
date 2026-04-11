@@ -3,257 +3,479 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aetherium Manifest | Light-Native Console</title>
+    <title>Aetherium Manifest | Light-Native Runtime Surface</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700&family=Noto+Sans+Thai:wght@300;400;700&display=swap');
 
+        :root {
+            color-scheme: dark;
+        }
+
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #05050a;
+            background-color: #030305;
             color: #e0e0ff;
             font-family: 'Noto Sans Thai', 'JetBrains Mono', monospace;
+            user-select: none;
         }
 
         #canvas-container {
-            position: absolute;
+            position: fixed;
             inset: 0;
             z-index: 0;
         }
 
         .glass-panel {
-            background: rgba(10, 10, 20, 0.4);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(100, 150, 255, 0.15);
-            border-radius: 12px;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-        }
-
-        .font-mono {
-            font-family: 'JetBrains Mono', monospace;
-        }
-
-        .glow-text {
-            text-shadow: 0 0 10px rgba(100, 150, 255, 0.8);
-        }
-
-        ::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: rgba(100, 150, 255, 0.3);
-            border-radius: 3px;
-        }
-
-        @keyframes pulse-ring {
-            0% { box-shadow: 0 0 0 0 rgba(255, 100, 100, 0.7); }
-            70% { box-shadow: 0 0 0 15px rgba(255, 100, 100, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(255, 100, 100, 0); }
-        }
-
-        .mic-active {
-            animation: pulse-ring 1.5s infinite;
-            color: #ff6b6b !important;
+            background: rgba(12, 14, 24, 0.35);
+            backdrop-filter: blur(11px);
+            -webkit-backdrop-filter: blur(11px);
+            border: 1px solid rgba(130, 160, 255, 0.14);
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.45);
         }
 
         .lineage-node {
-            transition: all 0.3s ease;
+            transition: all 0.25s ease;
         }
 
         .lineage-node:hover {
-            transform: scale(1.2);
-            box-shadow: 0 0 15px rgba(100, 200, 255, 0.8);
+            transform: translateY(-1px);
+            box-shadow: 0 0 18px rgba(130, 190, 255, 0.45);
         }
 
-        .lineage-connector {
-            width: 2px;
-            background: linear-gradient(to bottom, rgba(100,150,255,0.8), rgba(100,150,255,0.2));
-            margin-left: 11px;
-            height: 20px;
+        .state-chip.active {
+            color: #e5edff;
+            border-color: rgba(130, 190, 255, 0.55);
+            background: rgba(130, 190, 255, 0.16);
+            text-shadow: 0 0 10px rgba(130, 190, 255, 0.7);
         }
 
         #manifestation-overlay {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 60vmin;
-            height: 60vmin;
-            border-radius: 20px;
+            position: fixed;
+            inset: 0;
+            z-index: 4;
             pointer-events: none;
             opacity: 0;
-            transition: opacity 1.5s ease;
-            box-shadow: 0 0 50px rgba(100, 200, 255, 0.2);
-            background-size: cover;
-            background-position: center;
-            z-index: 10;
+            transition: opacity 700ms ease;
+            background: radial-gradient(circle at center, rgba(130,190,255,0.28), rgba(0,0,0,0) 48%);
         }
+
+        #branch-panel {
+            transition: opacity 500ms ease;
+        }
+
+        .branch-btn {
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255,255,255,0.02));
+            transition: all .25s ease;
+        }
+
+        .branch-btn:hover {
+            border-color: rgba(123, 188, 255, 0.58);
+            transform: scale(1.04);
+            box-shadow: 0 0 22px rgba(123, 188, 255, 0.22);
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 rgba(96,165,250,0.1); }
+            50% { box-shadow: 0 0 14px rgba(96,165,250,0.45); }
+            100% { box-shadow: 0 0 0 rgba(96,165,250,0.1); }
+        }
+
+        .listening-mode {
+            animation: pulse 1.8s infinite;
+        }
+
+        .voice-active {
+            color: #fda4af !important;
+            text-shadow: 0 0 12px rgba(251,113,133,0.8);
+        }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.25); border-radius: 2px; }
     </style>
 </head>
 <body class="text-sm">
-
     <div id="canvas-container"></div>
     <div id="manifestation-overlay"></div>
 
-    <div class="absolute top-4 left-4 z-10 w-80 flex flex-col gap-3">
-        <div class="glass-panel p-4">
-            <div class="flex justify-between items-center mb-2 pb-2 border-b border-blue-500/20">
-                <span class="font-mono font-bold text-blue-400 glow-text">AETHERIUM OS</span>
-                <span class="text-xs text-gray-400">ABI: mf-3.30.0</span>
+    <aside class="absolute top-4 left-4 z-20 w-[22rem] flex flex-col gap-3">
+        <section class="glass-panel rounded-xl p-4">
+            <div class="font-mono text-[10px] tracking-[0.2em] text-blue-200/80 mb-2">AETHERIUM OS <span class="text-white/40">mf-3.31.0</span></div>
+            <div class="grid grid-cols-2 text-xs gap-y-1">
+                <span class="text-gray-400">RUNTIME STATE</span>
+                <span id="sys-state" class="text-right text-emerald-300">IDLE</span>
+                <span class="text-gray-400">INTENT ROUTE</span>
+                <span id="sys-route" class="text-right text-blue-300">pure_light</span>
+                <span class="text-gray-400">GOVERNOR</span>
+                <span id="sys-gov" class="text-right text-yellow-300">awaiting</span>
             </div>
-            <div class="grid grid-cols-2 gap-2 text-xs font-mono">
-                <div class="text-gray-400">STATE</div>
-                <div id="sys-state" class="text-right text-emerald-400">IDLE</div>
-                <div class="text-gray-400">RESONANCE</div>
-                <div id="sys-energy" class="text-right text-blue-300">12.4 AETH</div>
-                <div class="text-gray-400">ENTROPY</div>
-                <div id="sys-entropy" class="text-right text-purple-300">0.05</div>
+            <div class="mt-3 flex flex-wrap gap-1.5 font-mono text-[10px]">
+                <span class="state-chip rounded-full border border-white/15 px-2 py-1" data-state="LISTENING">LISTENING</span>
+                <span class="state-chip rounded-full border border-white/15 px-2 py-1" data-state="INTERPRETING">INTERPRETING</span>
+                <span class="state-chip rounded-full border border-white/15 px-2 py-1" data-state="CONVERGING">CONVERGING</span>
+                <span class="state-chip rounded-full border border-white/15 px-2 py-1" data-state="PROPOSING">PROPOSING</span>
+                <span class="state-chip rounded-full border border-white/15 px-2 py-1" data-state="MANIFESTING">MANIFESTING</span>
+                <span class="state-chip rounded-full border border-white/15 px-2 py-1" data-state="REFINING">REFINING</span>
+                <span class="state-chip rounded-full border border-white/15 px-2 py-1" data-state="EXPORTING">EXPORTING</span>
+                <span class="state-chip rounded-full border border-white/15 px-2 py-1" data-state="NIRODHA">NIRODHA</span>
             </div>
-        </div>
+        </section>
+        <section id="terminal-logs" class="glass-panel rounded-xl p-3 h-60 overflow-y-auto font-mono text-[10px] text-blue-100"></section>
+    </aside>
 
-        <div class="glass-panel p-3 h-48 overflow-y-auto font-mono text-[10px] text-gray-300" id="terminal-logs">
-            <div class="text-blue-400">&gt; System initialized. Waiting for light intent.</div>
-        </div>
-    </div>
-
-    <div class="absolute top-4 right-4 z-10 w-72 flex flex-col gap-3 max-h-[90vh]">
-        <div class="glass-panel p-4">
-            <h3 class="font-mono text-xs text-blue-400 mb-3 border-b border-blue-500/20 pb-1">
-                <i class="fas fa-code-branch mr-2"></i>DESIGN LINEAGE
-            </h3>
-            <div id="lineage-container" class="flex flex-col">
-                <div class="flex items-center gap-2 cursor-pointer group" onclick="revertToNode('Genesis')">
-                    <div class="w-6 h-6 rounded-full bg-blue-500/50 border border-blue-400 flex items-center justify-center lineage-node">
-                        <div class="w-2 h-2 rounded-full bg-white"></div>
-                    </div>
-                    <span class="text-xs text-gray-300 group-hover:text-white">Genesis (Root)</span>
-                </div>
+    <aside class="absolute top-4 right-4 z-20 w-[24rem] max-h-[94vh] flex flex-col gap-3">
+        <section class="glass-panel rounded-xl p-4 min-h-[17rem] overflow-y-auto">
+            <div class="font-mono text-xs text-cyan-200 mb-3 border-b border-white/10 pb-2 flex justify-between">
+                <span><i class="fas fa-code-branch mr-2"></i>DESIGN LINEAGE</span>
+                <span id="lineage-count" class="text-white/45">1 node</span>
             </div>
-        </div>
+            <div id="lineage-container" class="space-y-2"></div>
+        </section>
 
-        <div class="glass-panel p-4 flex-1 flex flex-col hidden" id="scholar-panel">
-            <h3 class="font-mono text-xs text-purple-400 mb-2 border-b border-purple-500/20 pb-1 flex justify-between">
-                <span><i class="fas fa-globe mr-2"></i>AKASHIC SEARCH</span>
-                <span class="animate-pulse">Active</span>
-            </h3>
-            <div id="scholar-content" class="text-xs text-gray-300 flex-1 overflow-y-auto space-y-2"></div>
-        </div>
-    </div>
+        <section id="scholar-panel" class="glass-panel rounded-xl p-4 hidden min-h-[14rem]">
+            <div class="font-mono text-xs text-fuchsia-200 mb-2 border-b border-fuchsia-300/20 pb-2 flex justify-between">
+                <span><i class="fas fa-book-open mr-2"></i>SCHOLAR AGENT</span>
+                <span class="text-fuchsia-100/60">Search Layer</span>
+            </div>
+            <div id="scholar-content" class="text-xs leading-relaxed text-gray-200 space-y-2"></div>
+        </section>
+    </aside>
 
-    <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20 w-11/12 max-w-3xl">
-        <div id="attachment-preview" class="flex gap-2 mb-2 px-2 hidden"></div>
+    <section id="branch-panel" class="absolute z-20 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 pointer-events-none flex gap-4">
+        <button class="branch-btn rounded-xl px-6 py-8 font-mono text-xs text-blue-100" onclick="selectBranch('calm')">CALM</button>
+        <button class="branch-btn rounded-xl px-6 py-8 font-mono text-xs text-orange-100" onclick="selectBranch('cinematic')">CINEMATIC</button>
+        <button class="branch-btn rounded-xl px-6 py-8 font-mono text-xs text-emerald-100" onclick="selectBranch('minimal')">MINIMAL</button>
+        <button class="branch-btn rounded-xl px-6 py-8 font-mono text-xs text-purple-100" onclick="selectBranch('sacred')">SACRED</button>
+    </section>
 
-        <div class="glass-panel p-2 flex items-center gap-3">
-            <button onclick="triggerAttach()" class="p-3 text-gray-400 hover:text-blue-300 transition-colors rounded-full hover:bg-white/5" title="แนบภาพ/เอกสารอ้างอิง">
+    <footer class="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 w-[min(95vw,64rem)]">
+        <div id="attachment-preview" class="flex gap-2 mb-2"></div>
+        <div id="composer" class="glass-panel rounded-2xl p-2.5 flex items-center gap-2 listening-mode">
+            <button class="w-10 h-10 rounded-full hover:bg-white/10 text-white/60 hover:text-white" onclick="triggerAttach()" title="Attach">
                 <i class="fas fa-paperclip"></i>
             </button>
-
-            <input
-                type="text"
-                id="intent-input"
-                class="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-500 font-medium px-2"
-                placeholder="สนทนากับแสง... (พิมพ์หรือใช้เสียงเพื่อสร้างภาพ, วิดีโอ, หรือค้นหาข้อมูล)"
-                onkeypress="handleKeyPress(event)"
-            >
-
-            <button id="voice-btn" onclick="toggleVoice()" class="p-3 text-gray-400 hover:text-white transition-all rounded-full hover:bg-white/5" title="สนทนาด้วยเสียง">
+            <button id="voice-btn" class="w-10 h-10 rounded-full hover:bg-white/10 text-white/60 hover:text-white" onclick="toggleVoice()" title="Voice">
                 <i class="fas fa-microphone"></i>
             </button>
-
-            <button onclick="emitIntent()" class="bg-blue-600/30 hover:bg-blue-500/50 border border-blue-500/50 text-blue-200 px-6 py-2 rounded-lg font-mono font-bold transition-all flex items-center gap-2">
-                EMIT <i class="fas fa-bolt"></i>
-            </button>
+            <input id="intent-input" type="text" class="flex-1 bg-transparent outline-none border-0 text-white placeholder-white/30 px-2" placeholder="สนทนากับแสง... (สร้างภาพ / วิดีโอ / ค้นหา / ควบคุมแสง)" oninput="enterListening()" onkeypress="handleKeyPress(event)">
+            <button class="bg-blue-500/25 border border-blue-300/40 text-blue-100 px-4 py-2 rounded-xl font-mono text-xs" onclick="emitIntent()">EMIT</button>
         </div>
-    </div>
+    </footer>
 
     <script>
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         container.appendChild(renderer.domElement);
 
-        const particleCount = 15000;
+        const particleCount = 18000;
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
+        const targets = new Float32Array(particleCount * 3);
         const colors = new Float32Array(particleCount * 3);
-        const targetPositions = new Float32Array(particleCount * 3);
 
-        for (let i = 0; i < particleCount * 3; i += 3) {
-            positions[i] = (Math.random() - 0.5) * 20;
-            positions[i + 1] = (Math.random() - 0.5) * 20;
-            positions[i + 2] = (Math.random() - 0.5) * 20;
-
-            targetPositions[i] = positions[i];
-            targetPositions[i + 1] = positions[i + 1];
-            targetPositions[i + 2] = positions[i + 2];
-
-            colors[i] = 0.2;
-            colors[i + 1] = 0.5;
-            colors[i + 2] = 1.0;
+        for (let i = 0; i < particleCount; i++) {
+            const i3 = i * 3;
+            const x = (Math.random() - 0.5) * 60;
+            const y = (Math.random() - 0.5) * 60;
+            const z = (Math.random() - 0.5) * 60;
+            positions[i3] = targets[i3] = x;
+            positions[i3 + 1] = targets[i3 + 1] = y;
+            positions[i3 + 2] = targets[i3 + 2] = z;
+            colors[i3] = 0.08; colors[i3 + 1] = 0.12; colors[i3 + 2] = 0.2;
         }
 
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-        const material = new THREE.PointsMaterial({
-            size: 0.05,
+        const points = new THREE.Points(geometry, new THREE.PointsMaterial({
+            size: 0.06,
             vertexColors: true,
             transparent: true,
-            opacity: 0.6,
+            opacity: 0.72,
             blending: THREE.AdditiveBlending,
-        });
+            depthWrite: false
+        }));
+        scene.add(points);
+        camera.position.z = 21;
 
-        const particleSystem = new THREE.Points(geometry, material);
-        scene.add(particleSystem);
-        camera.position.z = 15;
+        const STATE_COLORS = {
+            IDLE: [0.08, 0.12, 0.2],
+            EVALUATING: [0.62, 0.31, 0.93],
+            MANIFESTING: [0.9, 0.92, 1],
+            STREAMING: [0.98, 0.53, 0.34],
+            SEARCHING: [0.52, 0.83, 1],
+            LISTENING: [0.32, 0.6, 1],
+            INTERPRETING: [0.86, 0.3, 0.7],
+            CONVERGING: [0.2, 0.8, 0.95],
+            PROPOSING: [1.0, 0.83, 0.42],
+            REFINING: [0.3, 0.9, 0.7],
+            EXPORTING: [1, 1, 1],
+            NIRODHA: [0.09, 0.08, 0.14]
+        };
 
-        let currentState = 'IDLE';
-        let time = 0;
+        let runtimeState = 'IDLE';
+        let flowState = 'NIRODHA';
+        let route = 'pure_light';
+        let voiceActive = false;
+        let isProcessing = false;
+        let lineageCounter = 0;
+        const nodes = [{ id: 'genesis', label: 'Genesis Root', deleted: false }];
+        let branchContext = 'genesis';
+
+        function logTerminal(message, level = 'info') {
+            const terminal = document.getElementById('terminal-logs');
+            const map = {
+                info: 'text-blue-200',
+                warn: 'text-yellow-300',
+                success: 'text-emerald-300',
+                system: 'text-purple-300'
+            };
+            const row = document.createElement('div');
+            row.className = `${map[level] || map.info} mt-1`;
+            row.textContent = `> ${message}`;
+            terminal.appendChild(row);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function syncStateChips(active) {
+            document.querySelectorAll('.state-chip').forEach((chip) => {
+                chip.classList.toggle('active', chip.dataset.state === active);
+            });
+        }
+
+        function setRuntimeState(next) {
+            runtimeState = next;
+            document.getElementById('sys-state').textContent = next;
+        }
+
+        function setFlowState(next) {
+            flowState = next;
+            syncStateChips(next);
+        }
+
+        function setRoute(next) {
+            route = next;
+            document.getElementById('sys-route').textContent = next;
+        }
+
+        function setGovernor(text) {
+            document.getElementById('sys-gov').textContent = text;
+        }
+
+        function enterListening() {
+            if (isProcessing || flowState === 'LISTENING') return;
+            setFlowState('LISTENING');
+            logTerminal('[LIGHT] Intake active: signal becoming intent.', 'info');
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') emitIntent();
+        }
+
+        function toggleVoice() {
+            voiceActive = !voiceActive;
+            const btn = document.getElementById('voice-btn');
+            const input = document.getElementById('intent-input');
+            btn.classList.toggle('voice-active', voiceActive);
+            input.placeholder = voiceActive
+                ? 'กำลังฟังเสียง... พูดเพื่อส่งเจตนา'
+                : 'สนทนากับแสง... (สร้างภาพ / วิดีโอ / ค้นหา / ควบคุมแสง)';
+            logTerminal(voiceActive ? '[VOICE] Input stream connected.' : '[VOICE] Input stream closed.', 'system');
+        }
+
+        function triggerAttach() {
+            const preview = document.getElementById('attachment-preview');
+            const item = document.createElement('div');
+            item.className = 'glass-panel rounded-full px-3 py-1 text-xs text-blue-100 border border-blue-200/20';
+            item.innerHTML = '<i class="fas fa-file-circle-plus mr-1"></i> style_ref.pdf <i class="fas fa-xmark ml-2 cursor-pointer" onclick="this.parentElement.remove()"></i>';
+            preview.appendChild(item);
+            logTerminal('[ATTACH] Reference file added to intent envelope.', 'info');
+        }
+
+        function inferRoute(intent) {
+            const lower = intent.toLowerCase();
+            if (/ค้นหา|search|อ้างอิง|reference|scholar/.test(lower)) return 'search';
+            if (/วิดีโอ|video|motion|flow/.test(lower)) return 'video';
+            if (/ภาพ|image|poster|visual/.test(lower)) return 'image';
+            return 'pure_light';
+        }
+
+        function emitIntent() {
+            if (isProcessing) return;
+            const input = document.getElementById('intent-input');
+            const intent = input.value.trim() || (voiceActive ? 'voice intent' : '');
+            if (!intent) return;
+
+            isProcessing = true;
+            setRuntimeState('EVALUATING');
+            setFlowState('INTERPRETING');
+            const mode = inferRoute(intent);
+            setRoute(mode);
+            setGovernor('proposed');
+
+            logTerminal(`[INTENT] ${intent}`);
+            logTerminal('[CONTRACT] Contract Proposed -> ai_particle_control_contract_v1', 'system');
+            logTerminal('[GOVERNOR] Analyzing...', 'warn');
+
+            input.value = '';
+            if (voiceActive) toggleVoice();
+
+            setTimeout(() => {
+                setFlowState('PROPOSING');
+                setGovernor('verified');
+                logTerminal('[GOVERNOR] Approved. Manifest rights granted.', 'success');
+                runManifest(intent, mode);
+            }, 950);
+        }
+
+        function runManifest(intent, mode) {
+            setRuntimeState(mode === 'video' ? 'STREAMING' : mode === 'search' ? 'SEARCHING' : 'MANIFESTING');
+            setFlowState('CONVERGING');
+            createLineageNode(intent, mode);
+
+            const branchPanel = document.getElementById('branch-panel');
+            branchPanel.classList.remove('opacity-0', 'pointer-events-none');
+
+            if (mode === 'search') {
+                renderScholar(intent);
+            } else {
+                document.getElementById('scholar-panel').classList.add('hidden');
+            }
+
+            setTimeout(() => {
+                setFlowState('MANIFESTING');
+                document.getElementById('manifestation-overlay').style.opacity = '1';
+                logTerminal(`[MANIFEST] ${mode} materializing on light surface.`, 'success');
+                isProcessing = false;
+            }, 1000);
+        }
+
+        function renderScholar(intent) {
+            const panel = document.getElementById('scholar-panel');
+            const content = document.getElementById('scholar-content');
+            panel.classList.remove('hidden');
+            content.innerHTML = `
+                <div class="text-white">Query: ${intent}</div>
+                <div>• Source path: Scholar Agent → Google Search connector (simulated)</div>
+                <div>• Governor citation gate: PASS</div>
+                <div class="text-fuchsia-100/80">สรุป: intent ถูกแยกเป็นเส้นทางค้นหา และไม่รบกวนเส้นทาง image/video manifest</div>
+            `;
+            logTerminal('[SCHOLAR] Search branch opened in side panel.', 'system');
+        }
+
+        function createLineageNode(intent, mode) {
+            lineageCounter += 1;
+            const id = `n${lineageCounter}`;
+            nodes.push({ id, label: intent, mode, parent: branchContext, deleted: false });
+            branchContext = id;
+            renderLineage();
+        }
+
+        function renderLineage() {
+            const container = document.getElementById('lineage-container');
+            container.innerHTML = '';
+            const alive = nodes.filter((n) => !n.deleted);
+            alive.forEach((node) => {
+                const row = document.createElement('div');
+                row.className = 'lineage-node flex items-center gap-2 rounded-lg border border-white/10 px-2 py-1.5 bg-black/20';
+                row.innerHTML = `
+                    <button class="w-6 h-6 rounded-full border border-blue-300/40 text-[10px]" onclick="timeShift('${node.id}')"><i class="fas fa-circle-dot"></i></button>
+                    <div class="text-xs text-white/80 truncate flex-1">${node.id === 'genesis' ? 'Genesis Root' : `${node.label.slice(0, 35)} (${node.mode})`}</div>
+                    ${node.id === 'genesis' ? '' : `<button class="text-white/40 hover:text-red-300" onclick="deleteNode('${node.id}')"><i class='fas fa-trash'></i></button>`}
+                `;
+                container.appendChild(row);
+            });
+            document.getElementById('lineage-count').textContent = `${alive.length} node${alive.length > 1 ? 's' : ''}`;
+        }
+
+        function timeShift(id) {
+            branchContext = id;
+            setFlowState('REFINING');
+            setRuntimeState('MANIFESTING');
+            logTerminal(`[LINEAGE] Time-shifting to ${id}. Ready to branch again.`, 'system');
+        }
+
+        function deleteNode(id) {
+            const node = nodes.find((n) => n.id === id);
+            if (!node) return;
+            node.deleted = true;
+            if (branchContext === id) branchContext = node.parent || 'genesis';
+            logTerminal(`[LINEAGE] Branch ${id} pruned from design tree.`, 'warn');
+            renderLineage();
+        }
+
+        function selectBranch(style) {
+            document.getElementById('branch-panel').classList.add('opacity-0', 'pointer-events-none');
+            setFlowState('REFINING');
+            logTerminal(`[BRANCH] Selected variation: ${style}.`, 'success');
+        }
+
+        function updateTargetsByState() {
+            const color = STATE_COLORS[flowState] || STATE_COLORS.IDLE;
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                if (flowState === 'INTERPRETING' || runtimeState === 'EVALUATING') {
+                    const r = Math.random() * 4;
+                    const t = Math.random() * Math.PI * 2;
+                    const p = Math.acos(2 * Math.random() - 1);
+                    targets[i3] = r * Math.sin(p) * Math.cos(t);
+                    targets[i3 + 1] = r * Math.sin(p) * Math.sin(t);
+                    targets[i3 + 2] = r * Math.cos(p);
+                } else if (flowState === 'CONVERGING') {
+                    const cluster = i % 4;
+                    const dx = (cluster - 1.5) * 6;
+                    targets[i3] = dx + (Math.random() - 0.5) * 2;
+                    targets[i3 + 1] = (Math.random() - 0.5) * 3;
+                    targets[i3 + 2] = (Math.random() - 0.5) * 3;
+                } else if (runtimeState === 'STREAMING') {
+                    targets[i3] = Math.sin((i / particleCount) * Math.PI * 12 + performance.now() * 0.002) * 8;
+                    targets[i3 + 1] = ((i / particleCount) * 22) - 11;
+                    targets[i3 + 2] = Math.cos((i / particleCount) * Math.PI * 12 + performance.now() * 0.002) * 8;
+                } else if (runtimeState === 'SEARCHING') {
+                    const ring = 11;
+                    const a = (i / particleCount) * Math.PI * 2;
+                    targets[i3] = Math.cos(a) * ring;
+                    targets[i3 + 1] = Math.sin(a) * ring;
+                    targets[i3 + 2] = Math.sin(a * 8) * 0.8;
+                } else if (runtimeState === 'MANIFESTING') {
+                    targets[i3] = (Math.random() - 0.5) * 18;
+                    targets[i3 + 1] = (Math.random() - 0.5) * 10;
+                    targets[i3 + 2] = (Math.random() - 0.5) * 1.5;
+                } else {
+                    targets[i3] = (Math.random() - 0.5) * 48;
+                    targets[i3 + 1] = (Math.random() - 0.5) * 48;
+                    targets[i3 + 2] = (Math.random() - 0.5) * 48;
+                }
+
+                colors[i3] += (color[0] - colors[i3]) * 0.03;
+                colors[i3 + 1] += (color[1] - colors[i3 + 1]) * 0.03;
+                colors[i3 + 2] += (color[2] - colors[i3 + 2]) * 0.03;
+            }
+        }
 
         function animate() {
             requestAnimationFrame(animate);
-            time += 0.01;
-
-            const particlePositions = particleSystem.geometry.attributes.position.array;
-
-            for (let i = 0; i < particleCount * 3; i += 3) {
-                if (currentState === 'IDLE') {
-                    particleSystem.rotation.y = time * 0.1;
-                    particleSystem.rotation.x = time * 0.05;
-                } else if (currentState === 'FORMING_IMAGE') {
-                    particlePositions[i] += (targetPositions[i] - particlePositions[i]) * 0.05;
-                    particlePositions[i + 1] += (targetPositions[i + 1] - particlePositions[i + 1]) * 0.05;
-                    particlePositions[i + 2] += (0 - particlePositions[i + 2]) * 0.05;
-                    particleSystem.rotation.y = 0;
-                    particleSystem.rotation.x = 0;
-                } else if (currentState === 'FLOWING_VIDEO') {
-                    particlePositions[i] = Math.sin(time + particlePositions[i + 1]) * 5;
-                    particlePositions[i + 2] = Math.cos(time + particlePositions[i + 1]) * 5;
-                    particlePositions[i + 1] += 0.1;
-                    if (particlePositions[i + 1] > 10) particlePositions[i + 1] = -10;
-                } else if (currentState === 'SEARCHING') {
-                    const scale = 1 + Math.sin(time * 5) * 0.1;
-                    particleSystem.scale.set(scale, scale, scale);
-                }
+            updateTargetsByState();
+            const pos = geometry.attributes.position.array;
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                pos[i3] += (targets[i3] - pos[i3]) * 0.035;
+                pos[i3 + 1] += (targets[i3 + 1] - pos[i3 + 1]) * 0.035;
+                pos[i3 + 2] += (targets[i3 + 2] - pos[i3 + 2]) * 0.035;
             }
-
-            particleSystem.geometry.attributes.position.needsUpdate = true;
+            points.rotation.y += 0.0013;
+            geometry.attributes.position.needsUpdate = true;
+            geometry.attributes.color.needsUpdate = true;
             renderer.render(scene, camera);
         }
-        animate();
 
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
@@ -261,184 +483,11 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        let isVoiceActive = false;
-        let lineageCount = 0;
-
-        function logTerminal(msg, type = 'info') {
-            const terminal = document.getElementById('terminal-logs');
-            const color = type === 'warn'
-                ? 'text-yellow-400'
-                : type === 'success'
-                    ? 'text-emerald-400'
-                    : type === 'system'
-                        ? 'text-purple-400'
-                        : 'text-blue-300';
-            terminal.innerHTML += `<div class="${color} mt-1">&gt; ${msg}</div>`;
-            terminal.scrollTop = terminal.scrollHeight;
-        }
-
-        function handleKeyPress(e) {
-            if (e.key === 'Enter') emitIntent();
-        }
-
-        function toggleVoice() {
-            const btn = document.getElementById('voice-btn');
-            const input = document.getElementById('intent-input');
-            isVoiceActive = !isVoiceActive;
-
-            if (isVoiceActive) {
-                btn.classList.add('mic-active');
-                input.placeholder = 'กำลังฟังเสียงของคุณ...';
-                logTerminal('[SENSOR] Audio stream connected. Listening...', 'info');
-            } else {
-                btn.classList.remove('mic-active');
-                input.placeholder = 'สนทนากับแสง... (พิมพ์หรือใช้เสียงเพื่อสร้างภาพ, วิดีโอ, หรือค้นหาข้อมูล)';
-                logTerminal('[SENSOR] Audio stream closed.', 'info');
-            }
-        }
-
-        function triggerAttach() {
-            const preview = document.getElementById('attachment-preview');
-            preview.classList.remove('hidden');
-
-            const chip = document.createElement('div');
-            chip.className = 'glass-panel px-3 py-1 text-xs flex items-center gap-2 text-blue-200';
-            chip.innerHTML = '<i class="fas fa-image text-purple-400"></i> reference_style.jpg <i class="fas fa-times cursor-pointer hover:text-red-400" onclick="this.parentElement.remove()"></i>';
-            preview.appendChild(chip);
-
-            logTerminal('[VFS] Reference asset attached to envelope.', 'info');
-        }
-
-        function emitIntent() {
-            const inputField = document.getElementById('intent-input');
-            const intent = inputField.value.trim();
-
-            if (!intent && !isVoiceActive) return;
-
-            document.getElementById('sys-state').innerText = 'EVALUATING';
-            document.getElementById('sys-state').className = 'text-right text-yellow-400';
-            document.getElementById('manifestation-overlay').style.opacity = 0;
-            document.getElementById('scholar-panel').classList.add('hidden');
-
-            logTerminal(`[INTENT] Captured: "${intent || 'Voice input'}"`);
-            logTerminal('[CONTRACT] Proposing ai_particle_control_contract_v1...', 'system');
-
-            setTimeout(() => {
-                logTerminal('[GOVERNOR] Analyzing psychological safety and semantic drift...', 'warn');
-
-                setTimeout(() => {
-                    logTerminal('[GOVERNOR] Contract Approved. Signature valid.', 'success');
-                    manifestIntent(intent);
-                }, 1000);
-            }, 500);
-
-            inputField.value = '';
-            if (isVoiceActive) toggleVoice();
-        }
-
-        function manifestIntent(intent) {
-            const lowerIntent = intent.toLowerCase();
-            document.getElementById('sys-state').innerText = 'MANIFESTING';
-            document.getElementById('sys-state').className = 'text-right text-blue-400';
-
-            addLineageNode(intent);
-
-            if (lowerIntent.includes('ภาพ') || lowerIntent.includes('image')) {
-                currentState = 'FORMING_IMAGE';
-                logTerminal('[AETH] Coalescing light into static formation...', 'info');
-
-                setTimeout(() => {
-                    const overlay = document.getElementById('manifestation-overlay');
-                    overlay.style.backgroundImage = 'url("https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop")';
-                    overlay.style.opacity = 1;
-                    document.getElementById('sys-state').innerText = 'IDLE';
-                    document.getElementById('sys-state').className = 'text-right text-emerald-400';
-                }, 1500);
-            } else if (lowerIntent.includes('วิดีโอ') || lowerIntent.includes('video') || lowerIntent.includes('เคลื่อนไหว')) {
-                currentState = 'FLOWING_VIDEO';
-                logTerminal('[AETH] Initiating continuous particle flow stream...', 'info');
-                document.getElementById('sys-state').innerText = 'STREAMING';
-                document.getElementById('sys-state').className = 'text-right text-purple-400';
-            } else if (lowerIntent.includes('ค้นหา') || lowerIntent.includes('search') || lowerIntent.includes('คืออะไร')) {
-                currentState = 'SEARCHING';
-                logTerminal('[SCHOLAR] Routing query to Akashic Data Grid (Web Search)...', 'system');
-
-                setTimeout(() => {
-                    document.getElementById('scholar-panel').classList.remove('hidden');
-                    const content = document.getElementById('scholar-content');
-                    content.innerHTML = `
-                        <div class="mb-2"><strong class="text-white search-title"></strong></div>
-                        <p class="text-gray-400 leading-relaxed mb-2">
-                            ระบบได้ทำการดึงข้อมูลจากแหล่งที่เชื่อถือได้ (อ้างอิงจากฐานข้อมูล Aetherium และ Web Search)...
-                            สิ่งนี้คือกระบวนการเชิงโครงสร้างที่แปลงพารามิเตอร์เป็นคลื่นแสง
-                        </p>
-                        <div class="bg-black/50 p-2 rounded border border-purple-500/30 text-[10px] text-purple-200">
-                            <i class="fas fa-link"></i> Source Verified (Governor Trust Score: 0.98)
-                        </div>
-                    `;
-                    content.querySelector('.search-title').textContent = `ผลการค้นหา: ${intent}`;
-                    currentState = 'IDLE';
-                    document.getElementById('sys-state').innerText = 'IDLE';
-                    document.getElementById('sys-state').className = 'text-right text-emerald-400';
-                    particleSystem.scale.set(1, 1, 1);
-                }, 1500);
-            } else {
-                currentState = 'IDLE';
-                const particleColors = particleSystem.geometry.attributes.color.array;
-                const r = Math.random();
-                const g = Math.random();
-                const b = Math.random();
-                for (let i = 0; i < particleCount * 3; i += 3) {
-                    particleColors[i] = r;
-                    particleColors[i + 1] = g;
-                    particleColors[i + 2] = b;
-                }
-                particleSystem.geometry.attributes.color.needsUpdate = true;
-
-                logTerminal('[AETH] Modulating light frequencies...', 'success');
-                document.getElementById('sys-state').innerText = 'IDLE';
-                document.getElementById('sys-state').className = 'text-right text-emerald-400';
-            }
-        }
-
-        function addLineageNode(intentLabel) {
-            lineageCount++;
-            const container = document.getElementById('lineage-container');
-
-            const connector = document.createElement('div');
-            connector.className = 'lineage-connector';
-            container.appendChild(connector);
-
-            const node = document.createElement('div');
-            node.className = 'flex items-center gap-2 cursor-pointer group mt-1';
-            const shortLabel = intentLabel.length > 15 ? `${intentLabel.substring(0, 15)}...` : intentLabel;
-
-            node.innerHTML = `
-                <div class="w-6 h-6 rounded-full bg-transparent border border-blue-400 flex items-center justify-center lineage-node" onclick="revertToNode('V.${lineageCount}')">
-                    <div class="w-1.5 h-1.5 rounded-full bg-blue-300"></div>
-                </div>
-                <span class="text-xs text-gray-400 group-hover:text-white transition-colors label-text" onclick="revertToNode('V.${lineageCount}')"></span>
-                <i class="fas fa-trash text-gray-600 hover:text-red-400 text-[10px] ml-auto transition-colors" onclick="deleteNode(this)" title="ลบสายวิวัฒนาการนี้"></i>
-            `;
-            node.querySelector('.label-text').textContent = shortLabel;
-            `;
-            container.appendChild(node);
-        }
-
-        function revertToNode(nodeId) {
-            logTerminal(`[LINEAGE] Time-shifting reality to state: ${nodeId}`, 'system');
-            document.getElementById('manifestation-overlay').style.opacity = 0;
-            document.getElementById('scholar-panel').classList.add('hidden');
-            currentState = 'IDLE';
-        }
-
-        function deleteNode(element) {
-            logTerminal('[LINEAGE] Pruning branch from history.', 'warn');
-            const nodeContainer = element.parentElement;
-            const connector = nodeContainer.previousElementSibling;
-            if (connector && connector.className === 'lineage-connector') connector.remove();
-            nodeContainer.remove();
-        }
+        renderLineage();
+        setFlowState('NIRODHA');
+        setRuntimeState('IDLE');
+        logTerminal('System initialized. Intent -> Governor -> Manifest pipeline ready.', 'success');
+        animate();
     </script>
 </body>
 </html>
