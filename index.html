@@ -65,6 +65,39 @@
         <!-- Top Row: HUD & Settings -->
         <div class="flex justify-between items-start pointer-events-auto w-full">
 
+        <!-- Scholar Agent Panel (Hidden by default) -->
+        <div id="scholar-panel" class="glass-panel absolute right-6 top-6 w-96 max-h-[70vh] rounded-2xl p-6 space-y-4 overflow-y-auto hidden pointer-events-auto border-indigo-500/30">
+            <button id="btn-minimize-scholar" class="absolute right-3 top-3 text-gray-500 hover:text-white transition-colors">
+                <i data-lucide="minus-square" class="w-4 h-4"></i>
+            </button>
+            <div class="flex items-center space-x-3 border-b border-white/10 pb-4">
+                <div class="p-2 bg-indigo-500/20 rounded-lg text-indigo-400">
+                    <i data-lucide="book-open" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-sm tracking-wide text-white">SCHOLAR CORE</h3>
+                    <p id="scholar-status" class="text-[10px] text-indigo-300/70 font-mono uppercase tracking-tighter">Analysis in progress...</p>
+                </div>
+            </div>
+
+            <div id="scholar-summary" class="text-sm leading-relaxed text-gray-200 space-y-3">
+                <!-- Content injected here -->
+            </div>
+
+            <div id="scholar-code-container" class="hidden space-y-2">
+                <div class="flex justify-between items-center text-[10px] font-mono text-gray-500">
+                    <span>CODE PAYLOAD</span>
+                    <button class="hover:text-white transition-colors">COPY</button>
+                </div>
+                <pre class="bg-black/50 p-4 rounded-xl border border-white/5 overflow-x-auto text-[11px] font-mono text-cyan-300 leading-tight"><code id="scholar-code"></code></pre>
+            </div>
+
+            <div id="scholar-sources" class="space-y-2 hidden">
+                <h4 class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Verification Sources</h4>
+                <div id="scholar-sources-list" class="flex flex-wrap gap-2"></div>
+            </div>
+        </div>
+
             <!-- Runtime HUD -->
             <div class="glass-panel rounded-xl p-4 w-64 space-y-3">
                 <div class="flex justify-between items-center border-b border-white/10 pb-2">
@@ -72,7 +105,7 @@
                         <div id="status-indicator" class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></div>
                         <span class="font-bold tracking-wider text-xs text-indigo-200">AETHERIUM OS</span>
                     </div>
-                    <span class="text-[10px] font-mono text-gray-400">ABI: mf-3.29.5</span>
+                    <span class="text-[10px] font-mono text-gray-400">ABI: mf-3.30.0</span>
                 </div>
 
                 <div class="space-y-2 font-mono text-[10px]">
@@ -190,6 +223,14 @@
             visualTarget: document.getElementById('visual-target'),
             targetContent: document.getElementById('target-content'),
             closeTargetBtn: document.getElementById('btn-close-target'),
+            scholarPanel: document.getElementById('scholar-panel'),
+            scholarStatus: document.getElementById('scholar-status'),
+            scholarSummary: document.getElementById('scholar-summary'),
+            scholarCodeContainer: document.getElementById('scholar-code-container'),
+            scholarCode: document.getElementById('scholar-code'),
+            scholarSources: document.getElementById('scholar-sources'),
+            scholarSourcesList: document.getElementById('scholar-sources-list'),
+            scholarMinimizeBtn: document.getElementById('btn-minimize-scholar'),
             statusIndicator: document.getElementById('status-indicator')
         };
 
@@ -382,6 +423,12 @@
             document.addEventListener('mouseup', () => pointerActive = false);
             document.addEventListener('touchstart', () => pointerActive = true, {passive: true});
             document.addEventListener('touchend', () => pointerActive = false);
+            document.getElementById('canvas-container').addEventListener('dblclick', () => {
+                const hud = document.querySelector('.absolute.inset-0.z-10');
+                hud.classList.toggle('opacity-0');
+                hud.classList.toggle('pointer-events-none');
+                log('[SYS] UI Visibility Toggled', 'SYS');
+            });
 
             animate();
         }
@@ -423,7 +470,7 @@
             particleMaterial.uniforms.pointerPos.value.copy(pos);
 
             // Rotate system slightly based on state
-            if (sysState.mode === 'THINKING') {
+            if (sysState.mode === 'THINKING' || mode === 'INTERPRETING') {
                 particles.rotation.y += 0.01;
                 particles.rotation.x += 0.005;
             } else if (sysState.mode === 'EMITTING') {
@@ -451,7 +498,7 @@
                 sysState.entropyLevel = 0.1;
                 UI.state.className = 'text-cyan-400 glow-text';
                 UI.composerContainer.classList.remove('composer-active');
-            } else if (mode === 'THINKING') {
+            } else if (mode === 'THINKING' || mode === 'INTERPRETING') {
                 sysState.energyLevel = 0.6;
                 sysState.entropyLevel = 0.8;
                 UI.state.className = 'text-yellow-400 glow-text';
@@ -467,6 +514,94 @@
             UI.entropy.style.width = (sysState.entropyLevel * 100) + '%';
         }
 
+        async function triggerScholarPipeline(intentText) {
+            if (!intentText.trim()) return;
+
+            UI.composer.value = '';
+            UI.composer.disabled = true;
+            UI.emitBtn.disabled = true;
+            UI.scholarPanel.classList.remove('hidden');
+            UI.scholarSummary.innerHTML = '<p class="animate-pulse text-indigo-300">Synthesizing knowledge...</p>';
+            UI.scholarCodeContainer.classList.add('hidden');
+            UI.scholarSources.classList.add('hidden');
+            UI.scholarStatus.textContent = 'Analyzing question...';
+
+            log(`Scholar Intent: "${intentText}"`, 'SYS');
+            setSystemState('INTERPRETING');
+
+            try {
+                log('[POST] /api/v1/scholar/request', 'API');
+                // Using relative path for the actual gateway we implemented
+                const response = await fetch('/api/v1/scholar/request', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': 'scholar-test-key'
+                    },
+                    body: JSON.stringify({
+                        prompt: intentText,
+                        intent_state: { tone: 'formal' }
+                    })
+                });
+
+                const result = await response.json();
+                if (result.status === 'success') {
+                    const data = result.data;
+                    const scholar = data.intent_state.scholar;
+
+                    setSystemState('EMITTING');
+                    UI.scholarStatus.textContent = 'Manifesting Knowledge...';
+
+                    // Manifest Visual Metadata
+                    log(`[WS] Manifesting: ${scholar.visual_interpretation}`, 'WS');
+
+                    await new Promise(r => setTimeout(r, 1000));
+
+                    // Update UI
+                    UI.scholarSummary.innerHTML = scholar.summary.split('\n').map(p => `<p>${p}</p>`).join('');
+
+                    if (scholar.code_snippet) {
+                        UI.scholarCode.textContent = scholar.code_snippet;
+                        UI.scholarCodeContainer.classList.remove('hidden');
+                    }
+
+                    if (scholar.cited_sources && scholar.cited_sources.length > 0) {
+                        UI.scholarSourcesList.innerHTML = scholar.cited_sources.map(url =>
+                            `<a href="${url}" target="_blank" class="px-2 py-1 bg-white/5 border border-white/10 rounded text-[10px] text-indigo-300 hover:bg-white/10 transition-colors truncate max-w-[150px]">${new URL(url).hostname}</a>`
+                        ).join('');
+                        UI.scholarSources.classList.remove('hidden');
+                    }
+
+                    const hasTrusted = scholar.cited_sources && scholar.cited_sources.length > 0 && !scholar.unverified_source_detected;
+                    if (scholar.unverified_source_detected) {
+                        UI.scholarStatus.innerHTML = '<span class="text-amber-400">⚠️ UNVERIFIED SOURCES DETECTED</span>';
+                        UI.scholarPanel.classList.add('border-amber-500/50');
+                        UI.scholarPanel.classList.remove('border-indigo-500/30');
+                    } else {
+                        UI.scholarPanel.classList.add('border-indigo-500/30');
+                        UI.scholarPanel.classList.remove('border-amber-500/50');
+                        if (hasTrusted) {
+                            UI.scholarPanel.classList.add('shadow-[0_0_20px_rgba(99,102,241,0.3)]');
+                            log("[SYS] Trusted Knowledge Rewarded: Chromatic Aberration Active", "API");
+                        } else {
+                            UI.scholarPanel.classList.remove('shadow-[0_0_20px_rgba(99,102,241,0.3)]');
+                        }
+                    }
+                    UI.scholarStatus.textContent = 'Embodied Knowledge';
+                } else {
+                    throw new Error(result.detail || 'Scholar error');
+                }
+            } catch (err) {
+                log(`Scholar failed: ${err.message}`, 'ERR');
+                UI.scholarSummary.innerHTML = `<p class="text-red-400">Failed to manifest knowledge: ${err.message}</p>`;
+            }
+
+            setSystemState('STANDBY');
+            UI.composer.disabled = false;
+            UI.emitBtn.disabled = false;
+            UI.composer.focus();
+        }
+
         async function triggerCognitivePipeline(intentText) {
             if (!intentText.trim()) return;
 
@@ -476,7 +611,7 @@
             UI.visualTarget.classList.add('hidden');
 
             log(`Intent capture: "${intentText}"`, 'SYS');
-            setSystemState('THINKING');
+            setSystemState('INTERPRETING');
 
             // 1. Mock POST /api/v1/cognitive/validate
             log('[POST] /api/v1/cognitive/validate', 'API');
@@ -521,14 +656,21 @@
 
         // Event Bindings
         UI.emitBtn.addEventListener('click', () => {
-            triggerCognitivePipeline(UI.composer.value);
+            triggerScholarPipeline(UI.composer.value);
         });
 
         UI.composer.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') triggerCognitivePipeline(UI.composer.value);
+            if (e.key === 'Enter') triggerScholarPipeline(UI.composer.value);
         });
 
         // Init
+        UI.scholarMinimizeBtn.addEventListener('click', () => {
+            const isMinimized = UI.scholarPanel.classList.toggle('max-h-12');
+            UI.scholarPanel.classList.toggle('overflow-hidden');
+            UI.scholarMinimizeBtn.innerHTML = isMinimized ? '<i data-lucide="plus-square" class="w-4 h-4"></i>' : '<i data-lucide="minus-square" class="w-4 h-4"></i>';
+            lucide.createIcons();
+        });
+
         window.onload = () => {
             initThreeJS();
             setSystemState('STANDBY');

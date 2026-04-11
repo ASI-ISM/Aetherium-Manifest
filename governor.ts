@@ -1059,6 +1059,33 @@ export class RuntimeGovernor {
       return { blocked: true, notes: violations };
     }
 
+    // Scholar safety gates
+    const scholar = (intent as any).scholar;
+    if (scholar) {
+      if (state === "ERROR" || state === "WARNING") {
+        delete (intent as any).scholar;
+        violations.push("Priority conflict: Scholar intent suppressed during system alert");
+        return { blocked: false, notes: violations };
+      }
+      let unverified = false;
+      const trustedDomains = ["wikipedia.org", "github.com", "aetherium.dev", "nasa.gov", "arxiv.org", "nature.com", "sciencedirect.com", "scholar.google.com", "npmjs.com", "developer.mozilla.org", "stackoverflow.com", "reuters.com"];
+      if (scholar.cited_sources) {
+        unverified = scholar.cited_sources.some((url: string) => !trustedDomains.some(domain => url.includes(domain)));
+      }
+      scholar.unverified_source_detected = unverified;
+      if (unverified) violations.push("unverified sources detected; amber signal active");
+      if (scholar.summary && scholar.summary.length > 5000) {
+        scholar.summary = scholar.summary.slice(0, 4900) + "... [System: Recursive Summarization Required]";
+        violations.push("scholar summary truncated to 5000 chars");
+      }
+      if (scholar.summary && (scholar.summary.toLowerCase().includes("warning") || scholar.summary.toLowerCase().includes("danger"))) {
+        if ((intent.flicker ?? 0) > 0.05) {
+          intent.flicker = 0.05;
+          violations.push("psycho-safety: flicker capped for sensitive content");
+        }
+      }
+    }
+
     if ((intent.flicker ?? 0) > 0.2) {
       intent.flicker = 0.2;
       violations.push("flicker capped to hard safety envelope");

@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Literal, Optional, Union
 from enum import Enum
 
 from fastapi import FastAPI, HTTPException, Header, BackgroundTasks, Request
+from .scholar_router import router as scholar_router
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import redis.asyncio as redis
@@ -63,6 +64,7 @@ class FirmaValidator:
 # --- App Initialization ---
 
 app = FastAPI(title="Aetherium API Gateway")
+app.include_router(scholar_router)
 logger = logging.getLogger("api-gateway")
 
 app.add_middleware(

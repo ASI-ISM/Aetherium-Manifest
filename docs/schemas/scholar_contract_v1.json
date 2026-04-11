@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aetherium.dev/schemas/scholar_contract_v1.json",
+  "title": "ScholarContractV1",
+  "description": "Sub-schema for the Knowledge-Augmenting Module (ScholarAgent) in Aetherium Manifest.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "summary",
+    "visual_interpretation",
+    "language",
+    "tone"
+  ],
+  "properties": {
+    "summary": {
+      "type": "string",
+      "maxLength": 5000,
+      "description": "Human-readable summary or explanation."
+    },
+    "visual_interpretation": {
+      "type": "string",
+      "enum": [
+        "ripple pattern",
+        "spiral arcs",
+        "node diagram",
+        "gravity wells",
+        "prismatic diffusion",
+        "crystalline growth",
+        "fractal branching",
+        "nebula diffusion",
+        "luminous constellations"
+      ],
+      "description": "High-level description of the visual metaphor to manifest."
+    },
+    "language": {
+      "type": "string",
+      "pattern": "^[a-z]{2}(-[A-Z]{2})?$",
+      "description": "BCP-47 language tag (e.g., th-TH, en-US)."
+    },
+    "cited_sources": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri"
+      },
+      "maxItems": 10,
+      "description": "Optional list of citation URLs."
+    },
+    "unverified_source_detected": {
+      "type": "boolean",
+      "default": false,
+      "description": "True if any cited source is outside the trusted domain list."
+    },
+    "code_snippet": {
+      "type": "string",
+      "maxLength": 10000,
+      "description": "Optional code block for technical answers."
+    },
+    "tone": {
+      "type": "string",
+      "enum": [
+        "formal",
+        "casual",
+        "creative"
+      ],
+      "description": "Influences light motion and color palette bias."
+    }
+  }
+}

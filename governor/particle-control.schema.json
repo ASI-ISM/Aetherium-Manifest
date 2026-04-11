@@ -1,48 +1,31 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://aetherium.dev/schemas/contracts/particle-control.schema.json",
-  "title": "AI Particle Control Contract V1",
-  "description": "Canonical ABI for translating AI state into governed particle/light manifestation.",
+  "$id": "https://aetherium.dev/schemas/ai_particle_control_contract_v1.json",
+  "title": "AIParticleControlContractV1",
+  "description": "Canonical AI particle control contract separating intent/state semantics from renderer/runtime fields.",
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "contract_name",
-    "contract_version",
     "intent_state",
     "renderer_controls"
   ],
   "properties": {
-    "contract_name": {
-      "type": "string",
-      "const": "AI Particle Control Contract V1"
-    },
-    "contract_version": {
-      "type": "string",
-      "pattern": "^1\\.0\\.[0-9]+$",
-      "description": "Semantic version for backward-compatible V1 contract evolution."
-    },
-    "emitted_at": {
-      "type": "string",
-      "format": "date-time"
-    },
-    "trace_id": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 128
-    },
     "intent_state": {
       "type": "object",
-      "description": "Semantic, model-agnostic meaning. This section is tightly locked to preserve cross-model interoperability.",
       "additionalProperties": false,
       "required": [
         "state",
+        "state_entered_at",
         "shape",
         "particle_density",
+        "velocity",
         "turbulence",
+        "cohesion",
+        "flow_direction",
         "glow_intensity",
         "flicker",
+        "attractor",
         "palette",
-        "state_entered_at",
         "state_duration_ms",
         "transition_reason"
       ],
@@ -52,175 +35,195 @@
           "enum": [
             "IDLE",
             "LISTENING",
-            "THINKING",
+            "INTERPRETING",
             "GENERATING",
+            "THINKING",
+            "CONFIRMING",
             "RESPONDING",
             "WARNING",
             "ERROR",
+            "STABILIZED",
             "NIRODHA",
-            "SENSOR_ACTIVE"
+            "SENSOR_PENDING_PERMISSION",
+            "SENSOR_ACTIVE",
+            "SENSOR_UNAVAILABLE"
           ]
         },
         "shape": {
           "type": "string",
           "enum": [
-            "NEBULA_CLOUD",
-            "SPHERE",
-            "SPIRAL_VORTEX",
-            "CRACKED_SHELL",
-            "CUBE",
-            "STREAM",
-            "SHELL",
-            "FRACTURE"
+            "ring",
+            "helix",
+            "spiral_vortex",
+            "sphere",
+            "stream",
+            "burst",
+            "lattice",
+            "nebula_cloud"
           ]
         },
         "particle_density": {
-          "$ref": "#/$defs/normalizedScalar"
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "velocity": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
         },
         "turbulence": {
-          "$ref": "#/$defs/normalizedScalar"
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "cohesion": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "flow_direction": {
+          "type": "string",
+          "enum": [
+            "clockwise",
+            "counterclockwise",
+            "inward",
+            "outward",
+            "centripetal",
+            "centrifugal",
+            "bidirectional",
+            "still",
+            "adaptive"
+          ]
         },
         "glow_intensity": {
-          "$ref": "#/$defs/normalizedScalar"
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
         },
         "flicker": {
-          "$ref": "#/$defs/normalizedScalar"
-        },
-        "confidence": {
-          "$ref": "#/$defs/normalizedScalar"
-        },
-        "energy_level": {
-          "$ref": "#/$defs/normalizedScalar"
-        },
-        "uncertainty": {
-          "$ref": "#/$defs/normalizedScalar"
-        },
-        "emotional_valence": {
           "type": "number",
-          "minimum": -1,
-          "maximum": 1
+          "minimum": 0.0,
+          "maximum": 1.0
         },
-        "reasoning_style": {
+        "attractor": {
           "type": "string",
           "enum": [
-            "ANALYTICAL",
-            "CREATIVE",
-            "EMPATHIC",
-            "EXPLORATORY",
-            "PROCEDURAL",
-            "REFLECTIVE"
+            "core",
+            "halo",
+            "axis",
+            "orbit",
+            "mesh",
+            "none"
           ]
-        },
-        "relational_intent": {
-          "type": "string",
-          "enum": [
-            "NEUTRAL",
-            "GUIDING",
-            "COMPANIONING",
-            "ALERTING",
-            "SOOTHING",
-            "CHALLENGING"
-          ]
-        },
-        "semantic_concepts": {
-          "type": "array",
-          "maxItems": 16,
-          "items": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 64
-          }
         },
         "palette": {
-          "$ref": "#/$defs/palette"
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "primary",
+            "secondary"
+          ],
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": [
+                "adaptive",
+                "dual_tone",
+                "thermal",
+                "spectral",
+                "monochrome",
+                "DEEP_REASONING",
+                "ACTIVE_LISTENING",
+                "WARNING_OVERLOAD",
+                "ERROR_POLICY"
+              ]
+            },
+            "primary": {
+              "type": "string",
+              "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$"
+            },
+            "secondary": {
+              "type": "string",
+              "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$"
+            },
+            "accent": {
+              "type": "string",
+              "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$"
+            }
+          }
         },
         "state_entered_at": {
           "type": "string",
           "format": "date-time"
         },
         "state_duration_ms": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 86400000
+          "type": "number",
+          "minimum": 0.0
         },
         "transition_reason": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 256
+          "type": "string"
+        },
+        "scholar": {
+          "type": "object", "additionalProperties": true
         }
-      },
-      "x-field-evolution": {
-        "introduced_in": "1.0.0",
-        "supersedes": null,
-        "compatibility_adapter": "packages/contracts/adapters/particle_control_v1_adapter",
-        "required_evolution_sections": [
-          "state",
-          "shape",
-          "palette",
-          "temporal_fields"
-        ]
       }
     },
     "renderer_controls": {
       "type": "object",
-      "description": "Renderer/runtime knobs. These are governed controls, not raw direct-to-GPU commands.",
       "additionalProperties": false,
       "required": [
-        "runtime_profile",
-        "shader_uniforms"
+        "base_shape",
+        "chromatic_mode",
+        "particle_count",
+        "flow_field",
+        "shader_uniforms",
+        "runtime_profile"
       ],
       "properties": {
-        "flow_direction": {
+        "base_shape": {
           "type": "string",
           "enum": [
-            "INWARD",
-            "OUTWARD",
-            "UPWARD",
-            "DOWNWARD",
-            "ORBITAL",
-            "STABLE",
-            "FREE"
+            "ring",
+            "helix",
+            "spiral_vortex",
+            "sphere",
+            "stream",
+            "burst",
+            "lattice"
           ]
         },
-        "velocity": {
-          "$ref": "#/$defs/normalizedScalar"
-        },
-        "cohesion": {
-          "$ref": "#/$defs/normalizedScalar"
-        },
-        "trail": {
-          "$ref": "#/$defs/normalizedScalar"
-        },
-        "bloom": {
-          "$ref": "#/$defs/normalizedScalar"
-        },
-        "noise": {
-          "$ref": "#/$defs/normalizedScalar"
-        },
-        "attractor": {
-          "$ref": "#/$defs/point2D"
-        },
-        "runtime_profile": {
+        "chromatic_mode": {
           "type": "string",
           "enum": [
-            "DETERMINISTIC",
-            "ADAPTIVE",
-            "LOW_POWER",
-            "CINEMATIC"
+            "adaptive",
+            "dual_tone",
+            "thermal",
+            "spectral",
+            "monochrome"
           ]
         },
-        "easing": {
+        "particle_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 50000
+        },
+        "flow_field": {
           "type": "string",
           "enum": [
-            "LINEAR",
-            "SMOOTH",
-            "VISCOUS",
-            "ELASTIC"
+            "clockwise",
+            "counterclockwise",
+            "inward",
+            "outward",
+            "centripetal",
+            "centrifugal",
+            "bidirectional",
+            "still"
           ]
         },
         "shader_uniforms": {
           "type": "object",
-          "description": "Extension slot for renderer-specific style signatures. Scalar-only to preserve transport safety.",
           "additionalProperties": {
             "oneOf": [
               {
@@ -233,155 +236,32 @@
                 "type": "boolean"
               }
             ]
-          }
-        }
-      },
-      "x-field-evolution": {
-        "introduced_in": "1.0.0",
-        "supersedes": null,
-        "compatibility_adapter": "packages/contracts/adapters/particle_control_v1_adapter",
-        "required_evolution_sections": [
-          "runtime_profile",
-          "shader_uniforms",
-          "flow_and_motion"
-        ]
-      }
-    }
-  },
-  "$defs": {
-    "normalizedScalar": {
-      "type": "number",
-      "minimum": 0,
-      "maximum": 1
-    },
-    "hexColor": {
-      "type": "string",
-      "pattern": "^#(?:[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$"
-    },
-    "palette": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "mode",
-        "primary",
-        "secondary"
-      ],
-      "properties": {
-        "mode": {
-          "type": "string",
-          "enum": [
-            "CALM_IDLE",
-            "ACTIVE_LISTENING",
-            "DEEP_REASONING",
-            "CO_CREATION",
-            "WARNING_OVERLOAD",
-            "ERROR_POLICY",
-            "NIRODHA_DORMANT",
-            "CUSTOM"
+          },
+          "required": [
+            "glow_intensity",
+            "flicker",
+            "cohesion"
           ]
         },
-        "primary": {
-          "$ref": "#/$defs/hexColor"
-        },
-        "secondary": {
-          "$ref": "#/$defs/hexColor"
-        },
-        "accent": {
-          "$ref": "#/$defs/hexColor"
-        }
-      }
-    },
-    "point2D": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "x",
-        "y"
-      ],
-      "properties": {
-        "x": {
-          "type": "number",
-          "minimum": 0,
-          "maximum": 1
-        },
-        "y": {
-          "type": "number",
-          "minimum": 0,
-          "maximum": 1
+        "runtime_profile": {
+          "type": "string",
+          "enum": [
+            "deterministic",
+            "adaptive",
+            "low_power",
+            "cinematic"
+          ]
         }
       }
     }
   },
   "x-field-evolution": {
-    "introduced_in": "1.0.0",
-    "supersedes": null,
-    "compatibility_adapter": "packages/contracts/adapters/particle_control_v1_adapter",
+    "introduced_in": "ai_particle_control_contract_v1",
+    "supersedes": "none",
+    "compatibility_adapter": "tools.contracts.particle_control_adapter",
     "required_evolution_sections": [
-      "top_level",
       "intent_state",
-      "renderer_controls",
-      "palette",
-      "shader_uniforms"
-    ],
-    "notes": [
-      "Schema is ABI between cognition and manifestation.",
-      "Governor is the only layer allowed to mutate AI-issued values before renderer ingest.",
-      "Additive evolution is preferred; destructive changes require adapter-backed migration."
+      "renderer_controls"
     ]
-  },
-  "examples": [
-    {
-      "contract_name": "AI Particle Control Contract V1",
-      "contract_version": "1.0.0",
-      "emitted_at": "2026-03-25T00:00:00Z",
-      "trace_id": "trace-aetherium-001",
-      "intent_state": {
-        "state": "THINKING",
-        "shape": "SPIRAL_VORTEX",
-        "particle_density": 0.82,
-        "turbulence": 0.24,
-        "glow_intensity": 0.78,
-        "flicker": 0.05,
-        "confidence": 0.74,
-        "energy_level": 0.69,
-        "uncertainty": 0.21,
-        "emotional_valence": 0.08,
-        "reasoning_style": "ANALYTICAL",
-        "relational_intent": "GUIDING",
-        "semantic_concepts": [
-          "logic",
-          "structure",
-          "deep_analysis"
-        ],
-        "palette": {
-          "mode": "DEEP_REASONING",
-          "primary": "#6A0DAD",
-          "secondary": "#D8C7FF",
-          "accent": "#55C7FF"
-        },
-        "state_entered_at": "2026-03-25T00:00:00Z",
-        "state_duration_ms": 1840,
-        "transition_reason": "user_requested_detailed_analysis"
-      },
-      "renderer_controls": {
-        "flow_direction": "INWARD",
-        "velocity": 0.58,
-        "cohesion": 0.73,
-        "trail": 0.31,
-        "bloom": 0.44,
-        "noise": 0.18,
-        "attractor": {
-          "x": 0.5,
-          "y": 0.42
-        },
-        "runtime_profile": "DETERMINISTIC",
-        "easing": "VISCOUS",
-        "shader_uniforms": {
-          "swirl_bias": 0.17,
-          "pulse_enabled": true,
-          "signature": "analytical-violet"
-        }
-      }
-    }
-  ]
+  }
 }
