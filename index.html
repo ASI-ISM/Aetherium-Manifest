@@ -367,7 +367,7 @@
                     document.getElementById('scholar-panel').classList.remove('hidden');
                     const content = document.getElementById('scholar-content');
                     content.innerHTML = `
-                        <div class="mb-2"><strong class="text-white">ผลการค้นหา: ${intent}</strong></div>
+                        <div class="mb-2"><strong class="text-white search-title"></strong></div>
                         <p class="text-gray-400 leading-relaxed mb-2">
                             ระบบได้ทำการดึงข้อมูลจากแหล่งที่เชื่อถือได้ (อ้างอิงจากฐานข้อมูล Aetherium และ Web Search)...
                             สิ่งนี้คือกระบวนการเชิงโครงสร้างที่แปลงพารามิเตอร์เป็นคลื่นแสง
@@ -376,6 +376,7 @@
                             <i class="fas fa-link"></i> Source Verified (Governor Trust Score: 0.98)
                         </div>
                     `;
+                    content.querySelector('.search-title').textContent = `ผลการค้นหา: ${intent}`;
                     currentState = 'IDLE';
                     document.getElementById('sys-state').innerText = 'IDLE';
                     document.getElementById('sys-state').className = 'text-right text-emerald-400';
