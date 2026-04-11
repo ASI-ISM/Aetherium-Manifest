@@ -4,7 +4,20 @@ This document describes the production-safe baseline behavior of the single-file
 
 ## Purpose
 
-`index.html` is the zero-build operational console for:
+`index.html` is the zero-build operational console for **Aetherium = Light-native Creative OS**.
+
+Users do not command visual "effects" directly. They converse with light to shape outputs such as posters, brand visuals, UI concepts, diagrams, ambient scenes, concept art, motion identity, and document visuals.
+
+The runtime keeps the same embodiment grammar from the current prototype:
+
+- full-screen light body
+- bottom composer
+- standby light baseline
+- touch burst interaction
+- fade transition behavior
+- tilt sensor response
+
+Operational responsibilities:
 
 - intent capture (text, file, voice-mock)
 - deterministic local particle rendering fallback

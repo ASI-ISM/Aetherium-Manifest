@@ -2,6 +2,23 @@
 
 Aetherium Manifest is a contract-first runtime for visualizing AI cognitive state as deterministic light/particle behavior, with a FastAPI gateway and WebSocket state sync.
 
+## Product definition (April 11, 2026)
+
+**Aetherium = Light-native Creative OS**
+
+Aetherium Manifest is now positioned as a creative operating surface where users do not ask for "effects"; they "converse with light" to produce tangible design outputs:
+
+- poster
+- brand visual
+- UI concept
+- diagram
+- ambient scene
+- concept art
+- motion identity
+- document visual
+
+Core embodiment remains unchanged from the current prototype: **full-screen light body + bottom composer**, with existing interaction grammar preserved (`standby light`, `touch burst`, `fade`, and `tilt sensor`).
+
 ## What's updated (April 2026)
 
 - `index.html` is now a fully runnable **runtime console** that works end-to-end with:
