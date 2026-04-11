@@ -12,7 +12,7 @@ from enum import Enum
 from fastapi import FastAPI, HTTPException, Header, BackgroundTasks, Request
 from .scholar_router import router as scholar_router
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 import redis.asyncio as redis
 import nats
 import httpx
