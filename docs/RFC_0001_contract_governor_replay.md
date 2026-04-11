@@ -85,12 +85,13 @@ Define a contract-first runtime where AI emits structured intent/contracts and *
   "decision_id": "uuid",
   "intent_id": "uuid",
   "manifest_id": "uuid",
-  "pipeline": [
     "validate",
     "transition",
     "profile_map",
     "clamp",
     "fallback",
+    "psycho_safety_gate",
+    "validate_schema",
     "policy_block",
     "capability_gate",
     "telemetry_log"
