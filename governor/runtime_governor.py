@@ -895,7 +895,12 @@ class RuntimeGovernor:
                 unverified = False
                 trusted_domains = ["wikipedia.org", "github.com", "aetherium.dev", "nasa.gov", "arxiv.org", "nature.com", "sciencedirect.com", "scholar.google.com", "npmjs.com", "developer.mozilla.org", "stackoverflow.com", "reuters.com"]
                 for url in scholar["cited_sources"]:
-                    if not any(domain in url for domain in trusted_domains):
+                for url in scholar["cited_sources"]:
+                    # Extract hostname for secure validation
+                    hostname = url.split("://")[-1].split("/")[0].split("?")[0].split(":")[0]
+                    if not any(hostname == domain or hostname.endswith("." + domain) for domain in trusted_domains):
+                        unverified = True
+                        violations.append(f"unverified source detected: {url}")
                         unverified = True
                         violations.append(f"unverified source detected: {url}")
                 scholar["unverified_source_detected"] = unverified
