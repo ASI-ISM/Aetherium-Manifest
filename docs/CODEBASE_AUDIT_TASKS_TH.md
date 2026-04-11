@@ -24,7 +24,7 @@
 - พฤติกรรมนี้เป็นช่องโหว่เชิง config ที่ทำให้ endpoint ที่ควรป้องกันสิทธิ์ถูกเรียกได้โดยไม่ได้ยืนยันตัวตนจริง
 
 **งานที่เสนอ**
-- เปลี่ยนเป็น fail-closed: ถ้าไม่มี `AETHERIUM_API_KEY` ให้ตอบ `500` หรือ `503` พร้อมข้อความ config ไม่ครบ
+- เปลี่ยนเป็น fail-closed: ถ้าไม่มี AETHERIUM_API_KEY ให้ตอบ 500 พร้อมข้อความแจ้งเตือนการตั้งค่าไม่สมบูรณ์
 - เพิ่ม startup check ให้ปฏิเสธการเปิด service เมื่อ key บังคับยังไม่ถูกตั้ง
 - ระบุ runbook ชัดเจนใน README ว่า `AETHERIUM_API_KEY` เป็น required secret ในทุก environment ที่เปิดใช้งาน auth
 
