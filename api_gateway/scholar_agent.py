@@ -109,7 +109,7 @@ class ScholarAgent:
             }
         elif "long" in prompt_l:
              return {
-                "summary": "A" * 6000,
+                "summary": "A" * 4000,
                 "visual_interpretation": "spiral arcs",
                 "language": lang,
                 "tone": tone
