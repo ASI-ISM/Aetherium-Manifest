@@ -60,13 +60,13 @@ Creative teams still work with fragmented prompt loops: low continuity, weak bra
 ## 9) Visual Runtime States
 - IDLE
 - LISTENING
-- INTERPRETING
-- MANIFESTING
-- REFINING
-- EXPORTING
+- THINKING
+- GENERATING
+- RESPONDING
 - WARNING
 - ERROR
 - NIRODHA
+- SENSOR_ACTIVE
 
 ## 10) Functional Requirements
 ### FR-1 Brand Memory
