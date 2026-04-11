@@ -12,10 +12,10 @@ The runtime keeps the same embodiment grammar from the current prototype:
 
 - full-screen light body
 - bottom composer
-- standby light baseline
-- touch burst interaction
-- fade transition behavior
-- tilt sensor response
+- standby light
+- touch burst
+- fade
+- tilt sensor
 
 Operational responsibilities:
 
