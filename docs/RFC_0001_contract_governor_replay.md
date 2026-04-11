@@ -63,7 +63,7 @@ Define a contract-first runtime where AI emits structured intent/contracts and *
   "manifest_id": "uuid",
   "state": "IDLE|LISTENING|INTERPRETING|MANIFESTING|REFINING|EXPORTING|WARNING|ERROR|NIRODHA",
   "shape": "NEBULA_CLOUD|SPHERE|SPIRAL_VORTEX|CRACKED_SHELL|CUBE|STREAM|SHELL|FRACTURE|custom",
-  "palette_mode": "brand|cool|warm|sacred|enterprise|minimal|cinematic",
+  "palette": {"mode": "CALM_IDLE|ACTIVE_LISTENING|DEEP_REASONING|CO_CREATION|WARNING_OVERLOAD|ERROR_POLICY|NIRODHA_DORMANT|CUSTOM", "primary": "hex", "secondary": "hex"},
   "particle_density": 0.0,
   "turbulence": 0.0,
   "glow_intensity": 0.0,
