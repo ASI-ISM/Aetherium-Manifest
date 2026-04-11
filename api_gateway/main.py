@@ -258,7 +258,7 @@ async def emit_cognitive_dsl(
     await incr_metric("total_dsl_submissions")
 
     # Run firma validation
-    is_valid, policy_violations = FirmaValidator.validate_dsl_response(request_data)
+    _, policy_violations = FirmaValidator.validate_dsl_response(request_data)
 
     governor_result = {
         "accepted": True,
