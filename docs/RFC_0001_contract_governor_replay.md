@@ -70,7 +70,7 @@ Define a contract-first runtime where AI emits structured intent/contracts and *
   "cohesion": 0.0,
   "flicker": 0.0,
   "flow_direction": "inward|outward|clockwise|counterclockwise|adaptive",
-  "attractor_points": [{"x": 0.0, "y": 0.0, "z": 0.0, "weight": 0.0}],
+  "attractor": {"x": 0.0, "y": 0.0},
   "composition_hint": "string",
   "typography_hint": "string",
   "variation_branch": "base|calm|luxury|sacred|enterprise|minimal|cinematic",
