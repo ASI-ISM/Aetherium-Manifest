@@ -417,10 +417,10 @@
                 <div class="w-6 h-6 rounded-full bg-transparent border border-blue-400 flex items-center justify-center lineage-node" onclick="revertToNode('V.${lineageCount}')">
                     <div class="w-1.5 h-1.5 rounded-full bg-blue-300"></div>
                 </div>
-                <span class="text-xs text-gray-400 group-hover:text-white transition-colors" onclick="revertToNode('V.${lineageCount}')">
-                    ${shortLabel}
-                </span>
+                <span class="text-xs text-gray-400 group-hover:text-white transition-colors label-text" onclick="revertToNode('V.${lineageCount}')"></span>
                 <i class="fas fa-trash text-gray-600 hover:text-red-400 text-[10px] ml-auto transition-colors" onclick="deleteNode(this)" title="ลบสายวิวัฒนาการนี้"></i>
+            `;
+            node.querySelector('.label-text').textContent = shortLabel;
             `;
             container.appendChild(node);
         }
