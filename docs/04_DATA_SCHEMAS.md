@@ -77,3 +77,16 @@ Compatibility policy:
 - `light_program.renderer_controls` is the canonical compiled renderer block shared with `embodiment_v2`.
 - Legacy consumers reading `visual_parameters` MUST use adapter `tools/contracts/protocol_adapter.py`, which in turn consumes the canonical particle control adapter output.
 - Schema lint enforces `x-field-evolution` metadata + required section presence for every governed contract.
+
+## Scholar Contract V1 (Knowledge Augmentation)
+Canonical contract file: `docs/schemas/scholar_contract_v1.json`
+
+This sub-schema defines the structure for knowledge-heavy outputs from ScholarAgent:
+- `summary` — The human-readable explanation (supports Markdown).
+- `visual_interpretation` — Semantic cue for the renderer (e.g., "ripple pattern").
+- `language` — BCP-47 tag for localization.
+- `cited_sources` — List of URLs for verification.
+- `code_snippet` — Optional technical payload.
+- `tone` — Affects the visual emotional bias (formal, casual, creative).
+
+Reasoning: Ensures that knowledge manifestations are structured, governable, and can be localized or cited properly within the Manifest HUD.

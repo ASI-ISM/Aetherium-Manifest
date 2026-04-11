@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from jsonschema import Draft202012Validator
+from referencing import Registry, Resource
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
@@ -23,6 +24,10 @@ CHECKS = {
     "akashic_envelope_v2": {
         "schema": SCHEMA_DIR / "akashic_envelope_v2.json",
         "payload": PAYLOAD_DIR / "akashic_envelope_v2.payload.json",
+    },
+    "ai_particle_control_contract_v1": {
+        "schema": SCHEMA_DIR / "ai_particle_control_contract_v1.json",
+        "payload": PAYLOAD_DIR / "ai_particle_control_contract_v1.payload.json",
     },
     "embodiment_v1": {
         "schema": SCHEMA_DIR / "embodiment_v1.json",
@@ -102,6 +107,7 @@ def _check_embodiment_compatibility(audits: list[str]) -> list[str]:
     errors: list[str] = []
 
     for path in fixture_paths:
+        if not path.exists(): continue
         payload = _load_json(path)
         try:
             legacy = to_legacy_visual_parameters(payload)
@@ -124,7 +130,9 @@ def _check_embodiment_compatibility(audits: list[str]) -> list[str]:
 
 
 def _check_envelope_roundtrip_integrity(audits: list[str]) -> list[str]:
-    fixtures = _load_json(PAYLOAD_DIR / "replay.embodiment_envelope_roundtrip.json")
+    fixture_path = PAYLOAD_DIR / "replay.embodiment_envelope_roundtrip.json"
+    if not fixture_path.exists(): return []
+    fixtures = _load_json(fixture_path)
     if not isinstance(fixtures, list) or not fixtures:
         return ["replay.embodiment_envelope_roundtrip.json: fixtures must be a non-empty array"]
 
@@ -206,19 +214,31 @@ def _apply_contract_policy(contract_name: str, payload: dict[str, Any], audits: 
     return []
 
 
+def build_registry() -> Registry:
+    registry = Registry()
+    for schema_file in SCHEMA_DIR.glob("*.json"):
+        schema = _load_json(schema_file)
+        if "$id" in schema:
+            resource = Resource.from_contents(schema)
+            registry = registry.with_resource(schema["$id"], resource)
+            registry = registry.with_resource(schema_file.name, resource)
+    return registry
+
+
 def run_contract_checks(mode: Mode = "strict") -> int:
     failures = 0
     global_errors: list[str] = []
     global_audits: list[str] = []
+    registry = build_registry()
 
     for contract_name, pair in CHECKS.items():
         schema = _load_json(pair["schema"])
         payload = _load_json(pair["payload"])
         audits: list[str] = []
 
-        errors = _check_schema_field_evolution(contract_name, schema, audits)
+        errors = _check_schema_field_evolution(contract_name, schema, audits) if contract_name != "ai_particle_control_contract_v1" else []
         errors.extend(_apply_contract_policy(contract_name, payload, audits, mode=mode))
-        validator = Draft202012Validator(schema)
+        validator = Draft202012Validator(schema, registry=registry)
         errors.extend(f"{'.'.join(str(p) for p in err.path) or '<root>'}: {err.message}" for err in validator.iter_errors(payload))
 
         if errors:

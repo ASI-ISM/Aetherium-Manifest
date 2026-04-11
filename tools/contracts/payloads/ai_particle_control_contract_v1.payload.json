@@ -1,0 +1,40 @@
+{
+  "intent_state": {
+    "state": "RESPONDING",
+    "state_entered_at": "2026-04-11T12:00:00Z",
+    "shape": "spiral_vortex",
+    "particle_density": 0.5,
+    "velocity": 0.5,
+    "turbulence": 0.5,
+    "cohesion": 0.5,
+    "flow_direction": "outward",
+    "glow_intensity": 0.5,
+    "flicker": 0.1,
+    "attractor": "core",
+    "palette": {
+      "mode": "DEEP_REASONING",
+      "primary": "#4169E1",
+      "secondary": "#B0C4DE"
+    },
+    "state_duration_ms": 5000,
+    "transition_reason": "testing scholar agent",
+    "scholar": {
+      "summary": "This is a test summary.",
+      "visual_interpretation": "ripple pattern",
+      "language": "en-US",
+      "tone": "formal"
+    }
+  },
+  "renderer_controls": {
+    "base_shape": "spiral_vortex",
+    "chromatic_mode": "adaptive",
+    "particle_count": 5000,
+    "flow_field": "outward",
+    "shader_uniforms": {
+      "glow_intensity": 0.5,
+      "flicker": 0.1,
+      "cohesion": 0.5
+    },
+    "runtime_profile": "cinematic"
+  }
+}

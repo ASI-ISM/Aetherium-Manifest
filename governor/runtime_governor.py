@@ -876,6 +876,39 @@ class RuntimeGovernor:
             return True, violations
 
         # Motion/flicker hard safety envelope.
+        # Scholar safety gates
+        scholar = intent.get("scholar")
+        if scholar:
+            # Priority: Scholar must NOT override system alerts
+            if state in ("ERROR", "WARNING"):
+                 violations.append("Priority conflict: Scholar intent suppressed during system alert")
+                 intent.pop("scholar")
+                 return False, violations
+
+            # Recursive Summarization Hint
+            if len(scholar.get("summary", "")) > 5000:
+                scholar["summary"] = scholar["summary"][:4900] + "... [System: Recursive Summarization Required]"
+                violations.append("scholar summary truncated and flagged for recursive summarization")
+
+            # Trusted domains and Amber Signal
+            if "cited_sources" in scholar:
+                unverified = False
+                trusted_domains = ["wikipedia.org", "github.com", "aetherium.dev", "nasa.gov", "arxiv.org", "nature.com", "sciencedirect.com", "scholar.google.com", "npmjs.com", "developer.mozilla.org", "stackoverflow.com", "reuters.com"]
+                for url in scholar["cited_sources"]:
+                    if not any(domain in url for domain in trusted_domains):
+                        unverified = True
+                        violations.append(f"unverified source detected: {url}")
+                scholar["unverified_source_detected"] = unverified
+
+            # Psycho-safety for sensitive content
+            summary_lower = scholar.get("summary", "").lower()
+            if any(word in summary_lower for word in ["warning", "danger", "hazard", "unsafe"]):
+                if intent.get("flicker", 0.0) > 0.05:
+                    intent["flicker"] = 0.05
+                    violations.append("psycho-safety: flicker capped for sensitive content")
+                if intent.get("glow_intensity", 0.0) > 0.4:
+                     intent["glow_intensity"] = 0.4
+                     violations.append("psycho-safety: glow_intensity capped for sensitive content")
         if intent.get("flicker", 0.0) > 0.20:
             intent["flicker"] = 0.20
             violations.append("flicker capped to hard safety envelope")
