@@ -1,784 +1,544 @@
-<!doctype html>
-<html lang="th">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Aetherium Manifest Runtime Console</title>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Aetherium Manifest | Cognitive Runtime</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-      :root {
-        --bg: #06070d;
-        --panel: rgba(12, 14, 24, 0.84);
-        --line: rgba(255, 255, 255, 0.12);
-        --text: #f0f5ff;
-        --muted: #9da8bf;
-        --cyan: #53ecff;
-        --pink: #ff5ea8;
-        --gold: #ffd166;
-      }
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700&family=Inter:wght@300;400;500&display=swap');
 
-      * { box-sizing: border-box; }
-
-      html,
-      body {
-        margin: 0;
-        width: 100%;
-        height: 100%;
-        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-        background: var(--bg);
-        color: var(--text);
-      }
-
-      #display-layer {
-        position: fixed;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        background:
-          radial-gradient(circle at 18% 18%, rgba(83, 236, 255, 0.18), transparent 34%),
-          radial-gradient(circle at 80% 75%, rgba(255, 94, 168, 0.14), transparent 38%),
-          linear-gradient(180deg, #06070d 0%, #090b14 100%);
-        z-index: 1;
-      }
-
-      .shell {
-        position: relative;
-        z-index: 2;
-        height: 100%;
-        display: grid;
-        grid-template-columns: minmax(320px, 420px) minmax(360px, 1fr);
-        gap: 14px;
-        padding: 14px;
-      }
-
-      .card {
-        background: var(--panel);
-        border: 1px solid var(--line);
-        border-radius: 14px;
-        backdrop-filter: blur(8px);
-      }
-
-      .column {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        min-height: 0;
-      }
-
-      .panel-head {
-        padding: 12px 14px;
-        border-bottom: 1px solid var(--line);
-        font-size: 12px;
-        letter-spacing: 0.07em;
-        text-transform: uppercase;
-        color: #c8d5f6;
-      }
-
-      .panel-body {
-        padding: 12px 14px;
-        min-height: 0;
-      }
-
-      #status-grid {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 8px;
-      }
-
-      .metric {
-        display: grid;
-        gap: 4px;
-      }
-
-      .metric-head {
-        display: flex;
-        justify-content: space-between;
-        font-size: 12px;
-      }
-
-      .bar {
-        width: 100%;
-        height: 7px;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.08);
-        overflow: hidden;
-      }
-
-      .bar > span {
-        display: block;
-        height: 100%;
-        width: 0;
-        transition: width 220ms ease;
-      }
-
-      .chips {
-        margin-top: 10px;
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-      }
-
-      .chip {
-        font-size: 11px;
-        border: 1px solid var(--line);
-        border-radius: 999px;
-        padding: 3px 10px;
-        color: #dbe8ff;
-      }
-
-      #chat-stream {
-        min-height: 140px;
-        max-height: 260px;
-        overflow: auto;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        padding-right: 4px;
-      }
-
-      .bubble {
-        font-size: 12px;
-        line-height: 1.45;
-        border-radius: 10px;
-        padding: 8px 10px;
-      }
-
-      .bubble.user { background: rgba(83, 236, 255, 0.14); border: 1px solid rgba(83, 236, 255, 0.25); }
-      .bubble.system { background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line); }
-      .bubble.error { background: rgba(255, 82, 82, 0.12); border: 1px solid rgba(255, 82, 82, 0.35); }
-
-      #intent-json {
-        margin: 0;
-        max-height: 220px;
-        overflow: auto;
-        font-size: 11px;
-        background: rgba(0, 0, 0, 0.25);
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        padding: 10px;
-      }
-
-      .composer {
-        display: flex;
-        gap: 8px;
-        align-items: flex-end;
-      }
-
-      textarea,
-      input,
-      select,
-      button {
-        font: inherit;
-      }
-
-      textarea,
-      input,
-      select {
-        width: 100%;
-        color: var(--text);
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        padding: 8px 10px;
-      }
-
-      textarea {
-        min-height: 76px;
-        resize: vertical;
-      }
-
-      .btn-row {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-      }
-
-      button {
-        color: var(--text);
-        background: rgba(255, 255, 255, 0.06);
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        padding: 8px 11px;
-        cursor: pointer;
-      }
-
-      button.primary {
-        background: linear-gradient(135deg, rgba(83, 236, 255, 0.34), rgba(255, 94, 168, 0.32));
-      }
-
-      #status-line { font-size: 12px; color: var(--muted); }
-      #sources { font-size: 11px; color: #c2d1f7; margin-top: 8px; }
-      #ws-status { font-size: 11px; color: var(--gold); margin-top: 6px; }
-
-      #compat-frame {
-        width: 100%;
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        background: #05060b;
-      }
-
-      #memory-layer,
-      #file-input {
-        display: none;
-      }
-
-      @media (max-width: 1024px) {
-        .shell {
-          grid-template-columns: 1fr;
-          overflow: auto;
-          height: auto;
-          min-height: 100%;
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #050505;
+            font-family: 'Inter', sans-serif;
+            color: #e2e8f0;
+            user-select: none;
+            -webkit-user-select: none;
         }
-      }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+        }
+
+        .glass-panel {
+            background: rgba(10, 10, 15, 0.4);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Custom Scrollbar for logs */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 4px; }
+
+        input:focus { outline: none; }
+
+        /* Composer animations */
+        .composer-active { box-shadow: 0 0 20px rgba(99, 102, 241, 0.4); border-color: rgba(99, 102, 241, 0.6); }
+
+        .glow-text { text-shadow: 0 0 10px rgba(255, 255, 255, 0.5); }
     </style>
-  </head>
-  <body>
-    <canvas id="display-layer"></canvas>
-    <canvas id="memory-layer"></canvas>
-    <input id="file-input" type="file" accept="image/*" />
+</head>
+<body class="text-sm">
 
-    <main class="shell">
-      <section class="column">
-        <article class="card">
-          <div class="panel-head">Runtime State</div>
-          <div class="panel-body">
-            <div id="status-grid">
-              <div class="metric">
-                <div class="metric-head"><span>Energy</span><span id="energy-text">100%</span></div>
-                <div class="bar"><span id="energy-bar" style="background:#53ecff"></span></div>
-              </div>
-              <div class="metric">
-                <div class="metric-head"><span>Entropy</span><span id="entropy-text">0%</span></div>
-                <div class="bar"><span id="entropy-bar" style="background:#ff5ea8"></span></div>
-              </div>
-              <div class="metric">
-                <div class="metric-head"><span>Load</span><span id="load-text">0%</span></div>
-                <div class="bar"><span id="load-bar" style="background:#ffd166"></span></div>
-              </div>
-            </div>
-            <div class="chips">
-              <span class="chip" id="state-chip">state: IDLE</span>
-              <span class="chip" id="shape-chip">shape: cloud</span>
-              <span class="chip" id="intent-chip">intent: chat</span>
-              <span class="chip" id="quality-chip">quality: auto</span>
-            </div>
-            <div id="ws-status">ws: disconnected</div>
-          </div>
-        </article>
+    <!-- WebGL Background -->
+    <div id="canvas-container"></div>
 
-        <article class="card" style="min-height: 0; flex: 1;">
-          <div class="panel-head">Conversation + Intent</div>
-          <div class="panel-body">
-            <div id="chat-stream"></div>
-            <div id="sources">sources: none</div>
-            <pre id="intent-json">{ "status": "ready" }</pre>
-          </div>
-        </article>
-      </section>
+    <!-- UI Overlay -->
+    <div class="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between p-4 sm:p-6">
 
-      <section class="column">
-        <article class="card">
-          <div class="panel-head">Control Surface</div>
-          <div class="panel-body">
-            <label for="chat-input">Intent Input</label>
-            <textarea id="chat-input" placeholder="พิมพ์ข้อความเพื่อส่งเข้า Aetherium pipeline"></textarea>
-            <div class="composer" style="margin-top:8px;">
-              <button id="attach-btn" type="button">แนบภาพ</button>
-              <button id="voice-btn" type="button">Voice (Mock)</button>
-              <button id="send-btn" class="primary" type="button">Emit</button>
-            </div>
-            <div id="file-chip" style="display:none; margin-top:8px; font-size:12px;"></div>
+        <!-- Top Row: HUD & Settings -->
+        <div class="flex justify-between items-start pointer-events-auto w-full">
 
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:12px;">
-              <label>
-                API Base
-                <input id="api-base" value="http://localhost:8080" />
-              </label>
-              <label>
-                WS Base
-                <input id="ws-base" value="ws://localhost:8080" />
-              </label>
-              <label>
-                API Key
-                <input id="api-key" value="local-dev-key" />
-              </label>
-              <label>
-                Room ID
-                <input id="room-id" value="demo-room" />
-              </label>
+            <!-- Runtime HUD -->
+            <div class="glass-panel rounded-xl p-4 w-64 space-y-3">
+                <div class="flex justify-between items-center border-b border-white/10 pb-2">
+                    <div class="flex items-center space-x-2">
+                        <div id="status-indicator" class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></div>
+                        <span class="font-bold tracking-wider text-xs text-indigo-200">AETHERIUM OS</span>
+                    </div>
+                    <span class="text-[10px] font-mono text-gray-400">ABI: mf-3.29.5</span>
+                </div>
+
+                <div class="space-y-2 font-mono text-[10px]">
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">STATE</span>
+                        <span id="metric-state" class="text-cyan-400 glow-text">STANDBY</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-400">ENERGY</span>
+                        <div class="w-24 h-1 bg-gray-800 rounded-full overflow-hidden">
+                            <div id="bar-energy" class="h-full bg-cyan-400 w-[45%] transition-all duration-300"></div>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-400">ENTROPY</span>
+                        <div class="w-24 h-1 bg-gray-800 rounded-full overflow-hidden">
+                            <div id="bar-entropy" class="h-full bg-purple-400 w-[12%] transition-all duration-300"></div>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-400">LOAD</span>
+                        <span id="metric-load" class="text-emerald-400">12ms</span>
+                    </div>
+                </div>
+
+                <!-- Mini Console Log -->
+                <div id="console-logs" class="h-20 overflow-y-auto pt-2 border-t border-white/10 font-mono text-[9px] text-gray-500 space-y-1 mt-2">
+                    <div>[SYS] Runtime console initialized.</div>
+                    <div>[SYS] WebSocket connecting...</div>
+                </div>
             </div>
 
-            <div class="btn-row" style="margin-top:10px;">
-              <button id="connect-ws-btn" type="button">Connect WS</button>
-              <button id="validate-btn" type="button">Validate</button>
-              <button id="generate-btn" type="button">Generate</button>
-              <button id="telemetry-btn" type="button">Ingest Telemetry</button>
-              <button id="reliability-btn" type="button">Reliability</button>
-            </div>
-            <div id="status-line">ready</div>
-          </div>
-        </article>
+            <!-- Settings Toggle & Panel -->
+            <div class="flex flex-col items-end">
+                <button id="btn-settings" class="p-2 glass-panel rounded-full hover:bg-white/10 transition-colors text-gray-400 hover:text-white">
+                    <i data-lucide="settings" class="w-4 h-4"></i>
+                </button>
 
-        <article class="card">
-          <div class="panel-head">Compatibility Frame</div>
-          <div class="panel-body">
-            <img id="compat-frame" alt="compatibility frame" />
-          </div>
-        </article>
-      </section>
-    </main>
+                <div id="panel-settings" class="glass-panel rounded-xl p-4 mt-2 w-72 hidden transition-all">
+                    <h3 class="text-xs font-bold text-gray-300 mb-3 uppercase tracking-wider">Gateway Configuration</h3>
+                    <div class="space-y-3 font-mono text-[10px]">
+                        <div>
+                            <label class="block text-gray-500 mb-1">API Base (HTTP)</label>
+                            <input type="text" id="cfg-api" value="http://localhost:8080" class="w-full bg-black/50 border border-white/10 rounded px-2 py-1 text-gray-300">
+                        </div>
+                        <div>
+                            <label class="block text-gray-500 mb-1">WS Base (WebSocket)</label>
+                            <input type="text" id="cfg-ws" value="ws://localhost:8090" class="w-full bg-black/50 border border-white/10 rounded px-2 py-1 text-gray-300">
+                        </div>
+                        <div>
+                            <label class="block text-gray-500 mb-1">Target Room ID</label>
+                            <input type="text" id="cfg-room" value="default-cognitive-space" class="w-full bg-black/50 border border-white/10 rounded px-2 py-1 text-gray-300">
+                        </div>
+                        <div class="pt-2">
+                            <button id="btn-connect" class="w-full bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/30 rounded py-1.5 transition-colors">Apply & Reconnect</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Row: Composer -->
+        <div class="w-full max-w-2xl mx-auto pointer-events-auto pb-4 sm:pb-8">
+            <div id="composer-container" class="glass-panel rounded-2xl p-2 flex items-center space-x-2 transition-all duration-300 border border-white/10">
+                <button class="p-2 sm:p-3 text-gray-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors shrink-0" title="Attach concept/schema">
+                    <i data-lucide="paperclip" class="w-5 h-5"></i>
+                </button>
+                <button class="p-2 sm:p-3 text-gray-400 hover:text-cyan-400 hover:bg-white/5 rounded-xl transition-colors shrink-0" title="Voice intent (Mock)">
+                    <i data-lucide="mic" class="w-5 h-5"></i>
+                </button>
+
+                <input type="text" id="composer-input"
+                       class="flex-1 bg-transparent text-white placeholder-gray-500 text-sm sm:text-base py-2 px-2"
+                       placeholder="Converse with light...">
+
+                <button id="btn-emit" class="px-4 py-2 sm:py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-all flex items-center justify-center shrink-0">
+                    <i data-lucide="sparkles" class="w-4 h-4 mr-0 sm:mr-2"></i>
+                    <span class="hidden sm:inline font-medium">Emit</span>
+                </button>
+            </div>
+
+            <!-- Output visual target indicator (hidden by default) -->
+            <div id="visual-target" class="mt-4 glass-panel rounded-xl p-4 hidden">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="box" class="w-4 h-4 text-cyan-400"></i>
+                        <span class="text-xs text-gray-300 font-mono">Generative Target Acquired</span>
+                    </div>
+                    <button id="btn-close-target" class="text-gray-500 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+                </div>
+                <div id="target-content" class="mt-2 text-sm text-gray-400">
+                    Processing cognitive intent into structural layout...
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
-      const display = document.getElementById('display-layer');
-      const ctx = display.getContext('2d', { alpha: false });
-      const memory = document.getElementById('memory-layer');
-      const memoryCtx = memory.getContext('2d', { willReadFrequently: true });
+        // Initialize Lucide Icons
+        lucide.createIcons();
 
-      const refs = {
-        input: document.getElementById('chat-input'),
-        stream: document.getElementById('chat-stream'),
-        statusLine: document.getElementById('status-line'),
-        sources: document.getElementById('sources'),
-        intentJson: document.getElementById('intent-json'),
-        fileInput: document.getElementById('file-input'),
-        fileChip: document.getElementById('file-chip'),
-        attachBtn: document.getElementById('attach-btn'),
-        voiceBtn: document.getElementById('voice-btn'),
-        sendBtn: document.getElementById('send-btn'),
-        validateBtn: document.getElementById('validate-btn'),
-        generateBtn: document.getElementById('generate-btn'),
-        telemetryBtn: document.getElementById('telemetry-btn'),
-        reliabilityBtn: document.getElementById('reliability-btn'),
-        connectWsBtn: document.getElementById('connect-ws-btn'),
-        apiBase: document.getElementById('api-base'),
-        wsBase: document.getElementById('ws-base'),
-        apiKey: document.getElementById('api-key'),
-        roomId: document.getElementById('room-id'),
-        energyText: document.getElementById('energy-text'),
-        entropyText: document.getElementById('entropy-text'),
-        loadText: document.getElementById('load-text'),
-        energyBar: document.getElementById('energy-bar'),
-        entropyBar: document.getElementById('entropy-bar'),
-        loadBar: document.getElementById('load-bar'),
-        stateChip: document.getElementById('state-chip'),
-        shapeChip: document.getElementById('shape-chip'),
-        intentChip: document.getElementById('intent-chip'),
-        qualityChip: document.getElementById('quality-chip'),
-        wsStatus: document.getElementById('ws-status'),
-        compatFrame: document.getElementById('compat-frame')
-      };
-
-      const fsm = {
-        state: 'IDLE',
-        shape: 'cloud',
-        intent: 'chat',
-        quality: 'auto',
-        energy: 100,
-        entropy: 10,
-        load: 5,
-        turbulence: 0.2,
-        particleDensity: 0.4
-      };
-
-      let ws = null;
-      let fileAttachment = null;
-      let targetField = [];
-      let lastTick = performance.now();
-      const particles = [];
-      const PARTICLE_COUNT = 1200;
-
-      function clamp(value, min, max) {
-        return Math.max(min, Math.min(max, value));
-      }
-
-      function setStatus(message) {
-        refs.statusLine.textContent = message;
-      }
-
-      function bubble(role, text) {
-        const el = document.createElement('div');
-        el.className = `bubble ${role}`;
-        el.textContent = text;
-        refs.stream.prepend(el);
-      }
-
-      function resize() {
-        display.width = window.innerWidth;
-        display.height = window.innerHeight;
-        memory.width = display.width;
-        memory.height = display.height;
-      }
-
-      function initParticles() {
-        particles.length = 0;
-        for (let i = 0; i < PARTICLE_COUNT; i++) {
-          particles.push({
-            x: Math.random() * display.width,
-            y: Math.random() * display.height,
-            vx: (Math.random() - 0.5) * 1.2,
-            vy: (Math.random() - 0.5) * 1.2
-          });
-        }
-      }
-
-      function inferIntent(text) {
-        const lower = text.toLowerCase();
-        const urgent = /(ด่วน|urgent|asap|critical)/.test(lower);
-        const error = /(error|fail|พัง|broken)/.test(lower);
-        const request = /(ขอ|request|ช่วย|explain|analy|สรุป)/.test(lower);
-
-        fsm.intent = error ? 'error_recovery' : request ? 'request' : 'chat';
-        fsm.shape = error ? 'cracks' : /(water|flow|river|น้ำ|ไหล)/.test(lower) ? 'river' : /(mountain|ภูเขา)/.test(lower) ? 'mountain' : 'sphere';
-        fsm.state = 'PROCESSING';
-        fsm.energy = clamp(24 + Math.round((text.length / 120) * 70) + (urgent ? 15 : 0), 0, 100);
-        fsm.entropy = clamp(Math.round((error ? 44 : 16) + Math.random() * 24), 0, 100);
-        fsm.load = clamp(Math.round(10 + fsm.energy * 0.6), 0, 100);
-        fsm.turbulence = Number(clamp(0.1 + fsm.entropy / 100, 0.1, 0.95).toFixed(2));
-        fsm.particleDensity = Number(clamp(0.25 + fsm.energy / 160, 0.2, 0.95).toFixed(2));
-
-        return {
-          intent_category: fsm.intent,
-          energy_level: Number((fsm.energy / 100).toFixed(2)),
-          emotional_valence: error ? -0.5 : 0.2,
-          semantic_concepts: [fsm.shape],
-          visual_parameters: {
-            base_shape: fsm.shape,
-            turbulence: fsm.turbulence,
-            particle_density: fsm.particleDensity
-          }
+        // --- UI & State Management ---
+        const UI = {
+            state: document.getElementById('metric-state'),
+            energy: document.getElementById('bar-energy'),
+            entropy: document.getElementById('bar-entropy'),
+            load: document.getElementById('metric-load'),
+            logs: document.getElementById('console-logs'),
+            composer: document.getElementById('composer-input'),
+            composerContainer: document.getElementById('composer-container'),
+            emitBtn: document.getElementById('btn-emit'),
+            settingsBtn: document.getElementById('btn-settings'),
+            settingsPanel: document.getElementById('panel-settings'),
+            connectBtn: document.getElementById('btn-connect'),
+            visualTarget: document.getElementById('visual-target'),
+            targetContent: document.getElementById('target-content'),
+            closeTargetBtn: document.getElementById('btn-close-target'),
+            statusIndicator: document.getElementById('status-indicator')
         };
-      }
 
-      function updateHUD() {
-        refs.stateChip.textContent = `state: ${fsm.state}`;
-        refs.shapeChip.textContent = `shape: ${fsm.shape}`;
-        refs.intentChip.textContent = `intent: ${fsm.intent}`;
-        refs.qualityChip.textContent = `quality: ${fsm.quality}`;
+        const Config = {
+            apiBase: 'http://localhost:8080',
+            wsBase: 'ws://localhost:8090',
+            roomId: 'default-cognitive-space'
+        };
 
-        refs.energyText.textContent = `${fsm.energy}%`;
-        refs.entropyText.textContent = `${fsm.entropy}%`;
-        refs.loadText.textContent = `${fsm.load}%`;
-        refs.energyBar.style.width = `${fsm.energy}%`;
-        refs.entropyBar.style.width = `${fsm.entropy}%`;
-        refs.loadBar.style.width = `${fsm.load}%`;
+        let sysState = {
+            mode: 'STANDBY', // STANDBY, THINKING, EMITTING
+            energyLevel: 0.2,
+            entropyLevel: 0.1
+        };
 
-        const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='640' height='180'>
-          <rect width='640' height='180' fill='#05060b'/>
-          <text x='16' y='28' fill='#ffffff' font-size='14' font-family='monospace'>AETHERIUM COMPAT FRAME</text>
-          <text x='16' y='52' fill='#53ecff' font-size='13' font-family='monospace'>STATE: ${fsm.state}</text>
-          <text x='16' y='74' fill='#d5e7ff' font-size='12' font-family='monospace'>SHAPE: ${fsm.shape} | INTENT: ${fsm.intent}</text>
-          <text x='16' y='98' fill='#ffd166' font-size='12' font-family='monospace'>ENERGY ${fsm.energy}% | ENTROPY ${fsm.entropy}% | LOAD ${fsm.load}%</text>
-          <rect x='16' y='116' width='608' height='12' rx='6' fill='#1b2235'/>
-          <rect x='16' y='116' width='${(608 * fsm.energy) / 100}' height='12' rx='6' fill='#53ecff'/>
-        </svg>`;
-        refs.compatFrame.src = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-      }
-
-      function makeTargetField(text) {
-        memoryCtx.clearRect(0, 0, memory.width, memory.height);
-        memoryCtx.fillStyle = '#fff';
-        memoryCtx.font = `700 ${Math.max(30, Math.floor(memory.width * 0.05))}px sans-serif`;
-        memoryCtx.textAlign = 'center';
-        memoryCtx.textBaseline = 'middle';
-        memoryCtx.fillText(text.slice(0, 48), memory.width / 2, memory.height / 2);
-
-        const img = memoryCtx.getImageData(0, 0, memory.width, memory.height).data;
-        const nextField = [];
-        const step = Math.max(4, Math.floor(Math.min(memory.width, memory.height) / 180));
-        for (let y = 0; y < memory.height; y += step) {
-          for (let x = 0; x < memory.width; x += step) {
-            const a = img[(y * memory.width + x) * 4 + 3];
-            if (a > 70) nextField.push({ x, y });
-          }
-        }
-        targetField = nextField;
-      }
-
-      async function analyzeImage(file) {
-        if (!file || !file.type.startsWith('image/')) return;
-        const bitmap = await createImageBitmap(file);
-        memoryCtx.clearRect(0, 0, memory.width, memory.height);
-        const fit = Math.min(memory.width / bitmap.width, memory.height / bitmap.height);
-        const dw = Math.floor(bitmap.width * fit);
-        const dh = Math.floor(bitmap.height * fit);
-        memoryCtx.drawImage(bitmap, (memory.width - dw) / 2, (memory.height - dh) / 2, dw, dh);
-        bitmap.close();
-
-        const img = memoryCtx.getImageData(0, 0, memory.width, memory.height).data;
-        const points = [];
-        for (let y = 0; y < memory.height; y += 5) {
-          for (let x = 0; x < memory.width; x += 5) {
-            const idx = (y * memory.width + x) * 4;
-            const alpha = img[idx + 3];
-            if (alpha > 48) points.push({ x, y });
-          }
-        }
-        targetField = points;
-      }
-
-      function drawFrame(now) {
-        const dt = Math.max(0.001, (now - lastTick) / 16.667);
-        lastTick = now;
-
-        ctx.fillStyle = 'rgba(5,7,13,0.17)';
-        ctx.fillRect(0, 0, display.width, display.height);
-
-        for (let i = 0; i < particles.length; i++) {
-          const p = particles[i];
-          const target = targetField.length
-            ? targetField[i % targetField.length]
-            : { x: display.width * 0.5 + Math.cos(i * 0.08 + now / 700) * 180, y: display.height * 0.5 + Math.sin(i * 0.06 + now / 760) * 120 };
-
-          const dx = target.x - p.x;
-          const dy = target.y - p.y;
-          const dist = Math.hypot(dx, dy) || 1;
-          p.vx += (dx / dist) * fsm.turbulence * 0.09;
-          p.vy += (dy / dist) * fsm.turbulence * 0.09;
-          p.vx += (Math.random() - 0.5) * 0.04;
-          p.vy += (Math.random() - 0.5) * 0.04;
-
-          p.vx *= 0.94;
-          p.vy *= 0.94;
-          p.x += p.vx * dt * 1.8;
-          p.y += p.vy * dt * 1.8;
-
-          if (p.x < 0) p.x += display.width;
-          if (p.x > display.width) p.x -= display.width;
-          if (p.y < 0) p.y += display.height;
-          if (p.y > display.height) p.y -= display.height;
-
-          ctx.fillStyle = `rgba(83,236,255,${0.2 + fsm.particleDensity * 0.5})`;
-          ctx.fillRect(p.x, p.y, 1.8, 1.8);
+        function log(msg, type = 'SYS') {
+            const entry = document.createElement('div');
+            entry.textContent = `[${type}] ${msg}`;
+            if(type === 'ERR') entry.classList.add('text-red-400');
+            if(type === 'WS') entry.classList.add('text-cyan-500');
+            if(type === 'API') entry.classList.add('text-purple-400');
+            UI.logs.appendChild(entry);
+            UI.logs.scrollTop = UI.logs.scrollHeight;
         }
 
-        requestAnimationFrame(drawFrame);
-      }
+        // Settings Toggle
+        UI.settingsBtn.addEventListener('click', () => {
+            UI.settingsPanel.classList.toggle('hidden');
+        });
 
-      function buildPayload(message, intentVector) {
-        return {
-          session_id: refs.roomId.value || 'demo-room',
-          model_response: {
-            trace_id: crypto.randomUUID(),
-            visual_manifestation: {
-              intent: intentVector,
-              text: message,
-              has_file: Boolean(fileAttachment)
+        // Connection Application (Mock)
+        UI.connectBtn.addEventListener('click', () => {
+            Config.apiBase = document.getElementById('cfg-api').value;
+            Config.wsBase = document.getElementById('cfg-ws').value;
+            Config.roomId = document.getElementById('cfg-room').value;
+            log(`Reconfiguring Gateway: API=${Config.apiBase}`, 'SYS');
+            log(`Reconnecting WS to room: ${Config.roomId}`, 'WS');
+            UI.settingsPanel.classList.add('hidden');
+
+            // Simulate reconnect
+            UI.statusIndicator.classList.remove('bg-indigo-500');
+            UI.statusIndicator.classList.add('bg-yellow-500');
+            setTimeout(() => {
+                UI.statusIndicator.classList.remove('bg-yellow-500');
+                UI.statusIndicator.classList.add('bg-indigo-500');
+                log('State sync established.', 'WS');
+            }, 1000);
+        });
+
+        UI.closeTargetBtn.addEventListener('click', () => {
+            UI.visualTarget.classList.add('hidden');
+        });
+
+        // --- WebGL Particle System (Aetherium Light Engine) ---
+        // Simulates particle.vert.glsl and glow.frag.glsl runtime behavior
+        let scene, camera, renderer, particles, particleMaterial;
+        let pointer = new THREE.Vector2();
+        let pointerActive = false;
+        let clock = new THREE.Clock();
+
+        function initThreeJS() {
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x050505, 0.001);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.z = 400;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+
+            // Particle Geometry
+            const geometry = new THREE.BufferGeometry();
+            const count = window.innerWidth > 768 ? 40000 : 15000; // Adaptive load
+            const positions = new Float32Array(count * 3);
+            const colors = new Float32Array(count * 3);
+            const sizes = new Float32Array(count);
+            const phases = new Float32Array(count);
+
+            const colorA = new THREE.Color(0x6366f1); // Indigo
+            const colorB = new THREE.Color(0x06b6d4); // Cyan
+            const colorC = new THREE.Color(0xa855f7); // Purple
+
+            for (let i = 0; i < count; i++) {
+                // Sphere distribution
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos((Math.random() * 2) - 1);
+                const r = 100 + Math.random() * 300;
+
+                positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+                positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+                positions[i * 3 + 2] = r * Math.cos(phi);
+
+                // Mix colors based on position
+                const mixRatio = Math.random();
+                let c = colorA.clone().lerp(colorB, mixRatio);
+                if(Math.random() > 0.7) c = colorC;
+
+                colors[i * 3] = c.r;
+                colors[i * 3 + 1] = c.g;
+                colors[i * 3 + 2] = c.b;
+
+                sizes[i] = Math.random() * 2.0;
+                phases[i] = Math.random() * Math.PI * 2;
             }
-          },
-          governor_context: {
-            source: 'index.html-runtime-console',
-            requested_at: new Date().toISOString(),
-            renderer_controls: {
-              particle_count: Math.round(PARTICLE_COUNT * fsm.particleDensity)
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+            geometry.setAttribute('phase', new THREE.BufferAttribute(phases, 1));
+
+            // Custom Shader Material mimicking the described OS
+            particleMaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                    time: { value: 0 },
+                    sysEnergy: { value: 0.2 },
+                    sysEntropy: { value: 0.1 },
+                    pointerPos: { value: new THREE.Vector3(0,0,0) },
+                    pointerActive: { value: 0.0 }
+                },
+                vertexShader: `
+                    uniform float time;
+                    uniform float sysEnergy;
+                    uniform float sysEntropy;
+                    uniform vec3 pointerPos;
+                    uniform float pointerActive;
+
+                    attribute float size;
+                    attribute vec3 color;
+                    attribute float phase;
+
+                    varying vec3 vColor;
+
+                    void main() {
+                        vColor = color;
+
+                        vec3 pos = position;
+
+                        // Default ambient movement
+                        float noise = sin(time * 0.5 + phase) * (10.0 * sysEntropy);
+                        pos.x += sin(time + pos.y * 0.01) * noise;
+                        pos.y += cos(time + pos.x * 0.01) * noise;
+                        pos.z += sin(time + pos.z * 0.01) * noise;
+
+                        // Interaction burst (Touch burst grammar)
+                        if (pointerActive > 0.5) {
+                            float dist = distance(pos, pointerPos);
+                            if (dist < 150.0) {
+                                vec3 dir = normalize(pos - pointerPos);
+                                pos += dir * (150.0 - dist) * sysEnergy * 0.5;
+                            }
+                        }
+
+                        // High energy state pull (Cognitive emit)
+                        if (sysEnergy > 0.8) {
+                            pos += normalize(pos) * sin(time * 10.0 + phase) * 20.0;
+                        }
+
+                        vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+                        gl_PointSize = size * (300.0 / -mvPosition.z) * (1.0 + sysEnergy * 2.0);
+                        gl_Position = projectionMatrix * mvPosition;
+                    }
+                `,
+                fragmentShader: `
+                    varying vec3 vColor;
+                    void main() {
+                        // Circular glowing particle
+                        float dist = distance(gl_PointCoord, vec2(0.5));
+                        if (dist > 0.5) discard;
+
+                        float alpha = (0.5 - dist) * 2.0;
+                        gl_FragColor = vec4(vColor, alpha * 0.8);
+                    }
+                `,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+
+            particles = new THREE.Points(geometry, particleMaterial);
+            scene.add(particles);
+
+            // Interaction Event Listeners
+            window.addEventListener('resize', onWindowResize);
+            document.addEventListener('mousemove', onPointerMove);
+            document.addEventListener('touchmove', onPointerMove, {passive: true});
+            document.addEventListener('mousedown', () => pointerActive = true);
+            document.addEventListener('mouseup', () => pointerActive = false);
+            document.addEventListener('touchstart', () => pointerActive = true, {passive: true});
+            document.addEventListener('touchend', () => pointerActive = false);
+
+            animate();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onPointerMove(event) {
+            let clientX = event.clientX || (event.touches && event.touches[0].clientX);
+            let clientY = event.clientY || (event.touches && event.touches[0].clientY);
+
+            if(clientX !== undefined) {
+                pointer.x = (clientX / window.innerWidth) * 2 - 1;
+                pointer.y = -(clientY / window.innerHeight) * 2 + 1;
             }
-          }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const elapsedTime = clock.getElapsedTime();
+            clock.getDelta();
+
+            // Update Uniforms
+            particleMaterial.uniforms.time.value = elapsedTime;
+            particleMaterial.uniforms.sysEnergy.value = THREE.MathUtils.lerp(particleMaterial.uniforms.sysEnergy.value, sysState.energyLevel, 0.05);
+            particleMaterial.uniforms.sysEntropy.value = THREE.MathUtils.lerp(particleMaterial.uniforms.sysEntropy.value, sysState.entropyLevel, 0.05);
+            particleMaterial.uniforms.pointerActive.value = pointerActive ? 1.0 : 0.0;
+
+            // Map 2D pointer to 3D space for interaction
+            let vector = new THREE.Vector3(pointer.x, pointer.y, 0.5);
+            vector.unproject(camera);
+            let dir = vector.sub(camera.position).normalize();
+            let distance = - camera.position.z / dir.z;
+            let pos = camera.position.clone().add(dir.multiplyScalar(distance));
+            particleMaterial.uniforms.pointerPos.value.copy(pos);
+
+            // Rotate system slightly based on state
+            if (sysState.mode === 'THINKING') {
+                particles.rotation.y += 0.01;
+                particles.rotation.x += 0.005;
+            } else if (sysState.mode === 'EMITTING') {
+                particles.rotation.y += 0.05;
+            } else {
+                particles.rotation.y += 0.001; // STANDBY
+            }
+
+            // Simulate UI Load metric
+            if (Math.random() > 0.9) {
+                UI.load.textContent = Math.floor(10 + Math.random() * 15) + 'ms';
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // --- Core OS Logic (Mocks API & WebSockets) ---
+
+        function setSystemState(mode) {
+            sysState.mode = mode;
+            UI.state.textContent = mode;
+
+            if (mode === 'STANDBY') {
+                sysState.energyLevel = 0.2;
+                sysState.entropyLevel = 0.1;
+                UI.state.className = 'text-cyan-400 glow-text';
+                UI.composerContainer.classList.remove('composer-active');
+            } else if (mode === 'THINKING') {
+                sysState.energyLevel = 0.6;
+                sysState.entropyLevel = 0.8;
+                UI.state.className = 'text-yellow-400 glow-text';
+                UI.composerContainer.classList.add('composer-active');
+            } else if (mode === 'EMITTING') {
+                sysState.energyLevel = 1.0;
+                sysState.entropyLevel = 0.3;
+                UI.state.className = 'text-indigo-400 glow-text animate-pulse';
+            }
+
+            // Update UI Bars
+            UI.energy.style.width = (sysState.energyLevel * 100) + '%';
+            UI.entropy.style.width = (sysState.entropyLevel * 100) + '%';
+        }
+
+        async function triggerCognitivePipeline(intentText) {
+            if (!intentText.trim()) return;
+
+            UI.composer.value = '';
+            UI.composer.disabled = true;
+            UI.emitBtn.disabled = true;
+            UI.visualTarget.classList.add('hidden');
+
+            log(`Intent capture: "${intentText}"`, 'SYS');
+            setSystemState('THINKING');
+
+            // 1. Mock POST /api/v1/cognitive/validate
+            log('[POST] /api/v1/cognitive/validate', 'API');
+            await new Promise(r => setTimeout(r, 600));
+            log('Intent parsed. Structural validity: OK', 'API');
+
+            // 2. Mock GET /api/v1/reliability/temporal-morphogenesis
+            log('[GET] /api/v1/reliability/temporal-morphogenesis', 'API');
+            await new Promise(r => setTimeout(r, 400));
+
+            // 3. Mock POST /api/v1/cognitive/emit
+            setSystemState('EMITTING');
+            log('[POST] /api/v1/cognitive/emit -> Triggering Light Burst', 'API');
+
+            // Simulating WS state sync receipt
+            setTimeout(() => {
+                log('[WS] Received state envelope: {"intent": "generative", "target": "visual"}', 'WS');
+            }, 500);
+
+            // Let burst happen
+            await new Promise(r => setTimeout(r, 1500));
+
+            // 4. Mock POST /api/v1/telemetry/ingest
+            log('[POST] /api/v1/telemetry/ingest (Status 200)', 'API');
+
+            // Presentation of Output
+            UI.visualTarget.classList.remove('hidden');
+            UI.targetContent.innerHTML = `
+                <div class="space-y-2">
+                    <p class="text-white">Rendered interpretation of: <span class="italic text-cyan-300">"${intentText}"</span></p>
+                    <div class="h-24 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-white/10 rounded-lg flex items-center justify-center text-xs">
+                        [ Cognitive Target Field Visualized ]
+                    </div>
+                </div>
+            `;
+
+            setSystemState('STANDBY');
+            UI.composer.disabled = false;
+            UI.emitBtn.disabled = false;
+            UI.composer.focus();
+        }
+
+        // Event Bindings
+        UI.emitBtn.addEventListener('click', () => {
+            triggerCognitivePipeline(UI.composer.value);
+        });
+
+        UI.composer.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') triggerCognitivePipeline(UI.composer.value);
+        });
+
+        // Init
+        window.onload = () => {
+            initThreeJS();
+            setSystemState('STANDBY');
+
+            // Initial telemetry ping mock
+            setTimeout(() => {
+                log('[POST] /api/v1/telemetry/ingest (Boot)', 'API');
+            }, 2000);
         };
-      }
 
-      function apiHeaders() {
-        return {
-          'Content-Type': 'application/json',
-          'X-API-Key': refs.apiKey.value || 'local-dev-key',
-          'X-Model-Provider': 'manifest-ui',
-          'X-Model-Version': 'v1'
-        };
-      }
-
-      async function callApi(path, options) {
-        const url = `${refs.apiBase.value.replace(/\/$/, '')}${path}`;
-        const response = await fetch(url, options);
-        let body;
-        try {
-          body = await response.json();
-        } catch {
-          body = { detail: 'invalid json response' };
-        }
-        if (!response.ok) {
-          throw new Error(body.detail || `${response.status} ${response.statusText}`);
-        }
-        return body;
-      }
-
-      async function emitMessage() {
-        const message = refs.input.value.trim();
-        if (!message && !fileAttachment) {
-          setStatus('กรุณาพิมพ์ข้อความหรือแนบไฟล์ก่อน');
-          return;
-        }
-
-        refs.sendBtn.disabled = true;
-        bubble('user', message || '[file-only]');
-        setStatus('emitting cognitive intent...');
-
-        const intentVector = inferIntent(message || '[file]');
-        refs.intentJson.textContent = JSON.stringify(intentVector, null, 2);
-        if (message) {
-          makeTargetField(message);
-        }
-        refs.sources.textContent = fileAttachment ? `sources: attachment:${fileAttachment.name}` : 'sources: text-input';
-
-        const payload = buildPayload(message || '[file-only]', intentVector);
-        try {
-          const data = await callApi('/api/v1/cognitive/emit', {
-            method: 'POST',
-            headers: apiHeaders(),
-            body: JSON.stringify(payload)
-          });
-          bubble('system', `emit success · trace=${data?.data?.trace_id || 'n/a'}`);
-          fsm.state = 'STABLE';
-          setStatus('emit success');
-
-          if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ state: fsm.state, shape: fsm.shape }));
-          }
-        } catch (error) {
-          bubble('error', `emit failed: ${error.message}`);
-          fsm.state = 'DEGRADED';
-          setStatus('emit failed (using local visualization fallback)');
-        } finally {
-          refs.sendBtn.disabled = false;
-          refs.input.value = '';
-          fileAttachment = null;
-          refs.fileInput.value = '';
-          refs.fileChip.style.display = 'none';
-          updateHUD();
-        }
-      }
-
-      async function validatePayload() {
-        const payload = buildPayload('validation probe', inferIntent('validation probe'));
-        try {
-          const result = await callApi('/api/v1/cognitive/validate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-API-Key': refs.apiKey.value || 'local-dev-key' },
-            body: JSON.stringify(payload)
-          });
-          bubble('system', `validate success · violations=${(result.violations || []).length}`);
-          setStatus('validate success');
-        } catch (error) {
-          bubble('error', `validate failed: ${error.message}`);
-          setStatus('validate failed');
-        }
-      }
-
-      async function generatePayload() {
-        try {
-          await callApi('/api/v1/cognitive/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-API-Key': refs.apiKey.value || 'local-dev-key' },
-            body: JSON.stringify({ model: 'manifest-ui', prompt: 'generate sample' })
-          });
-          bubble('system', 'generate success');
-          setStatus('generate success');
-        } catch (error) {
-          bubble('error', `generate failed: ${error.message}`);
-          setStatus('generate failed');
-        }
-      }
-
-      async function ingestTelemetry() {
-        try {
-          await callApi('/api/v1/telemetry/ingest', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-API-Key': refs.apiKey.value || 'local-dev-key' },
-            body: JSON.stringify({
-              points: [
-                { metric: 'ui.energy', value: fsm.energy, tags: { room: refs.roomId.value, state: fsm.state } },
-                { metric: 'ui.entropy', value: fsm.entropy, tags: { room: refs.roomId.value, state: fsm.state } }
-              ]
-            })
-          });
-          bubble('system', 'telemetry ingested (2 points)');
-          setStatus('telemetry ingested');
-        } catch (error) {
-          bubble('error', `telemetry failed: ${error.message}`);
-          setStatus('telemetry failed');
-        }
-      }
-
-      async function getReliability() {
-        try {
-          const result = await callApi('/api/v1/reliability/temporal-morphogenesis', {
-            method: 'GET',
-            headers: { 'X-API-Key': refs.apiKey.value || 'local-dev-key' }
-          });
-          bubble('system', `reliability · recall=${result.drift_detector_recall} containment=${result.containment_efficiency}`);
-          setStatus('reliability fetched');
-        } catch (error) {
-          bubble('error', `reliability failed: ${error.message}`);
-          setStatus('reliability failed');
-        }
-      }
-
-      function connectWs() {
-        if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-          ws.close();
-        }
-
-        const base = refs.wsBase.value.replace(/\/$/, '');
-        const room = encodeURIComponent(refs.roomId.value || 'demo-room');
-        const key = encodeURIComponent(refs.apiKey.value || 'local-dev-key');
-        const url = `${base}/ws/state-sync/${room}?api_key=${key}`;
-        ws = new WebSocket(url);
-
-        ws.addEventListener('open', () => {
-          refs.wsStatus.textContent = 'ws: connected';
-          bubble('system', `ws connected → ${room}`);
-        });
-
-        ws.addEventListener('message', (event) => {
-          bubble('system', `ws ack: ${event.data}`);
-        });
-
-        ws.addEventListener('close', () => {
-          refs.wsStatus.textContent = 'ws: disconnected';
-        });
-
-        ws.addEventListener('error', () => {
-          refs.wsStatus.textContent = 'ws: error';
-          bubble('error', 'ws error');
-        });
-      }
-
-      refs.attachBtn.addEventListener('click', () => refs.fileInput.click());
-      refs.fileInput.addEventListener('change', async () => {
-        fileAttachment = refs.fileInput.files?.[0] || null;
-        if (!fileAttachment) {
-          refs.fileChip.style.display = 'none';
-          return;
-        }
-        refs.fileChip.style.display = 'block';
-        refs.fileChip.textContent = `ไฟล์: ${fileAttachment.name} (${Math.round(fileAttachment.size / 1024)} KB)`;
-        await analyzeImage(fileAttachment);
-      });
-
-      refs.voiceBtn.addEventListener('click', () => {
-        const mockTranscript = 'voice mock: ช่วยสรุปสถานะระบบให้ชัดเจน';
-        refs.input.value = mockTranscript;
-        bubble('system', 'voice mock transcript injected');
-        makeTargetField('VOICE');
-        setStatus('voice mock ready');
-      });
-
-      refs.sendBtn.addEventListener('click', emitMessage);
-      refs.validateBtn.addEventListener('click', validatePayload);
-      refs.generateBtn.addEventListener('click', generatePayload);
-      refs.telemetryBtn.addEventListener('click', ingestTelemetry);
-      refs.reliabilityBtn.addEventListener('click', getReliability);
-      refs.connectWsBtn.addEventListener('click', connectWs);
-
-      refs.input.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' && !event.shiftKey) {
-          event.preventDefault();
-          emitMessage();
-        }
-      });
-
-      window.addEventListener('resize', resize);
-      resize();
-      initParticles();
-      updateHUD();
-      bubble('system', 'runtime console ready');
-      requestAnimationFrame(drawFrame);
     </script>
-  </body>
+</body>
 </html>
