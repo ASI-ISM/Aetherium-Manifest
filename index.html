@@ -1,692 +1,443 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Aetherium Manifest | Cognitive Runtime</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aetherium Manifest | Light-Native Console</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700&family=Inter:wght@300;400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700&family=Noto+Sans+Thai:wght@300;400;700&display=swap');
 
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #050505;
-            font-family: 'Inter', sans-serif;
-            color: #e2e8f0;
-            user-select: none;
-            -webkit-user-select: none;
+            background-color: #05050a;
+            color: #e0e0ff;
+            font-family: 'Noto Sans Thai', 'JetBrains Mono', monospace;
+        }
+
+        #canvas-container {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+        }
+
+        .glass-panel {
+            background: rgba(10, 10, 20, 0.4);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(100, 150, 255, 0.15);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
         }
 
         .font-mono {
             font-family: 'JetBrains Mono', monospace;
         }
 
-        #canvas-container {
+        .glow-text {
+            text-shadow: 0 0 10px rgba(100, 150, 255, 0.8);
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(100, 150, 255, 0.3);
+            border-radius: 3px;
+        }
+
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(255, 100, 100, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(255, 100, 100, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 100, 100, 0); }
+        }
+
+        .mic-active {
+            animation: pulse-ring 1.5s infinite;
+            color: #ff6b6b !important;
+        }
+
+        .lineage-node {
+            transition: all 0.3s ease;
+        }
+
+        .lineage-node:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 15px rgba(100, 200, 255, 0.8);
+        }
+
+        .lineage-connector {
+            width: 2px;
+            background: linear-gradient(to bottom, rgba(100,150,255,0.8), rgba(100,150,255,0.2));
+            margin-left: 11px;
+            height: 20px;
+        }
+
+        #manifestation-overlay {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: 0;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60vmin;
+            height: 60vmin;
+            border-radius: 20px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 1.5s ease;
+            box-shadow: 0 0 50px rgba(100, 200, 255, 0.2);
+            background-size: cover;
+            background-position: center;
+            z-index: 10;
         }
-
-        .glass-panel {
-            background: rgba(10, 10, 15, 0.4);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
-        }
-
-        /* Custom Scrollbar for logs */
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 4px; }
-
-        input:focus { outline: none; }
-
-        /* Composer animations */
-        .composer-active { box-shadow: 0 0 20px rgba(99, 102, 241, 0.4); border-color: rgba(99, 102, 241, 0.6); }
-
-        .glow-text { text-shadow: 0 0 10px rgba(255, 255, 255, 0.5); }
     </style>
 </head>
 <body class="text-sm">
 
-    <!-- WebGL Background -->
     <div id="canvas-container"></div>
+    <div id="manifestation-overlay"></div>
 
-    <!-- UI Overlay -->
-    <div class="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between p-4 sm:p-6">
+    <div class="absolute top-4 left-4 z-10 w-80 flex flex-col gap-3">
+        <div class="glass-panel p-4">
+            <div class="flex justify-between items-center mb-2 pb-2 border-b border-blue-500/20">
+                <span class="font-mono font-bold text-blue-400 glow-text">AETHERIUM OS</span>
+                <span class="text-xs text-gray-400">ABI: mf-3.30.0</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+                <div class="text-gray-400">STATE</div>
+                <div id="sys-state" class="text-right text-emerald-400">IDLE</div>
+                <div class="text-gray-400">RESONANCE</div>
+                <div id="sys-energy" class="text-right text-blue-300">12.4 AETH</div>
+                <div class="text-gray-400">ENTROPY</div>
+                <div id="sys-entropy" class="text-right text-purple-300">0.05</div>
+            </div>
+        </div>
 
-        <!-- Top Row: HUD & Settings -->
-        <div class="flex justify-between items-start pointer-events-auto w-full">
+        <div class="glass-panel p-3 h-48 overflow-y-auto font-mono text-[10px] text-gray-300" id="terminal-logs">
+            <div class="text-blue-400">&gt; System initialized. Waiting for light intent.</div>
+        </div>
+    </div>
 
-        <!-- Scholar Agent Panel (Hidden by default) -->
-        <div id="scholar-panel" class="glass-panel absolute right-6 top-6 w-96 max-h-[70vh] rounded-2xl p-6 space-y-4 overflow-y-auto hidden pointer-events-auto border-indigo-500/30">
-            <button id="btn-minimize-scholar" class="absolute right-3 top-3 text-gray-500 hover:text-white transition-colors">
-                <i data-lucide="minus-square" class="w-4 h-4"></i>
+    <div class="absolute top-4 right-4 z-10 w-72 flex flex-col gap-3 max-h-[90vh]">
+        <div class="glass-panel p-4">
+            <h3 class="font-mono text-xs text-blue-400 mb-3 border-b border-blue-500/20 pb-1">
+                <i class="fas fa-code-branch mr-2"></i>DESIGN LINEAGE
+            </h3>
+            <div id="lineage-container" class="flex flex-col">
+                <div class="flex items-center gap-2 cursor-pointer group" onclick="revertToNode('Genesis')">
+                    <div class="w-6 h-6 rounded-full bg-blue-500/50 border border-blue-400 flex items-center justify-center lineage-node">
+                        <div class="w-2 h-2 rounded-full bg-white"></div>
+                    </div>
+                    <span class="text-xs text-gray-300 group-hover:text-white">Genesis (Root)</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="glass-panel p-4 flex-1 flex flex-col hidden" id="scholar-panel">
+            <h3 class="font-mono text-xs text-purple-400 mb-2 border-b border-purple-500/20 pb-1 flex justify-between">
+                <span><i class="fas fa-globe mr-2"></i>AKASHIC SEARCH</span>
+                <span class="animate-pulse">Active</span>
+            </h3>
+            <div id="scholar-content" class="text-xs text-gray-300 flex-1 overflow-y-auto space-y-2"></div>
+        </div>
+    </div>
+
+    <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20 w-11/12 max-w-3xl">
+        <div id="attachment-preview" class="flex gap-2 mb-2 px-2 hidden"></div>
+
+        <div class="glass-panel p-2 flex items-center gap-3">
+            <button onclick="triggerAttach()" class="p-3 text-gray-400 hover:text-blue-300 transition-colors rounded-full hover:bg-white/5" title="แนบภาพ/เอกสารอ้างอิง">
+                <i class="fas fa-paperclip"></i>
             </button>
-            <div class="flex items-center space-x-3 border-b border-white/10 pb-4">
-                <div class="p-2 bg-indigo-500/20 rounded-lg text-indigo-400">
-                    <i data-lucide="book-open" class="w-5 h-5"></i>
-                </div>
-                <div>
-                    <h3 class="font-bold text-sm tracking-wide text-white">SCHOLAR CORE</h3>
-                    <p id="scholar-status" class="text-[10px] text-indigo-300/70 font-mono uppercase tracking-tighter">Analysis in progress...</p>
-                </div>
-            </div>
 
-            <div id="scholar-summary" class="text-sm leading-relaxed text-gray-200 space-y-3">
-                <!-- Content injected here -->
-            </div>
+            <input
+                type="text"
+                id="intent-input"
+                class="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-500 font-medium px-2"
+                placeholder="สนทนากับแสง... (พิมพ์หรือใช้เสียงเพื่อสร้างภาพ, วิดีโอ, หรือค้นหาข้อมูล)"
+                onkeypress="handleKeyPress(event)"
+            >
 
-            <div id="scholar-code-container" class="hidden space-y-2">
-                <div class="flex justify-between items-center text-[10px] font-mono text-gray-500">
-                    <span>CODE PAYLOAD</span>
-                    <button class="hover:text-white transition-colors">COPY</button>
-                </div>
-                <pre class="bg-black/50 p-4 rounded-xl border border-white/5 overflow-x-auto text-[11px] font-mono text-cyan-300 leading-tight"><code id="scholar-code"></code></pre>
-            </div>
+            <button id="voice-btn" onclick="toggleVoice()" class="p-3 text-gray-400 hover:text-white transition-all rounded-full hover:bg-white/5" title="สนทนาด้วยเสียง">
+                <i class="fas fa-microphone"></i>
+            </button>
 
-            <div id="scholar-sources" class="space-y-2 hidden">
-                <h4 class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Verification Sources</h4>
-                <div id="scholar-sources-list" class="flex flex-wrap gap-2"></div>
-            </div>
-        </div>
-
-            <!-- Runtime HUD -->
-            <div class="glass-panel rounded-xl p-4 w-64 space-y-3">
-                <div class="flex justify-between items-center border-b border-white/10 pb-2">
-                    <div class="flex items-center space-x-2">
-                        <div id="status-indicator" class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></div>
-                        <span class="font-bold tracking-wider text-xs text-indigo-200">AETHERIUM OS</span>
-                    </div>
-                    <span class="text-[10px] font-mono text-gray-400">ABI: mf-3.30.0</span>
-                </div>
-
-                <div class="space-y-2 font-mono text-[10px]">
-                    <div class="flex justify-between">
-                        <span class="text-gray-400">STATE</span>
-                        <span id="metric-state" class="text-cyan-400 glow-text">STANDBY</span>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <span class="text-gray-400">ENERGY</span>
-                        <div class="w-24 h-1 bg-gray-800 rounded-full overflow-hidden">
-                            <div id="bar-energy" class="h-full bg-cyan-400 w-[45%] transition-all duration-300"></div>
-                        </div>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <span class="text-gray-400">ENTROPY</span>
-                        <div class="w-24 h-1 bg-gray-800 rounded-full overflow-hidden">
-                            <div id="bar-entropy" class="h-full bg-purple-400 w-[12%] transition-all duration-300"></div>
-                        </div>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <span class="text-gray-400">LOAD</span>
-                        <span id="metric-load" class="text-emerald-400">12ms</span>
-                    </div>
-                </div>
-
-                <!-- Mini Console Log -->
-                <div id="console-logs" class="h-20 overflow-y-auto pt-2 border-t border-white/10 font-mono text-[9px] text-gray-500 space-y-1 mt-2">
-                    <div>[SYS] Runtime console initialized.</div>
-                    <div>[SYS] WebSocket connecting...</div>
-                </div>
-            </div>
-
-            <!-- Settings Toggle & Panel -->
-            <div class="flex flex-col items-end">
-                <button id="btn-settings" class="p-2 glass-panel rounded-full hover:bg-white/10 transition-colors text-gray-400 hover:text-white">
-                    <i data-lucide="settings" class="w-4 h-4"></i>
-                </button>
-
-                <div id="panel-settings" class="glass-panel rounded-xl p-4 mt-2 w-72 hidden transition-all">
-                    <h3 class="text-xs font-bold text-gray-300 mb-3 uppercase tracking-wider">Gateway Configuration</h3>
-                    <div class="space-y-3 font-mono text-[10px]">
-                        <div>
-                            <label class="block text-gray-500 mb-1">API Base (HTTP)</label>
-                            <input type="text" id="cfg-api" value="http://localhost:8080" class="w-full bg-black/50 border border-white/10 rounded px-2 py-1 text-gray-300">
-                        </div>
-                        <div>
-                            <label class="block text-gray-500 mb-1">WS Base (WebSocket)</label>
-                            <input type="text" id="cfg-ws" value="ws://localhost:8090" class="w-full bg-black/50 border border-white/10 rounded px-2 py-1 text-gray-300">
-                        </div>
-                        <div>
-                            <label class="block text-gray-500 mb-1">Target Room ID</label>
-                            <input type="text" id="cfg-room" value="default-cognitive-space" class="w-full bg-black/50 border border-white/10 rounded px-2 py-1 text-gray-300">
-                        </div>
-                        <div class="pt-2">
-                            <button id="btn-connect" class="w-full bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/30 rounded py-1.5 transition-colors">Apply & Reconnect</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Bottom Row: Composer -->
-        <div class="w-full max-w-2xl mx-auto pointer-events-auto pb-4 sm:pb-8">
-            <div id="composer-container" class="glass-panel rounded-2xl p-2 flex items-center space-x-2 transition-all duration-300 border border-white/10">
-                <button class="p-2 sm:p-3 text-gray-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors shrink-0" title="Attach concept/schema">
-                    <i data-lucide="paperclip" class="w-5 h-5"></i>
-                </button>
-                <button class="p-2 sm:p-3 text-gray-400 hover:text-cyan-400 hover:bg-white/5 rounded-xl transition-colors shrink-0" title="Voice intent (Mock)">
-                    <i data-lucide="mic" class="w-5 h-5"></i>
-                </button>
-
-                <input type="text" id="composer-input"
-                       class="flex-1 bg-transparent text-white placeholder-gray-500 text-sm sm:text-base py-2 px-2"
-                       placeholder="Converse with light...">
-
-                <button id="btn-emit" class="px-4 py-2 sm:py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-all flex items-center justify-center shrink-0">
-                    <i data-lucide="sparkles" class="w-4 h-4 mr-0 sm:mr-2"></i>
-                    <span class="hidden sm:inline font-medium">Emit</span>
-                </button>
-            </div>
-
-            <!-- Output visual target indicator (hidden by default) -->
-            <div id="visual-target" class="mt-4 glass-panel rounded-xl p-4 hidden">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center space-x-2">
-                        <i data-lucide="box" class="w-4 h-4 text-cyan-400"></i>
-                        <span class="text-xs text-gray-300 font-mono">Generative Target Acquired</span>
-                    </div>
-                    <button id="btn-close-target" class="text-gray-500 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
-                </div>
-                <div id="target-content" class="mt-2 text-sm text-gray-400">
-                    Processing cognitive intent into structural layout...
-                </div>
-            </div>
+            <button onclick="emitIntent()" class="bg-blue-600/30 hover:bg-blue-500/50 border border-blue-500/50 text-blue-200 px-6 py-2 rounded-lg font-mono font-bold transition-all flex items-center gap-2">
+                EMIT <i class="fas fa-bolt"></i>
+            </button>
         </div>
     </div>
 
     <script>
-        // Initialize Lucide Icons
-        lucide.createIcons();
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 
-        // --- UI & State Management ---
-        const UI = {
-            state: document.getElementById('metric-state'),
-            energy: document.getElementById('bar-energy'),
-            entropy: document.getElementById('bar-entropy'),
-            load: document.getElementById('metric-load'),
-            logs: document.getElementById('console-logs'),
-            composer: document.getElementById('composer-input'),
-            composerContainer: document.getElementById('composer-container'),
-            emitBtn: document.getElementById('btn-emit'),
-            settingsBtn: document.getElementById('btn-settings'),
-            settingsPanel: document.getElementById('panel-settings'),
-            connectBtn: document.getElementById('btn-connect'),
-            visualTarget: document.getElementById('visual-target'),
-            targetContent: document.getElementById('target-content'),
-            closeTargetBtn: document.getElementById('btn-close-target'),
-            scholarPanel: document.getElementById('scholar-panel'),
-            scholarStatus: document.getElementById('scholar-status'),
-            scholarSummary: document.getElementById('scholar-summary'),
-            scholarCodeContainer: document.getElementById('scholar-code-container'),
-            scholarCode: document.getElementById('scholar-code'),
-            scholarSources: document.getElementById('scholar-sources'),
-            scholarSourcesList: document.getElementById('scholar-sources-list'),
-            scholarMinimizeBtn: document.getElementById('btn-minimize-scholar'),
-            statusIndicator: document.getElementById('status-indicator')
-        };
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(renderer.domElement);
 
-        const Config = {
-            apiBase: 'http://localhost:8080',
-            wsBase: 'ws://localhost:8090',
-            roomId: 'default-cognitive-space'
-        };
+        const particleCount = 15000;
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        const colors = new Float32Array(particleCount * 3);
+        const targetPositions = new Float32Array(particleCount * 3);
 
-        let sysState = {
-            mode: 'STANDBY', // STANDBY, THINKING, EMITTING
-            energyLevel: 0.2,
-            entropyLevel: 0.1
-        };
+        for (let i = 0; i < particleCount * 3; i += 3) {
+            positions[i] = (Math.random() - 0.5) * 20;
+            positions[i + 1] = (Math.random() - 0.5) * 20;
+            positions[i + 2] = (Math.random() - 0.5) * 20;
 
-        function log(msg, type = 'SYS') {
-            const entry = document.createElement('div');
-            entry.textContent = `[${type}] ${msg}`;
-            if(type === 'ERR') entry.classList.add('text-red-400');
-            if(type === 'WS') entry.classList.add('text-cyan-500');
-            if(type === 'API') entry.classList.add('text-purple-400');
-            UI.logs.appendChild(entry);
-            UI.logs.scrollTop = UI.logs.scrollHeight;
+            targetPositions[i] = positions[i];
+            targetPositions[i + 1] = positions[i + 1];
+            targetPositions[i + 2] = positions[i + 2];
+
+            colors[i] = 0.2;
+            colors[i + 1] = 0.5;
+            colors[i + 2] = 1.0;
         }
 
-        // Settings Toggle
-        UI.settingsBtn.addEventListener('click', () => {
-            UI.settingsPanel.classList.toggle('hidden');
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        const material = new THREE.PointsMaterial({
+            size: 0.05,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.6,
+            blending: THREE.AdditiveBlending,
         });
 
-        // Connection Application (Mock)
-        UI.connectBtn.addEventListener('click', () => {
-            Config.apiBase = document.getElementById('cfg-api').value;
-            Config.wsBase = document.getElementById('cfg-ws').value;
-            Config.roomId = document.getElementById('cfg-room').value;
-            log(`Reconfiguring Gateway: API=${Config.apiBase}`, 'SYS');
-            log(`Reconnecting WS to room: ${Config.roomId}`, 'WS');
-            UI.settingsPanel.classList.add('hidden');
+        const particleSystem = new THREE.Points(geometry, material);
+        scene.add(particleSystem);
+        camera.position.z = 15;
 
-            // Simulate reconnect
-            UI.statusIndicator.classList.remove('bg-indigo-500');
-            UI.statusIndicator.classList.add('bg-yellow-500');
-            setTimeout(() => {
-                UI.statusIndicator.classList.remove('bg-yellow-500');
-                UI.statusIndicator.classList.add('bg-indigo-500');
-                log('State sync established.', 'WS');
-            }, 1000);
-        });
-
-        UI.closeTargetBtn.addEventListener('click', () => {
-            UI.visualTarget.classList.add('hidden');
-        });
-
-        // --- WebGL Particle System (Aetherium Light Engine) ---
-        // Simulates particle.vert.glsl and glow.frag.glsl runtime behavior
-        let scene, camera, renderer, particles, particleMaterial;
-        let pointer = new THREE.Vector2();
-        let pointerActive = false;
-        let clock = new THREE.Clock();
-
-        function initThreeJS() {
-            const container = document.getElementById('canvas-container');
-            scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x050505, 0.001);
-
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
-            camera.position.z = 400;
-
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setPixelRatio(window.devicePixelRatio);
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            container.appendChild(renderer.domElement);
-
-            // Particle Geometry
-            const geometry = new THREE.BufferGeometry();
-            const count = window.innerWidth > 768 ? 40000 : 15000; // Adaptive load
-            const positions = new Float32Array(count * 3);
-            const colors = new Float32Array(count * 3);
-            const sizes = new Float32Array(count);
-            const phases = new Float32Array(count);
-
-            const colorA = new THREE.Color(0x6366f1); // Indigo
-            const colorB = new THREE.Color(0x06b6d4); // Cyan
-            const colorC = new THREE.Color(0xa855f7); // Purple
-
-            for (let i = 0; i < count; i++) {
-                // Sphere distribution
-                const theta = Math.random() * Math.PI * 2;
-                const phi = Math.acos((Math.random() * 2) - 1);
-                const r = 100 + Math.random() * 300;
-
-                positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-                positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-                positions[i * 3 + 2] = r * Math.cos(phi);
-
-                // Mix colors based on position
-                const mixRatio = Math.random();
-                let c = colorA.clone().lerp(colorB, mixRatio);
-                if(Math.random() > 0.7) c = colorC;
-
-                colors[i * 3] = c.r;
-                colors[i * 3 + 1] = c.g;
-                colors[i * 3 + 2] = c.b;
-
-                sizes[i] = Math.random() * 2.0;
-                phases[i] = Math.random() * Math.PI * 2;
-            }
-
-            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-            geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-            geometry.setAttribute('phase', new THREE.BufferAttribute(phases, 1));
-
-            // Custom Shader Material mimicking the described OS
-            particleMaterial = new THREE.ShaderMaterial({
-                uniforms: {
-                    time: { value: 0 },
-                    sysEnergy: { value: 0.2 },
-                    sysEntropy: { value: 0.1 },
-                    pointerPos: { value: new THREE.Vector3(0,0,0) },
-                    pointerActive: { value: 0.0 }
-                },
-                vertexShader: `
-                    uniform float time;
-                    uniform float sysEnergy;
-                    uniform float sysEntropy;
-                    uniform vec3 pointerPos;
-                    uniform float pointerActive;
-
-                    attribute float size;
-                    attribute vec3 color;
-                    attribute float phase;
-
-                    varying vec3 vColor;
-
-                    void main() {
-                        vColor = color;
-
-                        vec3 pos = position;
-
-                        // Default ambient movement
-                        float noise = sin(time * 0.5 + phase) * (10.0 * sysEntropy);
-                        pos.x += sin(time + pos.y * 0.01) * noise;
-                        pos.y += cos(time + pos.x * 0.01) * noise;
-                        pos.z += sin(time + pos.z * 0.01) * noise;
-
-                        // Interaction burst (Touch burst grammar)
-                        if (pointerActive > 0.5) {
-                            float dist = distance(pos, pointerPos);
-                            if (dist < 150.0) {
-                                vec3 dir = normalize(pos - pointerPos);
-                                pos += dir * (150.0 - dist) * sysEnergy * 0.5;
-                            }
-                        }
-
-                        // High energy state pull (Cognitive emit)
-                        if (sysEnergy > 0.8) {
-                            pos += normalize(pos) * sin(time * 10.0 + phase) * 20.0;
-                        }
-
-                        vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-                        gl_PointSize = size * (300.0 / -mvPosition.z) * (1.0 + sysEnergy * 2.0);
-                        gl_Position = projectionMatrix * mvPosition;
-                    }
-                `,
-                fragmentShader: `
-                    varying vec3 vColor;
-                    void main() {
-                        // Circular glowing particle
-                        float dist = distance(gl_PointCoord, vec2(0.5));
-                        if (dist > 0.5) discard;
-
-                        float alpha = (0.5 - dist) * 2.0;
-                        gl_FragColor = vec4(vColor, alpha * 0.8);
-                    }
-                `,
-                transparent: true,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false
-            });
-
-            particles = new THREE.Points(geometry, particleMaterial);
-            scene.add(particles);
-
-            // Interaction Event Listeners
-            window.addEventListener('resize', onWindowResize);
-            document.addEventListener('mousemove', onPointerMove);
-            document.addEventListener('touchmove', onPointerMove, {passive: true});
-            document.addEventListener('mousedown', () => pointerActive = true);
-            document.addEventListener('mouseup', () => pointerActive = false);
-            document.addEventListener('touchstart', () => pointerActive = true, {passive: true});
-            document.addEventListener('touchend', () => pointerActive = false);
-            document.getElementById('canvas-container').addEventListener('dblclick', () => {
-                const hud = document.querySelector('.absolute.inset-0.z-10');
-                hud.classList.toggle('opacity-0');
-                hud.classList.toggle('pointer-events-none');
-                log('[SYS] UI Visibility Toggled', 'SYS');
-            });
-
-            animate();
-        }
-
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        function onPointerMove(event) {
-            let clientX = event.clientX || (event.touches && event.touches[0].clientX);
-            let clientY = event.clientY || (event.touches && event.touches[0].clientY);
-
-            if(clientX !== undefined) {
-                pointer.x = (clientX / window.innerWidth) * 2 - 1;
-                pointer.y = -(clientY / window.innerHeight) * 2 + 1;
-            }
-        }
+        let currentState = 'IDLE';
+        let time = 0;
 
         function animate() {
             requestAnimationFrame(animate);
+            time += 0.01;
 
-            const elapsedTime = clock.getElapsedTime();
-            clock.getDelta();
+            const particlePositions = particleSystem.geometry.attributes.position.array;
 
-            // Update Uniforms
-            particleMaterial.uniforms.time.value = elapsedTime;
-            particleMaterial.uniforms.sysEnergy.value = THREE.MathUtils.lerp(particleMaterial.uniforms.sysEnergy.value, sysState.energyLevel, 0.05);
-            particleMaterial.uniforms.sysEntropy.value = THREE.MathUtils.lerp(particleMaterial.uniforms.sysEntropy.value, sysState.entropyLevel, 0.05);
-            particleMaterial.uniforms.pointerActive.value = pointerActive ? 1.0 : 0.0;
-
-            // Map 2D pointer to 3D space for interaction
-            let vector = new THREE.Vector3(pointer.x, pointer.y, 0.5);
-            vector.unproject(camera);
-            let dir = vector.sub(camera.position).normalize();
-            let distance = - camera.position.z / dir.z;
-            let pos = camera.position.clone().add(dir.multiplyScalar(distance));
-            particleMaterial.uniforms.pointerPos.value.copy(pos);
-
-            // Rotate system slightly based on state
-            if (sysState.mode === 'THINKING' || mode === 'INTERPRETING') {
-                particles.rotation.y += 0.01;
-                particles.rotation.x += 0.005;
-            } else if (sysState.mode === 'EMITTING') {
-                particles.rotation.y += 0.05;
-            } else {
-                particles.rotation.y += 0.001; // STANDBY
+            for (let i = 0; i < particleCount * 3; i += 3) {
+                if (currentState === 'IDLE') {
+                    particleSystem.rotation.y = time * 0.1;
+                    particleSystem.rotation.x = time * 0.05;
+                } else if (currentState === 'FORMING_IMAGE') {
+                    particlePositions[i] += (targetPositions[i] - particlePositions[i]) * 0.05;
+                    particlePositions[i + 1] += (targetPositions[i + 1] - particlePositions[i + 1]) * 0.05;
+                    particlePositions[i + 2] += (0 - particlePositions[i + 2]) * 0.05;
+                    particleSystem.rotation.y = 0;
+                    particleSystem.rotation.x = 0;
+                } else if (currentState === 'FLOWING_VIDEO') {
+                    particlePositions[i] = Math.sin(time + particlePositions[i + 1]) * 5;
+                    particlePositions[i + 2] = Math.cos(time + particlePositions[i + 1]) * 5;
+                    particlePositions[i + 1] += 0.1;
+                    if (particlePositions[i + 1] > 10) particlePositions[i + 1] = -10;
+                } else if (currentState === 'SEARCHING') {
+                    const scale = 1 + Math.sin(time * 5) * 0.1;
+                    particleSystem.scale.set(scale, scale, scale);
+                }
             }
 
-            // Simulate UI Load metric
-            if (Math.random() > 0.9) {
-                UI.load.textContent = Math.floor(10 + Math.random() * 15) + 'ms';
-            }
-
+            particleSystem.geometry.attributes.position.needsUpdate = true;
             renderer.render(scene, camera);
         }
+        animate();
 
-        // --- Core OS Logic (Mocks API & WebSockets) ---
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
 
-        function setSystemState(mode) {
-            sysState.mode = mode;
-            UI.state.textContent = mode;
+        let isVoiceActive = false;
+        let lineageCount = 0;
 
-            if (mode === 'STANDBY') {
-                sysState.energyLevel = 0.2;
-                sysState.entropyLevel = 0.1;
-                UI.state.className = 'text-cyan-400 glow-text';
-                UI.composerContainer.classList.remove('composer-active');
-            } else if (mode === 'THINKING' || mode === 'INTERPRETING') {
-                sysState.energyLevel = 0.6;
-                sysState.entropyLevel = 0.8;
-                UI.state.className = 'text-yellow-400 glow-text';
-                UI.composerContainer.classList.add('composer-active');
-            } else if (mode === 'EMITTING') {
-                sysState.energyLevel = 1.0;
-                sysState.entropyLevel = 0.3;
-                UI.state.className = 'text-indigo-400 glow-text animate-pulse';
-            }
-
-            // Update UI Bars
-            UI.energy.style.width = (sysState.energyLevel * 100) + '%';
-            UI.entropy.style.width = (sysState.entropyLevel * 100) + '%';
+        function logTerminal(msg, type = 'info') {
+            const terminal = document.getElementById('terminal-logs');
+            const color = type === 'warn'
+                ? 'text-yellow-400'
+                : type === 'success'
+                    ? 'text-emerald-400'
+                    : type === 'system'
+                        ? 'text-purple-400'
+                        : 'text-blue-300';
+            terminal.innerHTML += `<div class="${color} mt-1">&gt; ${msg}</div>`;
+            terminal.scrollTop = terminal.scrollHeight;
         }
 
-        async function triggerScholarPipeline(intentText) {
-            if (!intentText.trim()) return;
-
-            UI.composer.value = '';
-            UI.composer.disabled = true;
-            UI.emitBtn.disabled = true;
-            UI.scholarPanel.classList.remove('hidden');
-            UI.scholarSummary.innerHTML = '<p class="animate-pulse text-indigo-300">Synthesizing knowledge...</p>';
-            UI.scholarCodeContainer.classList.add('hidden');
-            UI.scholarSources.classList.add('hidden');
-            UI.scholarStatus.textContent = 'Analyzing question...';
-
-            log(`Scholar Intent: "${intentText}"`, 'SYS');
-            setSystemState('INTERPRETING');
-
-            try {
-                log('[POST] /api/v1/scholar/request', 'API');
-                // Using relative path for the actual gateway we implemented
-                const response = await fetch('/api/v1/scholar/request', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-API-Key': 'scholar-test-key'
-                    },
-                    body: JSON.stringify({
-                        prompt: intentText,
-                        intent_state: { tone: 'formal' }
-                    })
-                });
-
-                const result = await response.json();
-                if (result.status === 'success') {
-                    const data = result.data;
-                    const scholar = data.intent_state.scholar;
-
-                    setSystemState('EMITTING');
-                    UI.scholarStatus.textContent = 'Manifesting Knowledge...';
-
-                    // Manifest Visual Metadata
-                    log(`[WS] Manifesting: ${scholar.visual_interpretation}`, 'WS');
-
-                    await new Promise(r => setTimeout(r, 1000));
-
-                    // Update UI
-                    // Update UI safely
-                    UI.scholarSummary.innerHTML = '';
-                    scholar.summary.split('\n').forEach(paraText => {
-                        const p = document.createElement('p');
-                        p.textContent = paraText;
-                        UI.scholarSummary.appendChild(p);
-                    });
-
-                    if (scholar.code_snippet) {
-                        UI.scholarCode.textContent = scholar.code_snippet;
-                        UI.scholarCodeContainer.classList.remove('hidden');
-                    }
-
-                    if (scholar.cited_sources && scholar.cited_sources.length > 0) {
-                        UI.scholarSourcesList.innerHTML = scholar.cited_sources.map(url =>
-                            `<a href="${url}" target="_blank" class="px-2 py-1 bg-white/5 border border-white/10 rounded text-[10px] text-indigo-300 hover:bg-white/10 transition-colors truncate max-w-[150px]">${new URL(url).hostname}</a>`
-                        ).join('');
-                        UI.scholarSources.classList.remove('hidden');
-                    }
-
-                    const hasTrusted = scholar.cited_sources && scholar.cited_sources.length > 0 && !scholar.unverified_source_detected;
-                    if (scholar.unverified_source_detected) {
-                        UI.scholarStatus.innerHTML = '<span class="text-amber-400">⚠️ UNVERIFIED SOURCES DETECTED</span>';
-                        UI.scholarPanel.classList.add('border-amber-500/50');
-                        UI.scholarPanel.classList.remove('border-indigo-500/30');
-                    } else {
-                        UI.scholarPanel.classList.add('border-indigo-500/30');
-                        UI.scholarPanel.classList.remove('border-amber-500/50');
-                        if (hasTrusted) {
-                            UI.scholarPanel.classList.add('shadow-[0_0_20px_rgba(99,102,241,0.3)]');
-                            log("[SYS] Trusted Knowledge Rewarded: Chromatic Aberration Active", "API");
-                        } else {
-                            UI.scholarPanel.classList.remove('shadow-[0_0_20px_rgba(99,102,241,0.3)]');
-                        }
-                    }
-                    UI.scholarStatus.textContent = 'Embodied Knowledge';
-                } else {
-                    throw new Error(result.detail || 'Scholar error');
-                }
-            } catch (err) {
-                log(`Scholar failed: ${err.message}`, 'ERR');
-                UI.scholarSummary.innerHTML = `<p class="text-red-400">Failed to manifest knowledge: ${err.message}</p>`;
-            }
-
-            setSystemState('STANDBY');
-            UI.composer.disabled = false;
-            UI.emitBtn.disabled = false;
-            UI.composer.focus();
+        function handleKeyPress(e) {
+            if (e.key === 'Enter') emitIntent();
         }
 
-        async function triggerCognitivePipeline(intentText) {
-            if (!intentText.trim()) return;
+        function toggleVoice() {
+            const btn = document.getElementById('voice-btn');
+            const input = document.getElementById('intent-input');
+            isVoiceActive = !isVoiceActive;
 
-            UI.composer.value = '';
-            UI.composer.disabled = true;
-            UI.emitBtn.disabled = true;
-            UI.visualTarget.classList.add('hidden');
+            if (isVoiceActive) {
+                btn.classList.add('mic-active');
+                input.placeholder = 'กำลังฟังเสียงของคุณ...';
+                logTerminal('[SENSOR] Audio stream connected. Listening...', 'info');
+            } else {
+                btn.classList.remove('mic-active');
+                input.placeholder = 'สนทนากับแสง... (พิมพ์หรือใช้เสียงเพื่อสร้างภาพ, วิดีโอ, หรือค้นหาข้อมูล)';
+                logTerminal('[SENSOR] Audio stream closed.', 'info');
+            }
+        }
 
-            log(`Intent capture: "${intentText}"`, 'SYS');
-            setSystemState('INTERPRETING');
+        function triggerAttach() {
+            const preview = document.getElementById('attachment-preview');
+            preview.classList.remove('hidden');
 
-            // 1. Mock POST /api/v1/cognitive/validate
-            log('[POST] /api/v1/cognitive/validate', 'API');
-            await new Promise(r => setTimeout(r, 600));
-            log('Intent parsed. Structural validity: OK', 'API');
+            const chip = document.createElement('div');
+            chip.className = 'glass-panel px-3 py-1 text-xs flex items-center gap-2 text-blue-200';
+            chip.innerHTML = '<i class="fas fa-image text-purple-400"></i> reference_style.jpg <i class="fas fa-times cursor-pointer hover:text-red-400" onclick="this.parentElement.remove()"></i>';
+            preview.appendChild(chip);
 
-            // 2. Mock GET /api/v1/reliability/temporal-morphogenesis
-            log('[GET] /api/v1/reliability/temporal-morphogenesis', 'API');
-            await new Promise(r => setTimeout(r, 400));
+            logTerminal('[VFS] Reference asset attached to envelope.', 'info');
+        }
 
-            // 3. Mock POST /api/v1/cognitive/emit
-            setSystemState('EMITTING');
-            log('[POST] /api/v1/cognitive/emit -> Triggering Light Burst', 'API');
+        function emitIntent() {
+            const inputField = document.getElementById('intent-input');
+            const intent = inputField.value.trim();
 
-            // Simulating WS state sync receipt
+            if (!intent && !isVoiceActive) return;
+
+            document.getElementById('sys-state').innerText = 'EVALUATING';
+            document.getElementById('sys-state').className = 'text-right text-yellow-400';
+            document.getElementById('manifestation-overlay').style.opacity = 0;
+            document.getElementById('scholar-panel').classList.add('hidden');
+
+            logTerminal(`[INTENT] Captured: "${intent || 'Voice input'}"`);
+            logTerminal('[CONTRACT] Proposing ai_particle_control_contract_v1...', 'system');
+
             setTimeout(() => {
-                log('[WS] Received state envelope: {"intent": "generative", "target": "visual"}', 'WS');
+                logTerminal('[GOVERNOR] Analyzing psychological safety and semantic drift...', 'warn');
+
+                setTimeout(() => {
+                    logTerminal('[GOVERNOR] Contract Approved. Signature valid.', 'success');
+                    manifestIntent(intent);
+                }, 1000);
             }, 500);
 
-            // Let burst happen
-            await new Promise(r => setTimeout(r, 1500));
-
-            // 4. Mock POST /api/v1/telemetry/ingest
-            log('[POST] /api/v1/telemetry/ingest (Status 200)', 'API');
-
-            // Presentation of Output
-            UI.visualTarget.classList.remove('hidden');
-            UI.targetContent.innerHTML = `
-                <div class="space-y-2">
-                    <p class="text-white">Rendered interpretation of: <span class="italic text-cyan-300">"${intentText}"</span></p>
-                    <div class="h-24 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-white/10 rounded-lg flex items-center justify-center text-xs">
-                        [ Cognitive Target Field Visualized ]
-                    </div>
-                </div>
-            `;
-
-            setSystemState('STANDBY');
-            UI.composer.disabled = false;
-            UI.emitBtn.disabled = false;
-            UI.composer.focus();
+            inputField.value = '';
+            if (isVoiceActive) toggleVoice();
         }
 
-        // Event Bindings
-        UI.emitBtn.addEventListener('click', () => {
-            triggerScholarPipeline(UI.composer.value);
-        });
+        function manifestIntent(intent) {
+            const lowerIntent = intent.toLowerCase();
+            document.getElementById('sys-state').innerText = 'MANIFESTING';
+            document.getElementById('sys-state').className = 'text-right text-blue-400';
 
-        UI.composer.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') triggerScholarPipeline(UI.composer.value);
-        });
+            addLineageNode(intent);
 
-        // Init
-        UI.scholarMinimizeBtn.addEventListener('click', () => {
-            const isMinimized = UI.scholarPanel.classList.toggle('max-h-12');
-            UI.scholarPanel.classList.toggle('overflow-hidden');
-            UI.scholarMinimizeBtn.innerHTML = isMinimized ? '<i data-lucide="plus-square" class="w-4 h-4"></i>' : '<i data-lucide="minus-square" class="w-4 h-4"></i>';
-            lucide.createIcons();
-        });
+            if (lowerIntent.includes('ภาพ') || lowerIntent.includes('image')) {
+                currentState = 'FORMING_IMAGE';
+                logTerminal('[AETH] Coalescing light into static formation...', 'info');
 
-        window.onload = () => {
-            initThreeJS();
-            setSystemState('STANDBY');
+                setTimeout(() => {
+                    const overlay = document.getElementById('manifestation-overlay');
+                    overlay.style.backgroundImage = 'url("https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop")';
+                    overlay.style.opacity = 1;
+                    document.getElementById('sys-state').innerText = 'IDLE';
+                    document.getElementById('sys-state').className = 'text-right text-emerald-400';
+                }, 1500);
+            } else if (lowerIntent.includes('วิดีโอ') || lowerIntent.includes('video') || lowerIntent.includes('เคลื่อนไหว')) {
+                currentState = 'FLOWING_VIDEO';
+                logTerminal('[AETH] Initiating continuous particle flow stream...', 'info');
+                document.getElementById('sys-state').innerText = 'STREAMING';
+                document.getElementById('sys-state').className = 'text-right text-purple-400';
+            } else if (lowerIntent.includes('ค้นหา') || lowerIntent.includes('search') || lowerIntent.includes('คืออะไร')) {
+                currentState = 'SEARCHING';
+                logTerminal('[SCHOLAR] Routing query to Akashic Data Grid (Web Search)...', 'system');
 
-            // Initial telemetry ping mock
-            setTimeout(() => {
-                log('[POST] /api/v1/telemetry/ingest (Boot)', 'API');
-            }, 2000);
-        };
+                setTimeout(() => {
+                    document.getElementById('scholar-panel').classList.remove('hidden');
+                    const content = document.getElementById('scholar-content');
+                    content.innerHTML = `
+                        <div class="mb-2"><strong class="text-white">ผลการค้นหา: ${intent}</strong></div>
+                        <p class="text-gray-400 leading-relaxed mb-2">
+                            ระบบได้ทำการดึงข้อมูลจากแหล่งที่เชื่อถือได้ (อ้างอิงจากฐานข้อมูล Aetherium และ Web Search)...
+                            สิ่งนี้คือกระบวนการเชิงโครงสร้างที่แปลงพารามิเตอร์เป็นคลื่นแสง
+                        </p>
+                        <div class="bg-black/50 p-2 rounded border border-purple-500/30 text-[10px] text-purple-200">
+                            <i class="fas fa-link"></i> Source Verified (Governor Trust Score: 0.98)
+                        </div>
+                    `;
+                    currentState = 'IDLE';
+                    document.getElementById('sys-state').innerText = 'IDLE';
+                    document.getElementById('sys-state').className = 'text-right text-emerald-400';
+                    particleSystem.scale.set(1, 1, 1);
+                }, 1500);
+            } else {
+                currentState = 'IDLE';
+                const particleColors = particleSystem.geometry.attributes.color.array;
+                const r = Math.random();
+                const g = Math.random();
+                const b = Math.random();
+                for (let i = 0; i < particleCount * 3; i += 3) {
+                    particleColors[i] = r;
+                    particleColors[i + 1] = g;
+                    particleColors[i + 2] = b;
+                }
+                particleSystem.geometry.attributes.color.needsUpdate = true;
 
+                logTerminal('[AETH] Modulating light frequencies...', 'success');
+                document.getElementById('sys-state').innerText = 'IDLE';
+                document.getElementById('sys-state').className = 'text-right text-emerald-400';
+            }
+        }
+
+        function addLineageNode(intentLabel) {
+            lineageCount++;
+            const container = document.getElementById('lineage-container');
+
+            const connector = document.createElement('div');
+            connector.className = 'lineage-connector';
+            container.appendChild(connector);
+
+            const node = document.createElement('div');
+            node.className = 'flex items-center gap-2 cursor-pointer group mt-1';
+            const shortLabel = intentLabel.length > 15 ? `${intentLabel.substring(0, 15)}...` : intentLabel;
+
+            node.innerHTML = `
+                <div class="w-6 h-6 rounded-full bg-transparent border border-blue-400 flex items-center justify-center lineage-node" onclick="revertToNode('V.${lineageCount}')">
+                    <div class="w-1.5 h-1.5 rounded-full bg-blue-300"></div>
+                </div>
+                <span class="text-xs text-gray-400 group-hover:text-white transition-colors" onclick="revertToNode('V.${lineageCount}')">
+                    ${shortLabel}
+                </span>
+                <i class="fas fa-trash text-gray-600 hover:text-red-400 text-[10px] ml-auto transition-colors" onclick="deleteNode(this)" title="ลบสายวิวัฒนาการนี้"></i>
+            `;
+            container.appendChild(node);
+        }
+
+        function revertToNode(nodeId) {
+            logTerminal(`[LINEAGE] Time-shifting reality to state: ${nodeId}`, 'system');
+            document.getElementById('manifestation-overlay').style.opacity = 0;
+            document.getElementById('scholar-panel').classList.add('hidden');
+            currentState = 'IDLE';
+        }
+
+        function deleteNode(element) {
+            logTerminal('[LINEAGE] Pruning branch from history.', 'warn');
+            const nodeContainer = element.parentElement;
+            const connector = nodeContainer.previousElementSibling;
+            if (connector && connector.className === 'lineage-connector') connector.remove();
+            nodeContainer.remove();
+        }
     </script>
 </body>
 </html>

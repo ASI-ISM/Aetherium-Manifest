@@ -17,7 +17,7 @@ Aetherium Manifest is now positioned as a creative operating surface where users
 - motion identity
 - document visual
 
-Core embodiment remains unchanged from the current prototype: **full-screen light body + bottom composer**, with existing interaction grammar preserved (`standby light`, `touch burst`, `fade`, and `tilt sensor`).
+Core embodiment remains a **full-screen light body + bottom composer**, now expanded with governed manifestation states, replayable lineage controls, and multimodal input affordances.
 
 ## What's updated (April 2026)
 
@@ -28,8 +28,11 @@ Core embodiment remains unchanged from the current prototype: **full-screen ligh
   - `POST /api/v1/telemetry/ingest`
   - `GET /api/v1/reliability/temporal-morphogenesis`
   - `WS /ws/state-sync/{room_id}`
-- Runtime HUD now exposes state/energy/entropy/load + compatibility frame.
-- File attachment and voice mock are connected to the same intent pipeline and visualization target field.
+- Runtime HUD now exposes state/resonance/entropy with terminal-grade governor checkpoints.
+- Composer now supports **Attach + Voice + EMIT** inside a glassmorphism shell for light-native interaction.
+- Governed manifestation loop is visible in UI (`Contract Proposed -> Governor Verification -> Manifest`).
+- Replayable **Design Lineage Tree** enables time-shift, branch pruning, and iterative exploration.
+- Scholar side panel (`AKASHIC SEARCH`) presents mock search summaries and source-trust status.
 
 ## Architecture (current)
 
