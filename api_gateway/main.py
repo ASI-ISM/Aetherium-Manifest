@@ -100,6 +100,10 @@ def _ensure_api_key(x_api_key: str | None) -> None:
     if not x_api_key:
         raise HTTPException(status_code=401, detail="missing X-API-Key")
 
+    expected_key = os.getenv("AETHERIUM_API_KEY")
+    if expected_key and x_api_key != expected_key:
+        raise HTTPException(status_code=403, detail="invalid X-API-Key")
+
 async def incr_metric(name: str):
     if r:
         try: await r.incr(f"metrics:{name}")
