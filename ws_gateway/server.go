@@ -231,7 +231,7 @@ func (s *Server) broadcastToRoom(msg Message) {
 		case client.send <- msg.Data:
 		default:
 			// backpressure policy: disconnect slow consumer
-			s.unregister <- client
+			_ = client.conn.Close()
 		}
 	}
 }
