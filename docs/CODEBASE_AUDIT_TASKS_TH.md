@@ -1,57 +1,50 @@
 # Codebase Audit: ข้อเสนอแผนงานแก้ไข (Thai)
 
-อัปเดตการตรวจสอบล่าสุด: 2026-04-11
+อัปเดตการตรวจสอบล่าสุด: 2026-04-13
 
-เอกสารนี้สรุปผลการตรวจสอบโค้ด และเสนอ "งานแก้ไข" อย่างละ 1 งานตามหมวดที่ร้องขอ
+เอกสารนี้สรุปผลการตรวจสอบโค้ดล่าสุด และเสนอ "งานแก้ไข" อย่างละ 1 งานตามหมวดที่ร้องขอ
 
 ## 1) งานแก้ไขข้อความพิมพ์ผิด (Typo Fix)
 
 **ปัญหาที่พบ**
-- ใน `api_gateway/README.md` มีข้อความไทยสะกดไม่สม่ำเสมอ: `Environment Variable` ถูกใช้ในบริบทพหูพจน์
-- ข้อความแนะนำระบุว่า "ตรวจสอบและตั้งค่า Environment Variable ที่จำเป็น" แต่พูดถึงหลายตัวแปร (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`)
+- ใน `api_gateway/README.md` ส่วนคำอธิบายการรัน Production ใช้คำว่า `Environment Variable` (เอกพจน์) แต่บริบทพูดถึงหลายตัวแปร
+- เนื้อหาเดียวกันอ้างถึงการตั้งค่า API key หลายตัว ทำให้คำในเอกสารไม่สอดคล้องกับความหมายจริง
 
-**งานที่เสนอ**
-- ปรับข้อความเป็น `Environment Variables` เพื่อให้ไวยากรณ์และความหมายถูกต้อง
-- เก็บรวบรวมคำที่สะกด/รูปแบบไม่สม่ำเสมอใน README (เช่น Environment Variables, API Key/API-Key) แล้วปรับให้เป็นรูปแบบเดียวกันทั้งไฟล์
+**งานที่เสนอ (1 งาน)**
+- ปรับข้อความใน `api_gateway/README.md` จาก `Environment Variable` เป็น `Environment Variables` และตรวจทั้งไฟล์ให้ใช้รูปแบบเดียวกันสำหรับคำศัพท์เทคนิคชุดเดียวกัน
 
 ---
 
 ## 2) งานแก้ไขบั๊ก (Bug Fix)
 
 **ปัญหาที่พบ**
-- ฟังก์ชัน `_ensure_api_key` ใน `api_gateway/main.py` จะตรวจความถูกต้องของ `X-API-Key` ก็ต่อเมื่อมีการตั้ง `AETHERIUM_API_KEY` เท่านั้น
-- ถ้า deploy แล้วลืมตั้ง `AETHERIUM_API_KEY` ระบบจะยอมรับ header ใดก็ได้ทันที (เช่น `X-API-Key: anything`)
-- พฤติกรรมนี้เป็นช่องโหว่เชิง config ที่ทำให้ endpoint ที่ควรป้องกันสิทธิ์ถูกเรียกได้โดยไม่ได้ยืนยันตัวตนจริง
+- ฟังก์ชัน `_ensure_api_key` ใน `api_gateway/main.py` ตรวจว่า `X-API-Key` ตรงกับค่า expected เฉพาะกรณีที่ตั้ง `AETHERIUM_API_KEY` แล้วเท่านั้น
+- หากระบบถูก deploy โดยไม่ได้ตั้ง `AETHERIUM_API_KEY` จะกลายเป็นพฤติกรรม fail-open (header ใดก็ผ่านการตรวจได้)
 
-**งานที่เสนอ**
-- เปลี่ยนเป็น fail-closed: ถ้าไม่มี AETHERIUM_API_KEY ให้ตอบ 500 พร้อมข้อความแจ้งเตือนการตั้งค่าไม่สมบูรณ์
-- เพิ่ม startup check ให้ปฏิเสธการเปิด service เมื่อ key บังคับยังไม่ถูกตั้ง
-- ระบุ runbook ชัดเจนใน README ว่า `AETHERIUM_API_KEY` เป็น required secret ในทุก environment ที่เปิดใช้งาน auth
+**งานที่เสนอ (1 งาน)**
+- เปลี่ยนพฤติกรรมเป็น fail-closed: เมื่อไม่มี `AETHERIUM_API_KEY` ให้ตอบ `500` พร้อมข้อความ misconfiguration ชัดเจน และเพิ่ม startup guard เพื่อไม่ให้ service พร้อมใช้งานหาก secret สำคัญยังไม่ถูกตั้ง
 
 ---
 
 ## 3) งานแก้ไขคอมเมนต์ในโค้ด/ความคลาดเคลื่อนของเอกสาร (Comment/Docs Discrepancy)
 
 **ปัญหาที่พบ**
-- เอกสาร `api_gateway/README.md` ระบุ endpoint `WS /ws/cognitive-stream`
-- แต่ในโค้ด API gateway ปัจจุบัน (ไฟล์ `api_gateway/main.py`) ไม่มีการประกาศ websocket route ดังกล่าว
-- ทำให้เอกสารสัญญาว่ามี endpoint ที่ผู้ใช้เรียกจริงไม่ได้
+- `api_gateway/README.md` ระบุ endpoint `WS /ws/cognitive-stream`
+- แต่ `api_gateway/main.py` ไม่มี websocket route ดังกล่าวจริง ทำให้เอกสารไม่ตรงกับ implementation ปัจจุบัน
 
-**งานที่เสนอ**
-- เลือกหนึ่งแนวทางแล้วทำให้ตรงกัน:
-  1. เพิ่ม websocket route `/ws/cognitive-stream` ให้ทำงานจริงใน `api_gateway/main.py`, หรือ
-  2. ปรับ README ให้สะท้อนสถานะปัจจุบัน (เช่นย้ายเป็น roadmap/experimental)
-- เพิ่มส่วน "Source of truth" ใน README ว่า route ที่รองรับจริงให้ดูจากไฟล์ใด
+**งานที่เสนอ (1 งาน)**
+- เลือกและทำให้สอดคล้องกันเพียงแนวทางเดียว: 
+  - เพิ่ม route `/ws/cognitive-stream` ในโค้ดให้ใช้งานได้จริง **หรือ**
+  - ปรับ README ให้ย้าย endpoint นี้ไปหัวข้อ roadmap/experimental และระบุ source of truth ของ route ที่รองรับจริง
 
 ---
 
 ## 4) งานปรับปรุงการทดสอบ (Test Improvement)
 
 **ปัญหาที่พบ**
-- ใน `api_gateway/test_api.py` ยังไม่มีเทสต์ที่ยืนยันพฤติกรรม "ต้องปิดบริการเมื่อ `AETHERIUM_API_KEY` ไม่ถูกตั้ง"
-- จึงยังไม่มี guard test ป้องกัน regression หากมีการแก้ `_ensure_api_key` ในอนาคต
+- ใน `api_gateway/test_api.py` ยังไม่มี test ที่ป้องกัน regression ของกรณี misconfiguration (`AETHERIUM_API_KEY` ไม่ถูกตั้ง) และไม่มีเคสยืนยันชัดเจนเรื่อง invalid key หลังเปิดใช้ auth
 
-**งานที่เสนอ**
-- เพิ่มเทสต์สำหรับ endpoint ที่ require auth (เช่น `POST /api/v1/cognitive/validate`) โดยเคลียร์ env `AETHERIUM_API_KEY` แล้ว assert ว่าระบบ fail-closed ตามดีไซน์ใหม่
-- เพิ่มอีกเคสว่าเมื่อ `AETHERIUM_API_KEY` ถูกตั้งและ `X-API-Key` ไม่ตรงกัน ต้องได้ `403`
-- แยก fixture สำหรับ config security เพื่อให้เทสต์ auth อ่านง่ายและบำรุงรักษาง่ายขึ้น
+**งานที่เสนอ (1 งาน)**
+- เพิ่มชุดทดสอบ auth regression สำหรับ endpoint ที่มีการป้องกัน (`/api/v1/cognitive/validate`) อย่างน้อย 2 เคส:
+  1. ไม่ตั้ง `AETHERIUM_API_KEY` แล้วระบบต้อง fail-closed
+  2. ตั้ง `AETHERIUM_API_KEY` แต่ส่ง `X-API-Key` ไม่ตรง ต้องได้ `403`
