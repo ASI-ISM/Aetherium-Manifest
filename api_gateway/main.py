@@ -5,6 +5,7 @@ import uuid
 import logging
 import hmac
 import hashlib
+import copy
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Literal, Optional, Union
 from enum import Enum
@@ -16,6 +17,7 @@ from pydantic import BaseModel, Field
 import redis.asyncio as redis
 import nats
 import httpx
+from governor.runtime_governor import RuntimeGovernor, GovernorContext
 
 # --- Constants ---
 
@@ -83,6 +85,17 @@ GOVERNOR_SERVICE_URL = os.getenv("GOVERNOR_SERVICE_URL", "http://governor.aether
 r: Optional[redis.Redis] = None
 nc: Optional[nats.NATS] = None
 NONCE_CACHE: Dict[str, bool] = {}
+RUNTIME_GOVERNOR = RuntimeGovernor()
+REQUIRED_PIPELINE_ORDER = [
+    "validate",
+    "transition",
+    "profile_map",
+    "clamp",
+    "fallback",
+    "policy_block",
+    "capability_gate",
+    "telemetry_log",
+]
 
 @app.on_event("startup")
 async def startup():
@@ -146,6 +159,86 @@ async def _publish_approved_envelope(envelope: Dict[str, Any]) -> None:
         except Exception:
             logger.exception("failed to queue approved envelope for kafka bridge")
 
+
+def _build_governor_payload(request_data: Dict[str, Any]) -> Dict[str, Any]:
+    model_response = request_data.get("model_response") or {}
+    particle_control = model_response.get("particle_control") or {}
+    payload = {
+        "trace_id": model_response.get("trace_id") or uuid.uuid4().hex,
+        "intent_state": copy.deepcopy(particle_control.get("intent_state") or {}),
+        "renderer_controls": copy.deepcopy(particle_control.get("renderer_controls") or {}),
+    }
+    if not payload["intent_state"]:
+        payload["intent_state"] = {
+            "state": ((model_response.get("visual_manifestation") or {}).get("intent_state") or {}).get("state")
+            or "IDLE",
+        }
+    return payload
+
+
+def _build_governor_context(governor_context: Dict[str, Any]) -> GovernorContext:
+    device_capability = governor_context.get("device_capability") or {}
+    return GovernorContext(
+        device_tier={1: "LOW", 2: "MID", 3: "HIGH"}.get(device_capability.get("gpu_tier"), "MID"),
+        low_power_mode=bool(device_capability.get("low_power_mode", False)),
+        granted_capabilities=[
+            capability
+            for capability in ("microphone", "camera", "motion")
+            if bool(device_capability.get(f"supports_{capability}_sensors", False))
+        ],
+        human_override=governor_context.get("human_override") or {},
+    )
+
+
+def _assert_pipeline_order(telemetry: List[Dict[str, Any]]) -> None:
+    stages = [str(event.get("stage")) for event in telemetry]
+    cursor = 0
+    for stage in REQUIRED_PIPELINE_ORDER:
+        try:
+            cursor = stages.index(stage, cursor) + 1
+        except ValueError as exc:
+            raise HTTPException(status_code=502, detail=f"governor telemetry missing stage '{stage}'") from exc
+
+
+def _apply_profile_constraints(
+    accepted_command: Dict[str, Any],
+    request_data: Dict[str, Any],
+) -> tuple[Dict[str, Any], List[str], List[str], Optional[str], List[str]]:
+    constrained = copy.deepcopy(accepted_command)
+    rejected_fields: List[str] = []
+    mutations: List[str] = []
+    policy_violations: List[str] = []
+    fallback_reason: Optional[str] = None
+
+    safety_profile = (request_data.get("governor_context") or {}).get("safety_profile") or {}
+    brand_profile = (request_data.get("governor_context") or {}).get("brand_profile") or {}
+    renderer = constrained.setdefault("renderer_controls", {})
+    intent = constrained.setdefault("intent_state", {})
+
+    max_particle_count = safety_profile.get("max_particle_count")
+    if isinstance(max_particle_count, int):
+        current = int(renderer.get("particle_count") or 0)
+        if current > max_particle_count:
+            renderer["particle_count"] = max_particle_count
+            rejected_fields.append("renderer_controls.particle_count")
+            mutations.append(f"safety_profile capped renderer_controls.particle_count: {current} -> {max_particle_count}")
+            policy_violations.append("safety_profile:max_particle_count")
+            fallback_reason = fallback_reason or "safety_profile:max_particle_count"
+
+    allowed_palette_modes = brand_profile.get("allowed_palette_modes")
+    palette = intent.setdefault("palette", {})
+    if isinstance(allowed_palette_modes, list) and allowed_palette_modes:
+        mode = palette.get("mode")
+        if mode not in allowed_palette_modes:
+            replacement = allowed_palette_modes[0]
+            palette["mode"] = replacement
+            rejected_fields.append("intent_state.palette.mode")
+            mutations.append(f"brand_profile forced intent_state.palette.mode: {mode!r} -> {replacement!r}")
+            policy_violations.append("brand_profile:palette_mode")
+            fallback_reason = fallback_reason or "brand_profile:palette_mode"
+
+    return constrained, rejected_fields, mutations, fallback_reason, policy_violations
+
 # --- Endpoints ---
 
 @app.post("/api/v1/cognitive/emit")
@@ -162,21 +255,31 @@ async def emit_cognitive_dsl(
          raise HTTPException(status_code=422, detail="missing governor_context")
 
     await incr_metric("total_dsl_submissions")
+    payload = _build_governor_payload(request_data)
+    context = _build_governor_context(request_data.get("governor_context") or {})
+    decision = RUNTIME_GOVERNOR.process(payload, context)
+    _assert_pipeline_order(decision.telemetry)
+
+    accepted_command, profile_rejected_fields, profile_mutations, profile_fallback_reason, profile_policy_violations = _apply_profile_constraints(
+        decision.effective_contract,
+        request_data,
+    )
+
+    mutation_fields = {
+        mutation.split(":", 1)[0].split(" <- ", 1)[0].strip()
+        for mutation in [*decision.mutations, *profile_mutations]
+        if "." in mutation
+    }
+    rejected_fields = sorted(set(mutation_fields) | set(profile_rejected_fields))
+    fallback_reason = profile_fallback_reason or accepted_command.get("intent_state", {}).get("transition_reason")
     governor_result = {
-        "accepted": True,
-        "accepted_command": {
-            "renderer_controls": {"particle_count": 2000},
-            "intent_state": {"state": "WARNING"}
-        },
-        "mutations": [],
-        "policy_violations": [],
-        "fallback_reason": "containment:soft_clamp",
-        "rejected_fields": ["renderer_controls.particle_count"],
-        "telemetry_logging": {
-            "state_entered_at": datetime.now(timezone.utc).isoformat(),
-            "state_duration_ms": 100,
-            "transition_reason": "test"
-        }
+        "accepted": decision.accepted and not decision.blocked_by_policy,
+        "accepted_command": accepted_command,
+        "mutations": [*decision.mutations, *profile_mutations],
+        "policy_violations": [*decision.policy_violations, *profile_policy_violations],
+        "fallback_reason": fallback_reason,
+        "rejected_fields": rejected_fields,
+        "telemetry_logging": accepted_command.get("intent_state", {}),
     }
     await _publish_approved_envelope({
         "type": "governor.approved",

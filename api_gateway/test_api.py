@@ -180,6 +180,8 @@ def _valid_emit_payload() -> dict:
                 "low_power_mode": True,
                 "gpu_tier": 2,
             },
+            "safety_profile": {"max_particle_count": 2000},
+            "brand_profile": {"allowed_palette_modes": ["CALM_IDLE", "DEEP_REASONING"]},
         },
     }
 
@@ -193,13 +195,49 @@ def test_emit_returns_governor_result(client: TestClient) -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["governor_result"]["accepted_command"]["renderer_controls"]["particle_count"] == 2000
-    assert payload["governor_result"]["fallback_reason"] in {"device_low_power_mode", "sensor_permission_denied", "containment:soft_clamp", "containment:deterministic_anchor_replay", "containment:hard_rollback_legacy"}
+    assert payload["governor_result"]["fallback_reason"] in {"governor_fallback", "safety_profile:max_particle_count", "brand_profile:palette_mode"}
     assert "renderer_controls.particle_count" in payload["governor_result"]["rejected_fields"]
     assert payload["visual_manifestation"]["particle_physics"]["flow_direction"] == "still"
-    assert payload["governor_result"]["accepted_command"]["intent_state"]["state"] in {"WARNING", "SENSOR_PENDING_PERMISSION", "SENSOR_UNAVAILABLE"}
+    assert payload["governor_result"]["accepted_command"]["intent_state"]["state"] in {"THINKING", "IDLE", "WARNING"}
     assert payload["governor_result"]["telemetry_logging"]["state_entered_at"]
     assert payload["governor_result"]["telemetry_logging"]["state_duration_ms"] >= 0
     assert payload["governor_result"]["telemetry_logging"]["transition_reason"]
+    assert "policy_violations" in payload["governor_result"]
+
+
+def test_emit_applies_brand_profile_palette_constraint(client: TestClient) -> None:
+    payload = _valid_emit_payload()
+    payload["model_response"]["particle_control"]["intent_state"]["palette"]["mode"] = "CUSTOM"
+    payload["governor_context"]["brand_profile"] = {"allowed_palette_modes": ["CALM_IDLE"]}
+
+    response = client.post(
+        "/api/v1/cognitive/emit",
+        json=payload,
+        headers={"X-API-Key": "test-key", "X-Model-Provider": "openai", "X-Model-Version": "2026-03"},
+    )
+
+    assert response.status_code == 200
+    result = response.json()["governor_result"]
+    assert result["accepted_command"]["intent_state"]["palette"]["mode"] == "CALM_IDLE"
+    assert "intent_state.palette.mode" in result["rejected_fields"]
+    assert "brand_profile:palette_mode" in result["policy_violations"]
+
+
+def test_emit_applies_safety_profile_particle_constraint(client: TestClient) -> None:
+    payload = _valid_emit_payload()
+    payload["governor_context"]["safety_profile"] = {"max_particle_count": 1234}
+
+    response = client.post(
+        "/api/v1/cognitive/emit",
+        json=payload,
+        headers={"X-API-Key": "test-key", "X-Model-Provider": "openai", "X-Model-Version": "2026-03"},
+    )
+
+    assert response.status_code == 200
+    result = response.json()["governor_result"]
+    assert result["accepted_command"]["renderer_controls"]["particle_count"] == 1234
+    assert "renderer_controls.particle_count" in result["rejected_fields"]
+    assert "safety_profile:max_particle_count" in result["policy_violations"]
 
 
 def test_emit_rejects_missing_governor_context(client: TestClient) -> None:
