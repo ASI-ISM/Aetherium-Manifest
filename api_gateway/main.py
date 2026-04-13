@@ -190,8 +190,10 @@ def _build_governor_context(governor_context: Dict[str, Any]) -> GovernorContext
     )
 
 
-def _assert_pipeline_order(telemetry: List[Dict[str, Any]]) -> None:
+def _assert_pipeline_order(telemetry: List[Dict[str, Any]]) -> None: 
     stages = [str(event.get("stage")) for event in telemetry]
+    if any(e.get("stage") == "validate" and e.get("status") == "blocked" for e in telemetry):
+        return
     cursor = 0
     for stage in REQUIRED_PIPELINE_ORDER:
         try:
