@@ -59,10 +59,10 @@ type Server struct {
 }
 
 func NewServer(cfg Config) *Server {
-	shards := make([]RoomShard, cfg.Shards)
-	for i := range shards {
-		shards[i] = RoomShard{rooms: make(map[string]map[string]*Client)}
+	if cfg.Shards <= 0 {
+		cfg.Shards = 32
 	}
+	shards := make([]RoomShard, cfg.Shards)
 
 	return &Server{
 		clients:    make(map[string]*Client),
