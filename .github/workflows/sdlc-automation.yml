@@ -37,7 +37,7 @@ jobs:
     with:
       fast-gate: false
       check-pr-body: false
-      run-full-contracts: false
+      run-full-contracts: ${{ github.ref_name == 'main' || github.ref_name == 'develop' }}
 
   nightly-heavy:
     if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_full_nightly) }}

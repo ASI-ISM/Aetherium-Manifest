@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   codex:
+    if: ${{ secrets.OPENAI_API_KEY != '' }}
     runs-on: ubuntu-latest
     outputs:
       final_message: ${{ steps.run_codex.outputs.final-message }}
@@ -37,7 +38,7 @@ jobs:
   post-feedback:
     runs-on: ubuntu-latest
     needs: codex
-    if: needs.codex.outputs.final_message != ''
+    if: ${{ needs.codex.result == 'success' && needs.codex.outputs.final_message != '' }}
     steps:
       - name: Post Codex feedback
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
