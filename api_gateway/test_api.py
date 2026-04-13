@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import pytest
 from fastapi.testclient import TestClient
 
-from .main import app, _proxy_request_signature
+from .main import EXPORT_AUDIT_TRAIL, app, _proxy_request_signature
 
 
 @pytest.fixture
@@ -303,3 +303,73 @@ def test_emit_accepts_valid_api_key(client: TestClient, monkeypatch: pytest.Monk
         },
     )
     assert response.status_code == 200
+
+
+def test_export_request_supports_all_artifact_types(client: TestClient) -> None:
+    EXPORT_AUDIT_TRAIL.clear()
+    artifact_types = ["PNG", "SVG", "MP4", "layer_package", "manifest_json", "prompt_lineage_bundle"]
+    for artifact_type in artifact_types:
+        response = client.post(
+            "/api/v1/export/request",
+            headers={"X-API-Key": "test-key"},
+            json={
+                "session_id": "sess-export-1",
+                "lineage_id": "lin-1",
+                "selected_variation_id": "var-1",
+                "artifact_type": artifact_type,
+                "options": {"quality": "high"},
+                "requested_by": "qa-user",
+            },
+        )
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["artifact_type"] == artifact_type
+        assert payload["session_id"] == "sess-export-1"
+        assert payload["lineage_id"] == "lin-1"
+        assert payload["selected_variation_id"] == "var-1"
+        assert payload["review_status"] == "ready_for_enterprise_review"
+        assert payload["replay_key"].startswith("sess-export-1:lin-1:var-1:")
+
+
+def test_export_request_requires_replay_identifiers(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/export/request",
+        headers={"X-API-Key": "test-key"},
+        json={
+            "session_id": "sess-export-2",
+            "lineage_id": "lin-2",
+            "artifact_type": "PNG",
+        },
+    )
+    assert response.status_code == 422
+
+
+def test_export_history_supports_replay_filters(client: TestClient) -> None:
+    EXPORT_AUDIT_TRAIL.clear()
+    seed_payload = {
+        "session_id": "sess-export-3",
+        "lineage_id": "lin-3",
+        "selected_variation_id": "var-3",
+        "artifact_type": "manifest_json",
+    }
+    client.post("/api/v1/export/request", headers={"X-API-Key": "test-key"}, json=seed_payload)
+    client.post(
+        "/api/v1/export/request",
+        headers={"X-API-Key": "test-key"},
+        json={**seed_payload, "selected_variation_id": "var-4", "artifact_type": "layer_package"},
+    )
+
+    response = client.get(
+        "/api/v1/export/history",
+        headers={"X-API-Key": "test-key"},
+        params={
+            "session_id": "sess-export-3",
+            "lineage_id": "lin-3",
+            "selected_variation_id": "var-3",
+        },
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["count"] == 1
+    assert payload["history"][0]["selected_variation_id"] == "var-3"
+    assert payload["history"][0]["artifact_type"] == "manifest_json"

@@ -90,3 +90,13 @@ This sub-schema defines the structure for knowledge-heavy outputs from ScholarAg
 - `tone` — Affects the visual emotional bias (formal, casual, creative).
 
 Reasoning: Ensures that knowledge manifestations are structured, governable, and can be localized or cited properly within the Manifest HUD.
+
+## Export Domain V1
+Canonical contract files:
+- `docs/schemas/export_request_v1.json`
+- `docs/schemas/export_response_v1.json`
+
+Export ABI constraints:
+- Every request MUST include `session_id`, `lineage_id`, and `selected_variation_id` for deterministic replay lineage.
+- `artifact_type` supports: `PNG`, `SVG`, `MP4`, `layer_package`, `manifest_json`, `prompt_lineage_bundle`.
+- Response includes `audit_trail_id`, `replay_key`, and `review_status` so export history can be reviewed in enterprise governance flows.

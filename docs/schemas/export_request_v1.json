@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aetherium.dev/schemas/export_request_v1.json",
+  "title": "Aetherium Export Request v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "session_id",
+    "lineage_id",
+    "selected_variation_id",
+    "artifact_type"
+  ],
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "lineage_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "selected_variation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifact_type": {
+      "type": "string",
+      "enum": [
+        "PNG",
+        "SVG",
+        "MP4",
+        "layer_package",
+        "manifest_json",
+        "prompt_lineage_bundle"
+      ]
+    },
+    "options": {
+      "type": "object",
+      "default": {}
+    },
+    "requested_by": {
+      "type": "string"
+    }
+  }
+}

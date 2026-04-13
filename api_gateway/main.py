@@ -56,6 +56,35 @@ class TelemetryPoint(BaseModel):
 class TelemetryIngestRequest(BaseModel):
     points: list[TelemetryPoint]
 
+class ExportArtifactType(str, Enum):
+    PNG = "PNG"
+    SVG = "SVG"
+    MP4 = "MP4"
+    LAYER_PACKAGE = "layer_package"
+    MANIFEST_JSON = "manifest_json"
+    PROMPT_LINEAGE_BUNDLE = "prompt_lineage_bundle"
+
+class ExportRequest(BaseModel):
+    session_id: str = Field(..., min_length=1)
+    lineage_id: str = Field(..., min_length=1)
+    selected_variation_id: str = Field(..., min_length=1)
+    artifact_type: ExportArtifactType
+    options: Dict[str, Any] = Field(default_factory=dict)
+    requested_by: Optional[str] = None
+
+class ExportResponse(BaseModel):
+    export_id: str
+    session_id: str
+    lineage_id: str
+    selected_variation_id: str
+    artifact_type: ExportArtifactType
+    status: Literal["accepted"]
+    audit_trail_id: str
+    replay_key: str
+    review_status: Literal["ready_for_enterprise_review"]
+    created_at: datetime
+    options: Dict[str, Any] = Field(default_factory=dict)
+
 # --- Validation ---
 
 class FirmaValidator:
@@ -87,6 +116,7 @@ r: Optional[redis.Redis] = None
 nc: Optional[nats.NATS] = None
 NONCE_CACHE: Dict[str, bool] = {}
 RUNTIME_GOVERNOR = RuntimeGovernor()
+EXPORT_AUDIT_TRAIL: List[Dict[str, Any]] = []
 REQUIRED_PIPELINE_ORDER = [
     "validate",
     "transition",
@@ -357,6 +387,62 @@ async def ingest_telemetry(
                 await r.lpush("telemetry:queue", json.dumps(point.model_dump(mode="json")))
         except Exception: pass
     return {"status": "success", "inserted": len(request.points)}
+
+@app.post("/api/v1/export/request", response_model=ExportResponse)
+async def request_export(
+    request: ExportRequest,
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+) -> ExportResponse:
+    _ensure_api_key(x_api_key)
+    created_at = datetime.now(timezone.utc)
+    export_id = f"exp_{uuid.uuid4().hex}"
+    audit_trail_id = f"audit_{uuid.uuid4().hex}"
+    replay_key = f"{request.session_id}:{request.lineage_id}:{request.selected_variation_id}:{export_id}"
+    audit_record: Dict[str, Any] = {
+        "audit_trail_id": audit_trail_id,
+        "event_type": "export_requested",
+        "created_at": created_at.isoformat(),
+        "export_id": export_id,
+        "session_id": request.session_id,
+        "lineage_id": request.lineage_id,
+        "selected_variation_id": request.selected_variation_id,
+        "artifact_type": request.artifact_type.value,
+        "requested_by": request.requested_by or "unknown",
+        "replay_key": replay_key,
+        "review_status": "ready_for_enterprise_review",
+        "options": request.options,
+    }
+    EXPORT_AUDIT_TRAIL.insert(0, audit_record)
+    return ExportResponse(
+        export_id=export_id,
+        session_id=request.session_id,
+        lineage_id=request.lineage_id,
+        selected_variation_id=request.selected_variation_id,
+        artifact_type=request.artifact_type,
+        status="accepted",
+        audit_trail_id=audit_trail_id,
+        replay_key=replay_key,
+        review_status="ready_for_enterprise_review",
+        created_at=created_at,
+        options=request.options,
+    )
+
+@app.get("/api/v1/export/history")
+async def export_history(
+    session_id: Optional[str] = None,
+    lineage_id: Optional[str] = None,
+    selected_variation_id: Optional[str] = None,
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+) -> Dict[str, Any]:
+    _ensure_api_key(x_api_key)
+    records = EXPORT_AUDIT_TRAIL
+    if session_id:
+        records = [record for record in records if record["session_id"] == session_id]
+    if lineage_id:
+        records = [record for record in records if record["lineage_id"] == lineage_id]
+    if selected_variation_id:
+        records = [record for record in records if record["selected_variation_id"] == selected_variation_id]
+    return {"status": "success", "count": len(records), "history": records}
 
 @app.get("/api/v1/proxy/fetch")
 async def proxy_fetch(
