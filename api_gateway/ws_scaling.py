@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 import hashlib
+import math
 from typing import Any
 
 
@@ -60,7 +61,7 @@ class BackpressureQueue:
 
     def __init__(self, max_items: int = 128) -> None:
         self.max_items = max_items
-        self._items: collections.deque[OutboundMessage] = collections.deque()
+        self._items: list[OutboundMessage] = []
         self.dropped = 0
 
     def __len__(self) -> int:
@@ -73,7 +74,7 @@ class BackpressureQueue:
     def pop(self) -> OutboundMessage | None:
         if not self._items:
             return None
-        return self._items.popleft()
+        return self._items.pop(0)
 
     def _trim_if_needed(self) -> None:
         while len(self._items) > self.max_items:
