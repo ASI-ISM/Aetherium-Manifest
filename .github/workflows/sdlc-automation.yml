@@ -14,11 +14,6 @@ on:
         required: false
         default: false
         type: boolean
-      run_aks_deploy:
-        description: Run reusable AKS deployment (requires Azure secrets)
-        required: false
-        default: false
-        type: boolean
 
 concurrency:
   group: sdlc-${{ github.workflow }}-${{ github.ref }}
@@ -59,15 +54,3 @@ jobs:
       fast-gate: false
       check-pr-body: false
       run-full-contracts: false
-
-  deploy-aks:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_aks_deploy }}
-    uses: ./.github/workflows/reusable-deploy-aks.yml
-    with:
-      azure-container-registry: your-azure-container-registry
-      container-name: your-container-name
-      resource-group: your-resource-group
-      cluster-name: your-cluster-name
-      chart-path: your-chart-path
-      chart-override-path: your-chart-override-path
-    secrets: inherit
