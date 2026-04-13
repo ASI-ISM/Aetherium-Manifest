@@ -268,9 +268,10 @@ async def emit_cognitive_dsl(
     )
 
     mutation_fields = {
-        mutation.split(":", 1)[0].split(" <- ", 1)[0].strip()
-        for mutation in [*decision.mutations, *profile_mutations]
-        if "." in mutation
+        word
+        for mutation in decision.mutations
+        for word in mutation.split(":", 1)[0].split(" <- ", 1)[0].split()
+        if "." in word
     }
     rejected_fields = sorted(set(mutation_fields) | set(profile_rejected_fields))
     fallback_reason = profile_fallback_reason or accepted_command.get("intent_state", {}).get("transition_reason")
