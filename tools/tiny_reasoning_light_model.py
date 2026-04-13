@@ -56,9 +56,9 @@ class TinyReasoningLightModel:
         term_counts = self._intent_term_counts.get(intent, {})
         if not tokens:
             return 0.0
-        numer = sum(term_counts.get(t, 0) for t in tokens)
+        numerator = sum(term_counts.get(t, 0) for t in tokens)
         denom = math.sqrt(sum(v * v for v in term_counts.values())) or 1.0
-        return numer / denom
+        return numerator / denom
 
     def infer_intent(self, user_query: str) -> str:
         if not self._intent_term_counts:
@@ -78,7 +78,7 @@ class TinyReasoningLightModel:
 
     @staticmethod
     def _char_to_matrix(char: str) -> list[str]:
-        # 5x7 subset for high-readability projection. Unknown chars fallback to block.
+        # 5x7 subset for high-readability projection. Unknown chars fall back to a block.
         font = {
             "A": ["01110", "10001", "10001", "11111", "10001", "10001", "10001"],
             "B": ["11110", "10001", "10001", "11110", "10001", "10001", "11110"],
@@ -96,13 +96,14 @@ class TinyReasoningLightModel:
             "Y": ["10001", "10001", "01010", "00100", "00100", "00100", "00100"],
             " ": ["00000", "00000", "00000", "00000", "00000", "00000", "00000"],
         }
-        return font.get(char.upper(), ["11111", "10001", "00100", "00100", "00100", "00000", "00100"])
+        return font.get(char.upper(), ["11111", "11111", "11111", "11111", "11111", "11111", "11111"])
 
     def render_light_frames(self, text: str) -> list[dict[str, object]]:
         """Render deterministic frame list to display text using light pixels."""
         frames: list[dict[str, object]] = []
         safe_fps = min(max(self.safety.max_fps, 1), 24)
         safe_brightness = min(max(self.safety.max_brightness, 0.05), 1.0)
+        safe_flicker_hz_cap = min(max(self.safety.flicker_hz_cap, 0.0), 60.0)
         for char in text:
             frames.append(
                 {
@@ -110,7 +111,7 @@ class TinyReasoningLightModel:
                     "matrix_5x7": self._char_to_matrix(char),
                     "frame_duration_ms": int(1000 / safe_fps),
                     "brightness": safe_brightness,
-                    "flicker_hz_cap": self.safety.flicker_hz_cap,
+                    "flicker_hz_cap": safe_flicker_hz_cap,
                     "mode": self.safety.mode,
                 }
             )

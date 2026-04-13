@@ -35,8 +35,22 @@ def test_light_frame_output_respects_safety_profile() -> None:
     assert len(frames) == 2
     assert frames[0]["frame_duration_ms"] == 125
     assert frames[0]["brightness"] == 0.4
+    assert frames[0]["flicker_hz_cap"] == 1.0
     assert frames[0]["mode"] == "no_flicker"
     assert len(frames[0]["matrix_5x7"]) == 7
+
+
+def test_light_frame_output_clamps_invalid_safety_values_and_unknown_glyph() -> None:
+    model = TinyReasoningLightModel(
+        safety=SafetyProfile(mode="low_sensory", max_fps=120, max_brightness=-0.2, flicker_hz_cap=-3.0)
+    )
+    model.fit([SpecializedSample("fallback", "fallback", "X")])
+    frames = model.render_light_frames("?")
+
+    assert frames[0]["frame_duration_ms"] == 41
+    assert frames[0]["brightness"] == 0.05
+    assert frames[0]["flicker_hz_cap"] == 0.0
+    assert frames[0]["matrix_5x7"] == ["11111", "11111", "11111", "11111", "11111", "11111", "11111"]
 
 
 def test_bootstrap_demo_model_end_to_end() -> None:
