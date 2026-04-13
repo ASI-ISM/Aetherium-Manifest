@@ -1,0 +1,2 @@
+"""Aetherium API gateway package."""
+
