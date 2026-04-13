@@ -292,11 +292,6 @@ def _ensure_api_key(x_api_key: str | None) -> None:
 def _extract_ws_api_key(websocket: WebSocket) -> str | None:
     return websocket.headers.get("x-api-key") or websocket.query_params.get("api_key")
 
-def _resolve_voice_model(language: str, region: str) -> str:
-    lang_key = language.split("-")[0].lower()
-    region_key = region.lower()
-    return VOICE_MODEL_MAP.get((lang_key, region_key), f"whisper-general-{lang_key}")
-
 async def _metrics_snapshot() -> dict[str, Any]:
     async with METRICS_LOCK:
         metrics_dict = METRICS.model_dump()
@@ -427,7 +422,7 @@ async def ingest_telemetry(req: TelemetryIngestRequest, x_api_key: str | None = 
     async with TELEMETRY_LOCK:
         for point in req.points:
             series = TELEMETRY_TS_DB.setdefault(point.metric, [])
-            series.append(point.model_dump(mode="json"))
+            series.append(point.model_dump())
             series[:] = series[-2500:]
         return {"ingested": len(req.points), "series_count": len(TELEMETRY_TS_DB)}
 
@@ -452,7 +447,8 @@ async def query_telemetry(
 
 @app.get("/api/v1/voice/model")
 def resolve_voice_model(language: str = "en-US", region: str = "us") -> dict[str, str]:
-    model = _resolve_voice_model(language, region)
+    lang_key, region_key = language.split("-")[0].lower(), region.lower()
+    model = VOICE_MODEL_MAP.get((lang_key, region_key), f"whisper-general-{lang_key}")
     return {"language": language, "region": region, "model": model}
 
 # --- WebSocket Endpoints ---

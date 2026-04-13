@@ -26,7 +26,7 @@ uvicorn api_gateway.main:app --host 0.0.0.0 --port 8080 --reload
 ```
 
 ### Run (Production-like)
-For an environment that more closely resembles production, use the provided shell script. This script ensures that necessary environment variables, like API keys, are set.
+For an environment that closer resembles production, use the provided shell script. This script ensures that necessary environment variables, like API keys, are set.
 
 ```bash
 ./api_gateway/start_cognitive_api.sh
