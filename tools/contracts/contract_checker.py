@@ -29,6 +29,10 @@ CHECKS = {
         "schema": SCHEMA_DIR / "ai_particle_control_contract_v1.json",
         "payload": PAYLOAD_DIR / "ai_particle_control_contract_v1.payload.json",
     },
+    "ai_particle_control_contract_v2": {
+        "schema": SCHEMA_DIR / "ai_particle_control_contract_v2.json",
+        "payload": PAYLOAD_DIR / "ai_particle_control_contract_v2.payload.json",
+    },
     "embodiment_v1": {
         "schema": SCHEMA_DIR / "embodiment_v1.json",
         "payload": PAYLOAD_DIR / "embodiment_v1.payload.json",

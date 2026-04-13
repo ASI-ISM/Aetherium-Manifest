@@ -15,6 +15,8 @@ FLOW_DIRECTIONS = {
 
 SHAPES = {"ring", "helix", "spiral_vortex", "sphere", "stream", "burst", "lattice"}
 PALETTE_MODES = {"adaptive", "dual_tone", "thermal", "spectral", "monochrome"}
+GOAL_TYPES = {"poster", "brand", "UI", "concept", "diagram", "ambient"}
+SAFETY_PROFILES = {"brand-safe", "enterprise-safe", "sacred-safe"}
 
 
 def _clamp_float(value: Any, minimum: float = 0.0, maximum: float = 1.0, default: float = 0.0) -> float:
@@ -46,6 +48,9 @@ def to_renderer_controls(particle_control: dict[str, Any]) -> dict[str, Any]:
     cohesion = _clamp_float(intent.get("cohesion"), default=0.5)
     velocity = _clamp_float(intent.get("velocity"), default=0.3)
     turbulence = _clamp_float(intent.get("turbulence"), default=0.0)
+    semantic_concepts = intent.get("semantic_concepts")
+    if not isinstance(semantic_concepts, list):
+        semantic_concepts = []
 
     return {
         "base_shape": shape,
@@ -62,6 +67,21 @@ def to_renderer_controls(particle_control: dict[str, Any]) -> dict[str, Any]:
             "secondary_color": palette.get("secondary", "#FFFFFF"),
             "attractor": str(intent.get("attractor", "core")),
             "state": str(intent.get("state", "idle")),
+            "goal_type": _coerce_enum(intent.get("goal_type"), GOAL_TYPES, "ambient"),
+            "safety_profile": _coerce_enum(intent.get("safety_profile"), SAFETY_PROFILES, "brand-safe"),
+            "brand_profile_id": str(intent.get("brand_profile_id", "default")),
+            "output_target_format": str(intent.get("output_constraints", {}).get("target_format", "runtime")),
+            "quality_tier": str(intent.get("output_constraints", {}).get("quality_tier", "balanced")),
+        },
+        "intent_layer": {
+            "goal_type": _coerce_enum(intent.get("goal_type"), GOAL_TYPES, "ambient"),
+            "brand_profile_id": str(intent.get("brand_profile_id", "default")),
+            "safety_profile": _coerce_enum(intent.get("safety_profile"), SAFETY_PROFILES, "brand-safe"),
+            "output_constraints": intent.get("output_constraints", {}),
+            "semantic_concepts": [str(item) for item in semantic_concepts],
+            "emotional_valence": (
+                None if intent.get("emotional_valence") is None else _clamp_float(intent.get("emotional_valence"), minimum=-1.0, maximum=1.0, default=0.0)
+            ),
         },
         "runtime_profile": "cinematic" if density >= 0.75 else "adaptive" if velocity >= 0.6 else "deterministic",
     }
@@ -93,5 +113,8 @@ def to_visual_manifestation(particle_control: dict[str, Any], transition_type: s
             "cohesion": _clamp_float(uniforms.get("cohesion"), default=0.5),
             "flicker": _clamp_float(uniforms.get("flicker"), default=0.0),
             "velocity": _clamp_float(uniforms.get("velocity"), default=0.3),
+            "goal_type": _coerce_enum(uniforms.get("goal_type"), GOAL_TYPES, "ambient"),
+            "safety_profile": _coerce_enum(uniforms.get("safety_profile"), SAFETY_PROFILES, "brand-safe"),
+            "brand_profile_id": str(uniforms.get("brand_profile_id", "default")),
         },
     }

@@ -61,3 +61,39 @@ def test_to_visual_manifestation_uses_compiled_renderer_controls() -> None:
     assert visual["particle_physics"]["particle_count"] == 10000
     assert visual["chromatic_mode"] == "adaptive"
     assert visual["device_tier"] == 3
+
+
+def test_to_renderer_controls_maps_intent_layer_fields() -> None:
+    payload = {
+        "intent_state": {
+            "goal_type": "brand",
+            "brand_profile_id": "brand-core-01",
+            "safety_profile": "enterprise-safe",
+            "output_constraints": {
+                "target_format": "png",
+                "quality_tier": "high",
+                "size": {"width": 1920, "height": 1080},
+            },
+            "semantic_concepts": ["clarity", "trust"],
+            "emotional_valence": 0.2,
+        }
+    }
+
+    renderer = to_renderer_controls(payload)
+
+    assert renderer["shader_uniforms"]["goal_type"] == "brand"
+    assert renderer["shader_uniforms"]["brand_profile_id"] == "brand-core-01"
+    assert renderer["shader_uniforms"]["safety_profile"] == "enterprise-safe"
+    assert renderer["intent_layer"]["semantic_concepts"] == ["clarity", "trust"]
+    assert renderer["intent_layer"]["emotional_valence"] == 0.2
+
+
+def test_to_renderer_controls_intent_layer_is_backward_compatible() -> None:
+    renderer = to_renderer_controls({"intent_state": {}})
+
+    assert renderer["shader_uniforms"]["goal_type"] == "ambient"
+    assert renderer["shader_uniforms"]["brand_profile_id"] == "default"
+    assert renderer["shader_uniforms"]["safety_profile"] == "brand-safe"
+    assert renderer["intent_layer"]["output_constraints"] == {}
+    assert renderer["intent_layer"]["semantic_concepts"] == []
+    assert renderer["intent_layer"]["emotional_valence"] is None
