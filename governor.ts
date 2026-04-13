@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import {
@@ -1256,7 +1256,14 @@ let CACHED_RUNTIME_ABI_VALIDATOR: RuntimeGovernorOptions["schemaValidator"] | nu
 function loadRuntimeAbiSchemaValidator(): RuntimeGovernorOptions["schemaValidator"] | undefined {
   if (CACHED_RUNTIME_ABI_VALIDATOR !== undefined) return CACHED_RUNTIME_ABI_VALIDATOR ?? undefined;
   try {
-    const schemaPath = process.env.PARTICLE_CONTROL_SCHEMA_PATH ?? resolve(process.cwd(), "governor", "particle-control.schema.json");
+    const schemaCandidates = process.env.PARTICLE_CONTROL_SCHEMA_PATH
+      ? [process.env.PARTICLE_CONTROL_SCHEMA_PATH]
+      : [resolve(process.cwd(), "particle-control.schema.json"), resolve(process.cwd(), "governor", "particle-control.schema.json")];
+    const schemaPath = schemaCandidates.find((candidate) => existsSync(candidate));
+    if (!schemaPath) {
+      CACHED_RUNTIME_ABI_VALIDATOR = null;
+      return undefined;
+    }
     const raw = readFileSync(schemaPath, "utf-8");
     const schema = JSON.parse(raw) as JsonSchema;
     CACHED_RUNTIME_ABI_VALIDATOR = makeNaiveRuntimeAbiValidator(schema);
