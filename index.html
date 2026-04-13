@@ -37,6 +37,42 @@
             box-shadow: 0 8px 40px rgba(0, 0, 0, 0.45);
         }
 
+        body[data-ui-surface="clean"] .studio-only {
+            display: none !important;
+        }
+
+        #studio-layer {
+            position: fixed;
+            top: 0;
+            right: 0;
+            height: 100vh;
+            width: min(94vw, 52rem);
+            z-index: 30;
+            transform: translateX(102%);
+            transition: transform 320ms ease;
+            pointer-events: none;
+        }
+
+        body[data-ui-surface="studio"] #studio-layer {
+            transform: translateX(0);
+            pointer-events: auto;
+        }
+
+        body[data-ui-surface="studio"] #studio-backdrop {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        #studio-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 25;
+            background: rgba(0, 0, 0, 0.35);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 220ms ease;
+        }
+
         .lineage-node {
             transition: all 0.25s ease;
         }
@@ -65,6 +101,12 @@
 
         #branch-panel {
             transition: opacity 500ms ease;
+        }
+
+        aside {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
         }
 
         .branch-btn {
@@ -98,14 +140,21 @@
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.25); border-radius: 2px; }
     </style>
 </head>
-<body class="text-sm">
+<body class="text-sm" data-ui-surface="clean">
     <div id="canvas-container"></div>
     <div id="manifestation-overlay"></div>
+    <div id="studio-backdrop" class="studio-only" onclick="setUiSurfaceMode('clean')"></div>
 
-    <aside class="absolute top-4 left-4 z-20 w-[22rem] flex flex-col gap-3">
-        <section class="glass-panel rounded-xl p-4">
-            <div class="font-mono text-[10px] tracking-[0.2em] text-blue-200/80 mb-2">AETHERIUM OS <span class="text-white/40">mf-3.31.0</span></div>
-            <div class="grid grid-cols-2 text-xs gap-y-1">
+    <section id="studio-layer" class="studio-only p-4">
+        <aside class="glass-panel rounded-2xl p-4 h-full overflow-y-auto">
+            <div class="flex items-center justify-between mb-3">
+                <div class="font-mono text-xs text-white/70 tracking-[0.18em]">SETTINGS / STUDIO</div>
+                <button class="w-8 h-8 rounded-full hover:bg-white/10 text-white/60" onclick="setUiSurfaceMode('clean')" title="Close settings">
+                    <i class="fas fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-2 text-xs gap-y-1 mb-3">
                 <span class="text-gray-400">RUNTIME STATE</span>
                 <span id="sys-state" class="text-right text-emerald-300">IDLE</span>
                 <span class="text-gray-400">INTENT ROUTE</span>
@@ -113,7 +162,8 @@
                 <span class="text-gray-400">GOVERNOR</span>
                 <span id="sys-gov" class="text-right text-yellow-300">awaiting</span>
             </div>
-            <div class="mt-3 flex flex-wrap gap-1.5 font-mono text-[10px]">
+
+            <div class="mb-4 flex flex-wrap gap-1.5 font-mono text-[10px]">
                 <span class="state-chip rounded-full border border-white/15 px-2 py-1" data-state="LISTENING">LISTENING</span>
                 <span class="state-chip rounded-full border border-white/15 px-2 py-1" data-state="INTERPRETING">INTERPRETING</span>
                 <span class="state-chip rounded-full border border-white/15 px-2 py-1" data-state="CONVERGING">CONVERGING</span>
@@ -123,38 +173,40 @@
                 <span class="state-chip rounded-full border border-white/15 px-2 py-1" data-state="EXPORTING">EXPORTING</span>
                 <span class="state-chip rounded-full border border-white/15 px-2 py-1" data-state="NIRODHA">NIRODHA</span>
             </div>
-        </section>
-        <section id="terminal-logs" class="glass-panel rounded-xl p-3 h-60 overflow-y-auto font-mono text-[10px] text-blue-100"></section>
-    </aside>
 
-    <aside class="absolute top-4 right-4 z-20 w-[24rem] max-h-[94vh] flex flex-col gap-3">
-        <section class="glass-panel rounded-xl p-4 min-h-[17rem] overflow-y-auto">
-            <div class="font-mono text-xs text-cyan-200 mb-3 border-b border-white/10 pb-2 flex justify-between">
-                <span><i class="fas fa-code-branch mr-2"></i>DESIGN LINEAGE</span>
-                <span id="lineage-count" class="text-white/45">1 node</span>
-            </div>
-            <div id="lineage-container" class="space-y-2"></div>
-        </section>
+            <section id="branch-panel" class="mb-4 opacity-0 pointer-events-none grid grid-cols-2 md:grid-cols-4 gap-2">
+                <button class="branch-btn rounded-xl px-3 py-4 font-mono text-xs text-blue-100" onclick="selectBranch('calm')">CALM</button>
+                <button class="branch-btn rounded-xl px-3 py-4 font-mono text-xs text-orange-100" onclick="selectBranch('cinematic')">CINEMATIC</button>
+                <button class="branch-btn rounded-xl px-3 py-4 font-mono text-xs text-emerald-100" onclick="selectBranch('minimal')">MINIMAL</button>
+                <button class="branch-btn rounded-xl px-3 py-4 font-mono text-xs text-purple-100" onclick="selectBranch('sacred')">SACRED</button>
+            </section>
 
-        <section id="scholar-panel" class="glass-panel rounded-xl p-4 hidden min-h-[14rem]">
-            <div class="font-mono text-xs text-fuchsia-200 mb-2 border-b border-fuchsia-300/20 pb-2 flex justify-between">
-                <span><i class="fas fa-book-open mr-2"></i>SCHOLAR AGENT</span>
-                <span class="text-fuchsia-100/60">Search Layer</span>
-            </div>
-            <div id="scholar-content" class="text-xs leading-relaxed text-gray-200 space-y-2"></div>
-        </section>
-    </aside>
+            <section id="terminal-logs" class="glass-panel rounded-xl p-3 h-52 overflow-y-auto font-mono text-[10px] text-blue-100 mb-3"></section>
 
-    <section id="branch-panel" class="absolute z-20 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 pointer-events-none flex gap-4">
-        <button class="branch-btn rounded-xl px-6 py-8 font-mono text-xs text-blue-100" onclick="selectBranch('calm')">CALM</button>
-        <button class="branch-btn rounded-xl px-6 py-8 font-mono text-xs text-orange-100" onclick="selectBranch('cinematic')">CINEMATIC</button>
-        <button class="branch-btn rounded-xl px-6 py-8 font-mono text-xs text-emerald-100" onclick="selectBranch('minimal')">MINIMAL</button>
-        <button class="branch-btn rounded-xl px-6 py-8 font-mono text-xs text-purple-100" onclick="selectBranch('sacred')">SACRED</button>
+            <section class="glass-panel rounded-xl p-4 min-h-[17rem] overflow-y-auto mb-3">
+                <div class="font-mono text-xs text-cyan-200 mb-3 border-b border-white/10 pb-2 flex justify-between">
+                    <span><i class="fas fa-code-branch mr-2"></i>DESIGN LINEAGE</span>
+                    <span id="lineage-count" class="text-white/45">1 node</span>
+                </div>
+                <div id="lineage-container" class="space-y-2"></div>
+            </section>
+
+            <section id="scholar-panel" class="glass-panel rounded-xl p-4 hidden min-h-[14rem]">
+                <div class="font-mono text-xs text-fuchsia-200 mb-2 border-b border-fuchsia-300/20 pb-2 flex justify-between">
+                    <span><i class="fas fa-book-open mr-2"></i>SCHOLAR AGENT</span>
+                    <span class="text-fuchsia-100/60">Search Layer</span>
+                </div>
+                <div id="scholar-content" class="text-xs leading-relaxed text-gray-200 space-y-2"></div>
+            </section>
+        </aside>
     </section>
 
     <footer class="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 w-[min(95vw,64rem)]">
         <div id="attachment-preview" class="flex gap-2 mb-2"></div>
         <div id="composer" class="glass-panel rounded-2xl p-2.5 flex items-center gap-2 listening-mode">
+            <button class="w-10 h-10 rounded-full hover:bg-white/10 text-white/60 hover:text-white" onclick="toggleStudioLayer()" title="Settings / Studio">
+                <i class="fas fa-sliders"></i>
+            </button>
             <button class="w-10 h-10 rounded-full hover:bg-white/10 text-white/60 hover:text-white" onclick="triggerAttach()" title="Attach">
                 <i class="fas fa-paperclip"></i>
             </button>
@@ -226,9 +278,22 @@
         let route = 'pure_light';
         let voiceActive = false;
         let isProcessing = false;
+        let ui_surface_mode = 'clean';
         let lineageCounter = 0;
         const nodes = [{ id: 'genesis', label: 'Genesis Root', deleted: false }];
         let branchContext = 'genesis';
+
+        function setUiSurfaceMode(mode) {
+            ui_surface_mode = mode === 'studio' ? 'studio' : 'clean';
+            document.body.dataset.uiSurface = ui_surface_mode;
+            if (ui_surface_mode === 'clean') {
+                document.getElementById('branch-panel').classList.add('opacity-0', 'pointer-events-none');
+            }
+        }
+
+        function toggleStudioLayer() {
+            setUiSurfaceMode(ui_surface_mode === 'studio' ? 'clean' : 'studio');
+        }
 
         function logTerminal(message, level = 'info') {
             const terminal = document.getElementById('terminal-logs');
@@ -342,7 +407,11 @@
             createLineageNode(intent, mode);
 
             const branchPanel = document.getElementById('branch-panel');
-            branchPanel.classList.remove('opacity-0', 'pointer-events-none');
+            if (ui_surface_mode === 'studio') {
+                branchPanel.classList.remove('opacity-0', 'pointer-events-none');
+            } else {
+                branchPanel.classList.add('opacity-0', 'pointer-events-none');
+            }
 
             if (mode === 'search') {
                 renderScholar(intent);
@@ -361,6 +430,9 @@
         function renderScholar(intent) {
             const panel = document.getElementById('scholar-panel');
             const content = document.getElementById('scholar-content');
+            if (ui_surface_mode !== 'studio') {
+                setUiSurfaceMode('studio');
+            }
             panel.classList.remove('hidden');
             content.innerHTML = `
                 <div class="text-white">Query: ${intent}</div>
@@ -484,6 +556,7 @@
         });
 
         renderLineage();
+        setUiSurfaceMode('clean');
         setFlowState('NIRODHA');
         setRuntimeState('IDLE');
         logTerminal('System initialized. Intent -> Governor -> Manifest pipeline ready.', 'success');
