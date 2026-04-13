@@ -2,49 +2,68 @@
 
 อัปเดตการตรวจสอบล่าสุด: 2026-04-13
 
-เอกสารนี้สรุปผลการตรวจสอบโค้ดล่าสุด และเสนอ "งานแก้ไข" อย่างละ 1 งานตามหมวดที่ร้องขอ
+เอกสารนี้สรุปผลการตรวจสอบโค้ดล่าสุด และเสนอ "งานแก้ไข" จำนวน 4 งานตามหมวดที่ร้องขอ (พิมพ์ผิด, บั๊ก, คอมเมนต์/เอกสารคลาดเคลื่อน, การทดสอบ)
 
 ## 1) งานแก้ไขข้อความพิมพ์ผิด (Typo Fix)
 
 **ปัญหาที่พบ**
-- ใน `api_gateway/README.md` ส่วนคำอธิบายการรัน Production ใช้คำว่า `Environment Variable` (เอกพจน์) แต่บริบทพูดถึงหลายตัวแปร
-- เนื้อหาเดียวกันอ้างถึงการตั้งค่า API key หลายตัว ทำให้คำในเอกสารไม่สอดคล้องกับความหมายจริง
+- ใน `api_gateway/README.md` หัวข้อการรัน Production ใช้คำว่า `Environment Variable` (เอกพจน์)
+- ข้อความบรรทัดเดียวกันอธิบายถึงการตั้งค่า API key หลายตัวแปร จึงควรใช้พหูพจน์เพื่อให้ภาษาตรงความหมาย
 
-**งานที่เสนอ (1 งาน)**
-- ปรับข้อความใน `api_gateway/README.md` จาก `Environment Variable` เป็น `Environment Variables` และตรวจทั้งไฟล์ให้ใช้รูปแบบเดียวกันสำหรับคำศัพท์เทคนิคชุดเดียวกัน
+**งานที่เสนอ**
+- แก้คำเป็น `Environment Variables` และไล่ตรวจคำศัพท์เทคนิคชุดเดียวกันให้ใช้รูปแบบมาตรฐานเดียวกันทั้งไฟล์
+
+**เกณฑ์ยอมรับ (Acceptance Criteria)**
+- ไม่มีคำ `Environment Variable` เหลือในบริบทที่กล่าวถึงหลายตัวแปร
+- README ใช้ถ้อยคำสอดคล้องกันทั้งเอกสาร
 
 ---
 
 ## 2) งานแก้ไขบั๊ก (Bug Fix)
 
 **ปัญหาที่พบ**
-- ฟังก์ชัน `_ensure_api_key` ใน `api_gateway/main.py` ตรวจว่า `X-API-Key` ตรงกับค่า expected เฉพาะกรณีที่ตั้ง `AETHERIUM_API_KEY` แล้วเท่านั้น
-- หากระบบถูก deploy โดยไม่ได้ตั้ง `AETHERIUM_API_KEY` จะกลายเป็นพฤติกรรม fail-open (header ใดก็ผ่านการตรวจได้)
+- ฟังก์ชัน `_ensure_api_key` ใน `api_gateway/main.py` ตรวจ `X-API-Key` เทียบค่า expected เฉพาะกรณีที่มีการตั้ง `AETHERIUM_API_KEY`
+- หาก deploy โดยไม่ได้ตั้ง `AETHERIUM_API_KEY` จะเกิดพฤติกรรม fail-open โดยคำขอที่ส่ง key ใดก็ผ่านขั้นตอน compare ได้
 
-**งานที่เสนอ (1 งาน)**
-- เปลี่ยนพฤติกรรมเป็น fail-closed: เมื่อไม่มี `AETHERIUM_API_KEY` ให้ตอบ `500` พร้อมข้อความ misconfiguration ชัดเจน และเพิ่ม startup guard เพื่อไม่ให้ service พร้อมใช้งานหาก secret สำคัญยังไม่ถูกตั้ง
+**งานที่เสนอ**
+- เปลี่ยนเป็น fail-closed:
+  1. ถ้าไม่มี `AETHERIUM_API_KEY` ให้ตอบ `500` พร้อมข้อความ misconfiguration ที่ชัดเจน
+  2. เพิ่ม startup guard เพื่อ log/raise เมื่อ secret สำคัญยังไม่ถูกตั้งใน environment production
+
+**เกณฑ์ยอมรับ (Acceptance Criteria)**
+- เมื่อไม่ตั้ง `AETHERIUM_API_KEY` endpoint ที่ป้องกันต้องไม่ยอมรับคำขอ
+- มี log ข้อผิดพลาดด้าน configuration ชัดเจนตั้งแต่ startup
 
 ---
 
-## 3) งานแก้ไขคอมเมนต์ในโค้ด/ความคลาดเคลื่อนของเอกสาร (Comment/Docs Discrepancy)
+## 3) งานแก้ไขคอมเมนต์/ความคลาดเคลื่อนเอกสาร (Comment/Docs Discrepancy)
 
 **ปัญหาที่พบ**
-- `api_gateway/README.md` ระบุ endpoint `WS /ws/cognitive-stream`
-- แต่ `api_gateway/main.py` ไม่มี websocket route ดังกล่าวจริง ทำให้เอกสารไม่ตรงกับ implementation ปัจจุบัน
+- `api_gateway/README.md` ระบุ `WS /ws/cognitive-stream`
+- แต่ใน `api_gateway/main.py` ไม่มี websocket route ดังกล่าว
 
-**งานที่เสนอ (1 งาน)**
-- เลือกและทำให้สอดคล้องกันเพียงแนวทางเดียว: 
-  - เพิ่ม route `/ws/cognitive-stream` ในโค้ดให้ใช้งานได้จริง **หรือ**
-  - ปรับ README ให้ย้าย endpoint นี้ไปหัวข้อ roadmap/experimental และระบุ source of truth ของ route ที่รองรับจริง
+**งานที่เสนอ**
+- ทำ source of truth ให้สอดคล้องกันโดยเลือกหนึ่งแนวทาง:
+  - เพิ่ม route `/ws/cognitive-stream` ให้ใช้งานได้จริงในโค้ด, หรือ
+  - ปรับ README ให้ย้าย endpoint นี้ไปส่วน roadmap/experimental พร้อมระบุว่า route ปัจจุบันที่รองรับจริงคืออะไร
+
+**เกณฑ์ยอมรับ (Acceptance Criteria)**
+- endpoint ที่ระบุใน README ตรงกับ route ที่เปิดใช้งานจริง 100%
+- reviewer อ่าน README แล้วสามารถเรียก endpoint ได้จริงตามเอกสาร
 
 ---
 
 ## 4) งานปรับปรุงการทดสอบ (Test Improvement)
 
 **ปัญหาที่พบ**
-- ใน `api_gateway/test_api.py` ยังไม่มี test ที่ป้องกัน regression ของกรณี misconfiguration (`AETHERIUM_API_KEY` ไม่ถูกตั้ง) และไม่มีเคสยืนยันชัดเจนเรื่อง invalid key หลังเปิดใช้ auth
+- `api_gateway/test_api.py` ยังไม่มี regression test ที่ lock พฤติกรรมกรณี `AETHERIUM_API_KEY` ไม่ถูกตั้ง
+- ยังไม่มีเคสที่ยืนยันว่า key ไม่ตรงต้องได้ `403` เมื่อเปิดใช้งาน auth
 
-**งานที่เสนอ (1 งาน)**
-- เพิ่มชุดทดสอบ auth regression สำหรับ endpoint ที่มีการป้องกัน (`/api/v1/cognitive/validate`) อย่างน้อย 2 เคส:
+**งานที่เสนอ**
+- เพิ่ม auth regression tests สำหรับ endpoint ที่ป้องกัน (เช่น `/api/v1/cognitive/validate`) อย่างน้อย 2 เคส:
   1. ไม่ตั้ง `AETHERIUM_API_KEY` แล้วระบบต้อง fail-closed
   2. ตั้ง `AETHERIUM_API_KEY` แต่ส่ง `X-API-Key` ไม่ตรง ต้องได้ `403`
+
+**เกณฑ์ยอมรับ (Acceptance Criteria)**
+- ชุดทดสอบใหม่ล้มเหลวทันทีหากเกิดพฤติกรรม fail-open
+- ครอบคลุมทั้ง misconfiguration และ invalid credential
