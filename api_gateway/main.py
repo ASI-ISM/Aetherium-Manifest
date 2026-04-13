@@ -12,6 +12,7 @@ from enum import Enum
 
 from fastapi import FastAPI, HTTPException, Header, BackgroundTasks, Request
 from .scholar_router import router as scholar_router
+from .variation_service import generate_variation_set
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import redis.asyncio as redis
@@ -320,6 +321,16 @@ async def generate_cognitive_dsl(
     if request.get("model") == "unknown-model":
         raise HTTPException(status_code=400, detail="Unsupported model")
     return {"status": "success"}
+
+
+@app.post("/api/v1/cognitive/variations/generate")
+async def generate_variations(
+    request: Dict[str, Any],
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+) -> dict[str, Any]:
+    _ensure_api_key(x_api_key)
+    payload = generate_variation_set(request)
+    return {"status": "success", "data": payload}
 
 @app.get("/api/v1/reliability/temporal-morphogenesis")
 async def temporal_morphogenesis(

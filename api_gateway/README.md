@@ -6,6 +6,7 @@
 
 - `POST /api/v1/cognitive/emit`
 - `POST /api/v1/cognitive/validate`
+- `POST /api/v1/cognitive/variations/generate` (generate 4–8 variation branches with lineage metadata)
 - `GET /health`
 - `WS /ws/cognitive-stream`
 

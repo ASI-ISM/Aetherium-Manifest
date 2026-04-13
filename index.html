@@ -174,19 +174,19 @@
                 <span class="state-chip rounded-full border border-white/15 px-2 py-1" data-state="NIRODHA">NIRODHA</span>
             </div>
 
-            <section id="branch-panel" class="mb-4 opacity-0 pointer-events-none grid grid-cols-2 md:grid-cols-4 gap-2">
-                <button class="branch-btn rounded-xl px-3 py-4 font-mono text-xs text-blue-100" onclick="selectBranch('calm')">CALM</button>
-                <button class="branch-btn rounded-xl px-3 py-4 font-mono text-xs text-orange-100" onclick="selectBranch('cinematic')">CINEMATIC</button>
-                <button class="branch-btn rounded-xl px-3 py-4 font-mono text-xs text-emerald-100" onclick="selectBranch('minimal')">MINIMAL</button>
-                <button class="branch-btn rounded-xl px-3 py-4 font-mono text-xs text-purple-100" onclick="selectBranch('sacred')">SACRED</button>
+            <section id="branch-panel" class="mb-4 opacity-0 pointer-events-none">
+                <div id="branch-buttons" class="grid grid-cols-1 md:grid-cols-2 gap-2"></div>
             </section>
 
             <section id="terminal-logs" class="glass-panel rounded-xl p-3 h-52 overflow-y-auto font-mono text-[10px] text-blue-100 mb-3"></section>
 
             <section class="glass-panel rounded-xl p-4 min-h-[17rem] overflow-y-auto mb-3">
-                <div class="font-mono text-xs text-cyan-200 mb-3 border-b border-white/10 pb-2 flex justify-between">
+                <div class="font-mono text-xs text-cyan-200 mb-3 border-b border-white/10 pb-2 flex justify-between items-center">
                     <span><i class="fas fa-code-branch mr-2"></i>DESIGN LINEAGE</span>
-                    <span id="lineage-count" class="text-white/45">1 node</span>
+                    <div class="flex items-center gap-2">
+                        <span id="lineage-count" class="text-white/45">1 node</span>
+                        <button class="text-[10px] px-2 py-1 rounded border border-cyan-300/40 hover:bg-cyan-400/10" onclick="exportManifest()">EXPORT</button>
+                    </div>
                 </div>
                 <div id="lineage-container" class="space-y-2"></div>
             </section>
@@ -281,6 +281,8 @@
         let ui_surface_mode = 'clean';
         let lineageCounter = 0;
         const nodes = [{ id: 'genesis', label: 'Genesis Root', deleted: false }];
+        const variationRegistry = {};
+        const variationSets = [];
         let branchContext = 'genesis';
 
         function setUiSurfaceMode(mode) {
@@ -373,6 +375,75 @@
             return 'pure_light';
         }
 
+        function mapGoalType(mode) {
+            if (mode === 'video') return 'video';
+            if (mode === 'image') return 'image';
+            if (mode === 'search') return 'search';
+            return 'pure_light';
+        }
+
+        async function requestVariationSet(intent, mode) {
+            const payload = {
+                goal_type: mapGoalType(mode),
+                brand_profile: { palette_lock: mode === 'image' },
+                safety_profile: { strict_mode: mode === 'video', max_branches: mode === 'search' ? 4 : 6 },
+                lineage: { active_context_id: branchContext, intent },
+            };
+            try {
+                const response = await fetch('/api/v1/cognitive/variations/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': 'dev-local-key',
+                    },
+                    body: JSON.stringify(payload),
+                });
+                if (!response.ok) throw new Error(`variation endpoint ${response.status}`);
+                const body = await response.json();
+                return body.data;
+            } catch (error) {
+                logTerminal(`[BRANCH] Variation API unavailable (${error.message}), fallback local set.`, 'warn');
+                const fallback = ['CALM', 'CINEMATIC', 'MINIMAL', 'SACRED'];
+                return {
+                    set_id: `local_${Date.now()}`,
+                    parent_id: branchContext,
+                    variations: fallback.map((preset, idx) => ({
+                        variation_id: `local_${branchContext}_${idx + 1}`,
+                        parent_id: branchContext,
+                        preset,
+                        constraints_delta: { fallback: true },
+                    })),
+                };
+            }
+        }
+
+        function renderBranchPanel(variationSet) {
+            variationSets.push(variationSet);
+            variationSet.variations.forEach((variation) => {
+                variationRegistry[variation.variation_id] = variation;
+            });
+
+            const branchPanel = document.getElementById('branch-panel');
+            const buttons = document.getElementById('branch-buttons');
+            buttons.innerHTML = '';
+            variationSet.variations.forEach((variation) => {
+                const button = document.createElement('button');
+                button.className = 'branch-btn rounded-xl px-3 py-3 font-mono text-xs text-blue-100 text-left';
+                button.onclick = () => selectBranch(variation.variation_id);
+                button.innerHTML = `
+                    <div class="font-bold">${variation.preset}</div>
+                    <div class="text-[10px] text-white/70 mt-1">${variation.variation_id}</div>
+                    <div class="text-[10px] text-white/55 mt-1">Δ ${Object.keys(variation.constraints_delta || {}).join(', ') || 'none'}</div>
+                `;
+                buttons.appendChild(button);
+            });
+
+            if (ui_surface_mode === 'studio') {
+                branchPanel.classList.remove('opacity-0', 'pointer-events-none');
+            }
+            logTerminal(`[BRANCH] Generated ${variationSet.variations.length} branches from ${variationSet.parent_id}.`, 'system');
+        }
+
         function emitIntent() {
             if (isProcessing) return;
             const input = document.getElementById('intent-input');
@@ -401,17 +472,12 @@
             }, 950);
         }
 
-        function runManifest(intent, mode) {
+        async function runManifest(intent, mode) {
             setRuntimeState(mode === 'video' ? 'STREAMING' : mode === 'search' ? 'SEARCHING' : 'MANIFESTING');
             setFlowState('CONVERGING');
             createLineageNode(intent, mode);
-
-            const branchPanel = document.getElementById('branch-panel');
-            if (ui_surface_mode === 'studio') {
-                branchPanel.classList.remove('opacity-0', 'pointer-events-none');
-            } else {
-                branchPanel.classList.add('opacity-0', 'pointer-events-none');
-            }
+            const variationSet = await requestVariationSet(intent, mode);
+            renderBranchPanel(variationSet);
 
             if (mode === 'search') {
                 renderScholar(intent);
@@ -446,7 +512,7 @@
         function createLineageNode(intent, mode) {
             lineageCounter += 1;
             const id = `n${lineageCounter}`;
-            nodes.push({ id, label: intent, mode, parent: branchContext, deleted: false });
+            nodes.push({ id, label: intent, mode, parent: branchContext, deleted: false, manifest_context: branchContext });
             branchContext = id;
             renderLineage();
         }
@@ -484,10 +550,30 @@
             renderLineage();
         }
 
-        function selectBranch(style) {
+        function selectBranch(variationId) {
+            const selected = variationRegistry[variationId];
+            if (!selected) return;
+            branchContext = selected.variation_id;
             document.getElementById('branch-panel').classList.add('opacity-0', 'pointer-events-none');
             setFlowState('REFINING');
-            logTerminal(`[BRANCH] Selected variation: ${style}.`, 'success');
+            logTerminal(`[BRANCH] Selected ${selected.preset} (${selected.variation_id}), context anchored to parent ${selected.parent_id}.`, 'success');
+        }
+
+        function exportManifest() {
+            const payload = {
+                exported_at: new Date().toISOString(),
+                replay_context: branchContext,
+                lineage_nodes: nodes,
+                variation_sets: variationSets,
+            };
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = `aetherium_manifest_${Date.now()}.json`;
+            anchor.click();
+            URL.revokeObjectURL(url);
+            logTerminal(`[EXPORT] Manifest exported with replay context ${branchContext}.`, 'system');
         }
 
         function updateTargetsByState() {

@@ -64,6 +64,31 @@ def test_generate_rejects_unsupported_model_with_400(client: TestClient) -> None
     assert "Unsupported model" in response.text
 
 
+def test_generate_variations_returns_branch_metadata(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/cognitive/variations/generate",
+        headers={"X-API-Key": "test-key"},
+        json={
+            "goal_type": "image",
+            "brand_profile": {"palette_lock": True},
+            "safety_profile": {"strict_mode": True, "max_branches": 6},
+            "lineage": {"active_context_id": "n7"},
+        },
+    )
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert payload["goal_type"] == "image"
+    assert payload["parent_id"] == "n7"
+    assert 4 <= payload["count"] <= 8
+    assert payload["count"] == len(payload["variations"])
+    for variation in payload["variations"]:
+        assert variation["parent_id"] == "n7"
+        assert variation["variation_id"]
+        assert variation["preset"]
+        assert isinstance(variation["constraints_delta"], dict)
+        assert variation["constraints_delta"].get("palette_lock") is True
+
+
 def test_proxy_fetch_rejects_urls_with_credentials(client: TestClient) -> None:
     response = client.get(
         "/api/v1/proxy/fetch",
