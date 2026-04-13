@@ -207,7 +207,7 @@ func (s *Server) removeClient(c *Client) {
 	}
 	shard.mu.Unlock()
 
-	close(c.send)
+	c.close()
 }
 
 func (s *Server) broadcastToRoom(msg Message) {
