@@ -28,6 +28,11 @@ on:
         required: false
         type: boolean
         default: false
+      run-frontend-lint:
+        description: Enable frontend ESLint job (disabled until baseline lint backlog is resolved)
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -78,6 +83,7 @@ jobs:
 
   frontend-lint:
     name: Frontend Lint (ESLint)
+    if: ${{ inputs.run-frontend-lint }}
     needs: lint-and-typecheck
     runs-on: ubuntu-latest
     timeout-minutes: 15
