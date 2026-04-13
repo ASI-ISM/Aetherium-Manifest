@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aetherium.dev/schemas/room-events.schema.json",
+  "title": "Aetherium Room Events",
+  "description": "Contract for state-sync room events including presence, scoped actions, approvals, and conflict resolution.",
+  "type": "object",
+  "required": ["schema_version", "type", "room_id", "updated_at"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "room_event.v1"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["presence", "action", "approval", "conflict_resolution"]
+    },
+    "room_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "actor_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "role": {
+      "type": "string",
+      "enum": ["viewer", "designer", "strategist", "brand_lead", "operator"]
+    },
+    "scope": {
+      "type": "string",
+      "enum": ["presence.read", "presence.write", "state.visual", "state.semantic", "approval.manage", "system.ops"]
+    },
+    "action": {
+      "type": ["string", "null"]
+    },
+    "payload": {
+      "type": "object"
+    },
+    "cursor_or_focus": {
+      "type": ["object", "null"]
+    },
+    "target_event_id": {
+      "type": ["string", "null"]
+    },
+    "base_stream_id": {
+      "type": ["string", "null"]
+    },
+    "conflict_policy": {
+      "type": "object",
+      "required": ["policy_id", "strategy"],
+      "properties": {
+        "policy_id": {"type": "string"},
+        "strategy": {"type": "string"},
+        "description": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "winning_stream_id": {
+      "type": "string"
+    },
+    "stale_base_stream_id": {
+      "type": "string"
+    },
+    "incoming_actor_id": {
+      "type": "string"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"type": {"const": "presence"}}},
+      "then": {
+        "required": ["actor_id", "role", "scope", "action"],
+        "properties": {
+          "scope": {"const": "presence.write"},
+          "action": {"enum": ["join", "leave", "active_role", "cursor_or_focus"]}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"type": {"const": "approval"}}},
+      "then": {
+        "required": ["actor_id", "role", "scope", "action", "target_event_id"],
+        "properties": {
+          "scope": {"const": "approval.manage"},
+          "action": {"enum": ["request", "approve", "reject"]}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"type": {"const": "conflict_resolution"}}},
+      "then": {
+        "required": ["conflict_policy", "winning_stream_id", "stale_base_stream_id", "incoming_actor_id"]
+      }
+    }
+  ],
+  "additionalProperties": true
+}

@@ -92,3 +92,14 @@ Single intent is classified into one route and rendered accordingly:
 - `video` => streaming flow field
 - `search` => scholar panel synthesis path
 - `pure_light` => chroma/field modulation
+
+## WS room event contract (state-sync)
+
+State sync now uses `room_event.v1` envelopes (`ws_gateway/room-events.schema.json`) with explicit event families:
+
+- `presence` actions: `join`, `leave`, `active_role`, `cursor_or_focus`
+- `action` events with role-scoped `scope` checks (`state.visual`, `state.semantic`, etc.)
+- `approval` events for `brand_lead` and `operator`
+- `conflict_resolution` audit events for stale `base_stream_id` during concurrent edits
+
+Conflict policy is deterministic and replayable: optimistic concurrency with **last write wins** and explicit conflict event emission before accepting the stale write.
