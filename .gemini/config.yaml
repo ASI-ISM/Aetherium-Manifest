@@ -1,0 +1,36 @@
+# -------------------------------------------------------------
+# Configuration for Gemini Code Assist / PR Review Bot
+# Repository: Aetherium-Syndicate-Inspectra/Aetherium-Manifest
+# -------------------------------------------------------------
+
+# การตั้งค่าภาพรวม
+have_fun: false
+
+# ระดับความเข้มงวดของการแจ้งเตือน (LOW, MEDIUM, HIGH)
+# ช่วยคัดกรองคอมเมนต์ให้แจ้งเฉพาะส่วนที่อาจกระทบกับระบบหลัก
+comment_severity_threshold: 'MEDIUM'
+
+# จำนวนคอมเมนต์สูงสุดต่อ 1 Pull Request (-1 คือไม่จำกัด)
+max_review_comments: -1
+
+# การทำงานเมื่อมีการเปิด Pull Request (PR) ใหม่
+pull_request_opened:
+  help: false
+  summary: true       # สร้างสรุปภาพรวมของการเปลี่ยนแปลงอัตโนมัติ
+  code_review: true   # ทำการรีวิวโค้ดใน PR นั้น
+
+# ตรวจสอบ Pull Request ที่ยังเป็น Draft อยู่หรือไม่
+include_drafts: false
+
+# เปิด/ปิด การรีวิวโค้ด
+code_review:
+  disable: false
+
+# โฟลเดอร์หรือไฟล์ที่ต้องการให้ Gemini ข้ามการตรวจสอบ (เพื่อไม่ให้รบกวนโฟกัสหลัก)
+ignore_patterns:
+  - 'target/'         # สำหรับไฟล์ที่ถูกคอมไพล์ของ Rust (เช่น โมดูล Tachyon-core)
+  - 'vendor/'         # สำหรับแพ็กเกจของ Go 
+  - '.venv/'          # สำหรับสภาพแวดล้อม Python
+  - '__pycache__/'
+  - 'logs/'           
+  - 'tmp/'
