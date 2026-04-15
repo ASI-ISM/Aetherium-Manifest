@@ -20,6 +20,22 @@ def test_health_check(client: TestClient) -> None:
     assert response.json()["status"] == "healthy"
 
 
+def test_readiness_check_default_is_ready_without_brokers(client: TestClient) -> None:
+    response = client.get("/readyz")
+    assert response.status_code == 200
+    assert response.json()["status"] == "ready"
+
+
+def test_readiness_check_respects_required_brokers(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("api_gateway.main.REQUIRE_REDIS_FOR_READINESS", True)
+    monkeypatch.setattr("api_gateway.main.REQUIRE_NATS_FOR_READINESS", True)
+    response = client.get("/readyz")
+    assert response.status_code == 503
+    payload = response.json()
+    assert payload["detail"]["status"] == "not_ready"
+    assert set(payload["detail"]["required_components_unavailable"]) == {"redis", "nats"}
+
+
 def test_emit_missing_api_key(client: TestClient) -> None:
     response = client.post("/api/v1/cognitive/emit", json={})
     assert response.status_code == 401

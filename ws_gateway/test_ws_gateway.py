@@ -39,6 +39,27 @@ def client() -> TestClient:
     return TestClient(app)
 
 
+def test_health_endpoint(client: TestClient) -> None:
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json()["status"] == "healthy"
+
+
+def test_readiness_endpoint_ready_when_redis_is_available(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("ws_gateway.main.REQUIRE_REDIS_FOR_READINESS", True)
+    response = client.get("/readyz")
+    assert response.status_code == 200
+    assert response.json()["status"] == "ready"
+
+
+def test_readiness_endpoint_fails_when_redis_is_required_and_unavailable(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("ws_gateway.main.REQUIRE_REDIS_FOR_READINESS", True)
+    monkeypatch.setattr(main, "r", None)
+    response = client.get("/readyz")
+    assert response.status_code == 503
+    assert response.json()["detail"]["status"] == "not_ready"
+
+
 def test_websocket_stream_missing_key(client: TestClient) -> None:
     with pytest.raises(WebSocketDisconnect):
         with client.websocket_connect('/ws/cognitive-stream'):

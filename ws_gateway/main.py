@@ -4,7 +4,7 @@ import os
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from fastapi import FastAPI, Header, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Header, HTTPException, Query, WebSocket, WebSocketDisconnect
 import redis.asyncio as redis
 
 app = FastAPI(title="Aetherium WS Gateway")
@@ -13,6 +13,7 @@ logger = logging.getLogger("ws-gateway")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 STATE_SYNC_STREAM_MAXLEN = int(os.getenv("STATE_SYNC_STREAM_MAXLEN", "1000"))
 REPLAY_BATCH_LIMIT = int(os.getenv("STATE_SYNC_REPLAY_BATCH_LIMIT", "256"))
+REQUIRE_REDIS_FOR_READINESS = os.getenv("REQUIRE_REDIS_FOR_READINESS", "1") == "1"
 r: Optional[redis.Redis] = None
 
 SCHEMA_VERSION = "room_event.v1"
@@ -42,6 +43,32 @@ async def startup() -> None:
         r = redis.from_url(REDIS_URL, decode_responses=True)
     except Exception:
         logger.exception("ws-gateway startup failed")
+
+
+@app.get("/health")
+def health_check() -> dict[str, Any]:
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "components": {
+            "redis": "connected" if r else "disconnected",
+        },
+    }
+
+
+@app.get("/readyz")
+def readiness_check() -> dict[str, Any]:
+    components = {"redis": "connected" if r else "disconnected"}
+    if REQUIRE_REDIS_FOR_READINESS and components["redis"] != "connected":
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "not_ready",
+                "required_components_unavailable": ["redis"],
+                "components": components,
+            },
+        )
+    return {"status": "ready", "components": components}
 
 
 async def _authorize(websocket: WebSocket, api_key: Optional[str], x_api_key: Optional[str]) -> bool:

@@ -84,6 +84,29 @@ uvicorn main:app --host 0.0.0.0 --port 8090 --reload
 
 > Default local ports are `8080` (API) and `8090` (WS) to avoid bind conflicts. Set **API Base** and **WS Base** in the UI panel accordingly.
 
+### 4) One-command local stack startup (hardened)
+
+```bash
+# optional, recommended:
+python3 -m venv .venv && source .venv/bin/activate
+
+# starts API + WS (background) and frontend static host (foreground)
+./start_services.sh
+```
+
+Runtime knobs (environment variables):
+
+- `API_HOST`, `API_PORT`, `API_WORKERS`
+- `WS_HOST`, `WS_PORT`, `START_WS_GATEWAY=0|1`
+- `FRONTEND_HOST`, `FRONTEND_PORT`
+- `LOG_DIR` (default: `./.logs`)
+- `REQUIRE_REDIS_FOR_READINESS=0|1`, `REQUIRE_NATS_FOR_READINESS=0|1`
+
+Health and readiness probes:
+
+- API gateway: `GET /health`, `GET /readyz`
+- WS gateway: `GET /health`, `GET /readyz`
+
 ## Recommended verification
 
 ```bash

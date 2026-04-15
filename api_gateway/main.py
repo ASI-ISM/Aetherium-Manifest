@@ -110,6 +110,8 @@ app.add_middleware(
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")
 GOVERNOR_SERVICE_URL = os.getenv("GOVERNOR_SERVICE_URL", "http://governor.aetherium.svc.cluster.local")
+REQUIRE_REDIS_FOR_READINESS = os.getenv("REQUIRE_REDIS_FOR_READINESS", "0") == "1"
+REQUIRE_NATS_FOR_READINESS = os.getenv("REQUIRE_NATS_FOR_READINESS", "0") == "1"
 
 # External Clients
 r: Optional[redis.Redis] = None
@@ -491,3 +493,26 @@ def health_check() -> dict[str, Any]:
             "nats": "connected" if nc and nc.is_connected else "disconnected",
         },
     }
+
+
+@app.get("/readyz")
+def readiness_check() -> dict[str, Any]:
+    components = {
+        "redis": "connected" if r else "disconnected",
+        "nats": "connected" if nc and nc.is_connected else "disconnected",
+    }
+    readiness_failures: list[str] = []
+    if REQUIRE_REDIS_FOR_READINESS and components["redis"] != "connected":
+        readiness_failures.append("redis")
+    if REQUIRE_NATS_FOR_READINESS and components["nats"] != "connected":
+        readiness_failures.append("nats")
+    if readiness_failures:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "not_ready",
+                "required_components_unavailable": readiness_failures,
+                "components": components,
+            },
+        )
+    return {"status": "ready", "components": components}
