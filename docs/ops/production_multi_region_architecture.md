@@ -160,7 +160,7 @@ State updates should be atomic (`INCR version` + apply delta) via transaction/sc
 ## 12) Deployment and rollout
 
 - EKS + Helm per region
-- GitHub Actions with canary and blue/green strategy
+- Deployment orchestration and canary/blue-green rollout are executed via manual or external CI/CD controls
 - phased rollout: single-region sharding -> multi-region affinity -> failover drills
 
 ## 13) Cost control

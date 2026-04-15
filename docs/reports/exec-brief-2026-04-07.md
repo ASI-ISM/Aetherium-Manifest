@@ -35,7 +35,7 @@
 
 **Narrative**
 - The chart work matured from scaffold to policy-aware deploy controls in less than a day: HPAs per service, ingress route separation, and value overlays indicate immediate operational intent rather than template-only setup.
-- AKS workflow addition suggests the delivery pipeline is being tested against a concrete cloud target, reducing ambiguity around deployment ownership.
+- Delivery ownership is being clarified through deployment docs and environment overlays, with execution mode controlled outside repository automation.
 - CI additions around HPA defaults and workflow labeling indicate growing emphasis on governance and repeatability alongside raw feature velocity.
 
 ---
