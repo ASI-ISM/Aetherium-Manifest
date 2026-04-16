@@ -193,7 +193,7 @@ async def invoke_generative_model(prompt: str, model: str, temperature: float) -
     if provider == "google":
         api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
         if not api_key:
-            raise HTTPException(status_code=500, detail="GEMINI_API_KEY is not set")
+            raise HTTPException(status_code=500, detail="Google API key (GEMINI_API_KEY or GOOGLE_API_KEY) is not set")
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
         async with httpx.AsyncClient(timeout=30.0) as client:
