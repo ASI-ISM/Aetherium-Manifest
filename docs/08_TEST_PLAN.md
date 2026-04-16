@@ -20,6 +20,7 @@
 - ghost path ห้าม commit โดยไม่มี confirmation
 - rollback correctness ภายใต้ mismatch หนัก
 - malformed envelope / replay / invalid rkey tests
+- tiny reasoning light model ต้อง clamp ค่าความปลอดภัยที่ผิดช่วง (fps/brightness/flicker cap) และใช้ block glyph สำหรับอักขระที่ไม่รองรับ
 
 ## 5) GunUI Experience
 - Gate ปิดแล้วต้องไม่เกิด visual spam

@@ -1,0 +1,319 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aetherium.dev/schemas/ai_particle_control_contract_v2.json",
+  "title": "AIParticleControlContractV2",
+  "description": "Canonical AI particle control contract with intent-layer controls for creative objective, safety, and output constraints.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "intent_state",
+    "renderer_controls"
+  ],
+  "properties": {
+    "intent_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "state_entered_at",
+        "shape",
+        "particle_density",
+        "velocity",
+        "turbulence",
+        "cohesion",
+        "flow_direction",
+        "glow_intensity",
+        "flicker",
+        "attractor",
+        "palette",
+        "state_duration_ms",
+        "transition_reason",
+        "goal_type",
+        "brand_profile_id",
+        "safety_profile",
+        "output_constraints"
+      ],
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": [
+            "IDLE",
+            "LISTENING",
+            "INTERPRETING",
+            "GENERATING",
+            "THINKING",
+            "CONFIRMING",
+            "RESPONDING",
+            "WARNING",
+            "ERROR",
+            "STABILIZED",
+            "NIRODHA",
+            "SENSOR_PENDING_PERMISSION",
+            "SENSOR_ACTIVE",
+            "SENSOR_UNAVAILABLE"
+          ]
+        },
+        "shape": {
+          "type": "string",
+          "enum": [
+            "ring",
+            "helix",
+            "spiral_vortex",
+            "sphere",
+            "stream",
+            "burst",
+            "lattice",
+            "nebula_cloud"
+          ]
+        },
+        "particle_density": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "velocity": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "turbulence": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "cohesion": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "flow_direction": {
+          "type": "string",
+          "enum": [
+            "clockwise",
+            "counterclockwise",
+            "inward",
+            "outward",
+            "centripetal",
+            "centrifugal",
+            "bidirectional",
+            "still",
+            "adaptive"
+          ]
+        },
+        "glow_intensity": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "flicker": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "attractor": {
+          "type": "string",
+          "enum": [
+            "core",
+            "halo",
+            "axis",
+            "orbit",
+            "mesh",
+            "none"
+          ]
+        },
+        "palette": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "primary",
+            "secondary"
+          ],
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": [
+                "adaptive",
+                "dual_tone",
+                "thermal",
+                "spectral",
+                "monochrome",
+                "DEEP_REASONING",
+                "ACTIVE_LISTENING",
+                "WARNING_OVERLOAD",
+                "ERROR_POLICY"
+              ]
+            },
+            "primary": {
+              "type": "string",
+              "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$"
+            },
+            "secondary": {
+              "type": "string",
+              "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$"
+            },
+            "accent": {
+              "type": "string",
+              "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$"
+            }
+          }
+        },
+        "state_entered_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "state_duration_ms": {
+          "type": "number",
+          "minimum": 0.0
+        },
+        "transition_reason": {
+          "type": "string"
+        },
+        "goal_type": {
+          "type": "string",
+          "enum": ["poster", "brand", "UI", "concept", "diagram", "ambient"]
+        },
+        "brand_profile_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "safety_profile": {
+          "type": "string",
+          "enum": ["brand-safe", "enterprise-safe", "sacred-safe"]
+        },
+        "output_constraints": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["target_format", "size", "quality_tier"],
+          "properties": {
+            "target_format": {
+              "type": "string",
+              "enum": ["runtime", "png", "jpg", "svg", "webp", "mp4", "gif"]
+            },
+            "size": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["width", "height"],
+              "properties": {
+                "width": {"type": "integer", "minimum": 1},
+                "height": {"type": "integer", "minimum": 1}
+              }
+            },
+            "quality_tier": {
+              "type": "string",
+              "enum": ["draft", "balanced", "high", "ultra"]
+            },
+            "max_latency_ms": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "semantic_concepts": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "emotional_valence": {
+          "type": "number",
+          "minimum": -1.0,
+          "maximum": 1.0
+        },
+        "scholar": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "renderer_controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "base_shape",
+        "chromatic_mode",
+        "particle_count",
+        "flow_field",
+        "shader_uniforms",
+        "runtime_profile"
+      ],
+      "properties": {
+        "base_shape": {
+          "type": "string",
+          "enum": [
+            "ring",
+            "helix",
+            "spiral_vortex",
+            "sphere",
+            "stream",
+            "burst",
+            "lattice"
+          ]
+        },
+        "chromatic_mode": {
+          "type": "string",
+          "enum": [
+            "adaptive",
+            "dual_tone",
+            "thermal",
+            "spectral",
+            "monochrome"
+          ]
+        },
+        "particle_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 50000
+        },
+        "flow_field": {
+          "type": "string",
+          "enum": [
+            "clockwise",
+            "counterclockwise",
+            "inward",
+            "outward",
+            "centripetal",
+            "centrifugal",
+            "bidirectional",
+            "still"
+          ]
+        },
+        "shader_uniforms": {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              {"type": "number"},
+              {"type": "string"},
+              {"type": "boolean"}
+            ]
+          },
+          "required": [
+            "glow_intensity",
+            "flicker",
+            "cohesion"
+          ]
+        },
+        "runtime_profile": {
+          "type": "string",
+          "enum": [
+            "deterministic",
+            "adaptive",
+            "low_power",
+            "cinematic"
+          ]
+        },
+        "intent_layer": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    }
+  },
+  "x-field-evolution": {
+    "introduced_in": "ai_particle_control_contract_v2",
+    "supersedes": "ai_particle_control_contract_v1",
+    "compatibility_adapter": "tools.contracts.particle_control_adapter",
+    "required_evolution_sections": [
+      "intent_state",
+      "renderer_controls"
+    ]
+  }
+}

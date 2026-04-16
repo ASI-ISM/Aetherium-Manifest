@@ -1,0 +1,123 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: api-gateway-hpa
+  namespace: aetherium
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api-gateway
+  minReplicas: 4
+  maxReplicas: 30
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 30
+    scaleDown:
+      stabilizationWindowSeconds: 180
+      policies:
+        - type: Percent
+          value: 25
+          periodSeconds: 60
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 65
+    - type: Pods
+      pods:
+        metric:
+          name: http_requests_per_second
+        target:
+          type: AverageValue
+          averageValue: "150"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: governor-hpa
+  namespace: aetherium
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: governor
+  minReplicas: 6
+  maxReplicas: 40
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 15
+      policies:
+        - type: Pods
+          value: 4
+          periodSeconds: 30
+    scaleDown:
+      stabilizationWindowSeconds: 180
+  metrics:
+    - type: Pods
+      pods:
+        metric:
+          name: governor_validation_latency_p95_ms
+        target:
+          type: AverageValue
+          averageValue: "80"
+    - type: Pods
+      pods:
+        metric:
+          name: governor_contracts_processed_per_second
+        target:
+          type: AverageValue
+          averageValue: "200"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ws-gateway-hpa
+  namespace: aetherium
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ws-gateway
+  minReplicas: 12
+  maxReplicas: 120
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 10
+      policies:
+        - type: Pods
+          value: 8
+          periodSeconds: 30
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 15
+          periodSeconds: 60
+  metrics:
+    - type: Pods
+      pods:
+        metric:
+          name: websocket_active_connections
+        target:
+          type: AverageValue
+          averageValue: "35000"
+    - type: Pods
+      pods:
+        metric:
+          name: websocket_send_queue_depth_p95
+        target:
+          type: AverageValue
+          averageValue: "120"
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 70

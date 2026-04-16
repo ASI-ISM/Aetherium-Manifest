@@ -1,0 +1,80 @@
+{
+  "intent_state": {
+    "state": "RESPONDING",
+    "state_entered_at": "2026-04-11T12:00:00Z",
+    "shape": "spiral_vortex",
+    "particle_density": 0.5,
+    "velocity": 0.5,
+    "turbulence": 0.5,
+    "cohesion": 0.5,
+    "flow_direction": "outward",
+    "glow_intensity": 0.5,
+    "flicker": 0.1,
+    "attractor": "core",
+    "palette": {
+      "mode": "DEEP_REASONING",
+      "primary": "#4169E1",
+      "secondary": "#B0C4DE"
+    },
+    "state_duration_ms": 5000,
+    "transition_reason": "testing scholar agent",
+    "goal_type": "brand",
+    "brand_profile_id": "brand-core-01",
+    "safety_profile": "enterprise-safe",
+    "output_constraints": {
+      "target_format": "png",
+      "size": {
+        "width": 1920,
+        "height": 1080
+      },
+      "quality_tier": "high",
+      "max_latency_ms": 1200
+    },
+    "semantic_concepts": [
+      "clarity",
+      "trust",
+      "precision"
+    ],
+    "emotional_valence": 0.35,
+    "scholar": {
+      "summary": "This is a test summary.",
+      "visual_interpretation": "ripple pattern",
+      "language": "en-US",
+      "tone": "formal"
+    }
+  },
+  "renderer_controls": {
+    "base_shape": "spiral_vortex",
+    "chromatic_mode": "adaptive",
+    "particle_count": 5000,
+    "flow_field": "outward",
+    "shader_uniforms": {
+      "glow_intensity": 0.5,
+      "flicker": 0.1,
+      "cohesion": 0.5,
+      "goal_type": "brand",
+      "safety_profile": "enterprise-safe",
+      "brand_profile_id": "brand-core-01"
+    },
+    "intent_layer": {
+      "goal_type": "brand",
+      "brand_profile_id": "brand-core-01",
+      "safety_profile": "enterprise-safe",
+      "output_constraints": {
+        "target_format": "png",
+        "size": {
+          "width": 1920,
+          "height": 1080
+        },
+        "quality_tier": "high"
+      },
+      "semantic_concepts": [
+        "clarity",
+        "trust",
+        "precision"
+      ],
+      "emotional_valence": 0.35
+    },
+    "runtime_profile": "cinematic"
+  }
+}

@@ -26,6 +26,11 @@
       "bpm": 72,
       "phase": 0.0,
       "jitter": 0.05
+    },
+    "color_semantics": {
+      "color_mode": "THERMODYNAMIC",
+      "palette_key": "REASONING",
+      "gradient_key": "THINKING"
     }
   }
 }

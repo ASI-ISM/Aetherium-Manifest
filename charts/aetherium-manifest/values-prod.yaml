@@ -1,0 +1,88 @@
+global:
+  environment: prod
+
+ingress:
+  http:
+    host: api.aetherium.example
+    tls:
+      enabled: true
+      secretName: aetherium-prod-http-tls
+  ws:
+    host: ws.aetherium.example
+    tls:
+      enabled: true
+      secretName: aetherium-prod-ws-tls
+
+governor:
+  replicaCount: 6
+  resources:
+    requests:
+      cpu: 500m
+      memory: 768Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+  autoscaling:
+    minReplicas: 6
+    maxReplicas: 40
+
+apiGateway:
+  replicaCount: 4
+  resources:
+    requests:
+      cpu: 400m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 1Gi
+  autoscaling:
+    minReplicas: 6
+    maxReplicas: 30
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 65
+      - type: Pods
+        pods:
+          metric:
+            name: http_requests_per_second
+          target:
+            type: AverageValue
+            averageValue: "220"
+
+wsGateway:
+  replicaCount: 8
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+  autoscaling:
+    minReplicas: 12
+    maxReplicas: 120
+    metrics:
+      - type: Pods
+        pods:
+          metric:
+            name: websocket_active_connections
+          target:
+            type: AverageValue
+            averageValue: "35000"
+      - type: Pods
+        pods:
+          metric:
+            name: websocket_send_queue_depth_p95
+          target:
+            type: AverageValue
+            averageValue: "120"
+      - type: Resource
+        resource:
+          name: memory
+          target:
+            type: Utilization
+            averageUtilization: 70

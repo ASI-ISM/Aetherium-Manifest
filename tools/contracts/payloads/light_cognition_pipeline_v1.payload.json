@@ -1,0 +1,42 @@
+{
+  "contract_type": "LIGHT_COGNITION_PIPELINE_V1",
+  "intent": {
+    "category": "guide",
+    "emotional_valence": 0.42,
+    "energy_level": 0.73
+  },
+  "semantic_field": {
+    "semantic_tensors": {
+      "valence": 0.42,
+      "energy": 0.73
+    },
+    "confidence_gradients": [0.8, 0.7],
+    "polarity": 0.42,
+    "ambiguity": 0.2
+  },
+  "morphogenesis_plan": {
+    "topology_seeds": ["ring", "breathe"],
+    "attractors": ["coherence"],
+    "constraints": ["turbulence<=0.3", "chroma=adaptive"],
+    "temporal_operators": ["phase_lock", "cadence_stabilize"]
+  },
+  "compiled_light_program": {
+    "shader_uniforms": {
+      "shape": "ring",
+      "transition": "breathe",
+      "glow": 0.6
+    },
+    "particle_targets": {
+      "count": 8000,
+      "mass": 0.7
+    },
+    "force_field_descriptors": ["turbulence<=0.3", "chroma=adaptive"],
+    "update_cadence_hz": 24
+  },
+  "cognitive_field_runtime": {
+    "visual_manifestation": {
+      "core_shape": "ring"
+    },
+    "renderer_ingestion_contract": "EMBODIMENT_V1"
+  }
+}

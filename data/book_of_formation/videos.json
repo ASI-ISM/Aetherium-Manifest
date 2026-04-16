@@ -1,0 +1,17 @@
+{
+  "reasoning/spiral_convergence": {
+    "asset": "book_of_formation/reasoning_spiral_reference.mp4",
+    "fps": 60,
+    "duration_s": 12
+  },
+  "stabilization/sphere_equilibrium": {
+    "asset": "book_of_formation/stabilization_sphere_reference.mp4",
+    "fps": 60,
+    "duration_s": 10
+  },
+  "bloom/flower_shell": {
+    "asset": "book_of_formation/bloom_flower_reference.mp4",
+    "fps": 60,
+    "duration_s": 14
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aetherium.dev/schemas/export_response_v1.json",
+  "title": "Aetherium Export Response v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "export_id",
+    "session_id",
+    "lineage_id",
+    "selected_variation_id",
+    "artifact_type",
+    "status",
+    "audit_trail_id",
+    "replay_key",
+    "review_status",
+    "created_at"
+  ],
+  "properties": {
+    "export_id": {
+      "type": "string",
+      "pattern": "^exp_[a-f0-9]+$"
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "lineage_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "selected_variation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifact_type": {
+      "type": "string",
+      "enum": [
+        "PNG",
+        "SVG",
+        "MP4",
+        "layer_package",
+        "manifest_json",
+        "prompt_lineage_bundle"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "const": "accepted"
+    },
+    "audit_trail_id": {
+      "type": "string",
+      "pattern": "^audit_[a-f0-9]+$"
+    },
+    "replay_key": {
+      "type": "string",
+      "minLength": 1
+    },
+    "review_status": {
+      "type": "string",
+      "const": "ready_for_enterprise_review"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "options": {
+      "type": "object",
+      "default": {}
+    }
+  }
+}

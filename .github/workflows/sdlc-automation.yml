@@ -1,0 +1,56 @@
+name: Aetherium SDLC Automation
+
+on:
+  push:
+    branches: ["main", "master", "develop"]
+  pull_request:
+    branches: ["**"]
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+    inputs:
+      run_full_nightly:
+        description: Run full fuzz/benchmark suite in this manual execution
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: sdlc-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pr-fast-gate:
+    if: ${{ github.event_name == 'pull_request' }}
+    uses: ./.github/workflows/reusable-ci.yml
+    with:
+      fast-gate: true
+      check-pr-body: true
+      run-full-contracts: false
+
+  continuous-ci:
+    if: ${{ github.event_name == 'push' }}
+    uses: ./.github/workflows/reusable-ci.yml
+    with:
+      fast-gate: false
+      check-pr-body: false
+      run-full-contracts: ${{ github.ref_name == 'main' || github.ref_name == 'develop' }}
+
+  nightly-heavy:
+    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_full_nightly) }}
+    uses: ./.github/workflows/reusable-ci.yml
+    with:
+      fast-gate: false
+      check-pr-body: false
+      run-full-contracts: true
+
+  manual-ci-default:
+    if: ${{ github.event_name == 'workflow_dispatch' && !inputs.run_full_nightly }}
+    uses: ./.github/workflows/reusable-ci.yml
+    with:
+      fast-gate: false
+      check-pr-body: false
+      run-full-contracts: false

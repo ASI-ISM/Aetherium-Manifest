@@ -1,0 +1,9 @@
+name: Aetherium CodeQL Config
+
+paths-ignore:
+  - '**/*.md'
+  - 'tools/benchmarks/**'
+
+query-filters:
+  - exclude:
+      id: js/unused-local-variable

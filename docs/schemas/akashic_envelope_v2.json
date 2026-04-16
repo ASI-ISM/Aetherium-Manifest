@@ -39,5 +39,14 @@
       "description": "true if speculative envelope"
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "x-field-evolution": {
+    "introduced_in": "2.0.0",
+    "supersedes": "AKASHIC_ENVELOPE_V1",
+    "compatibility_adapter": "none",
+    "required_evolution_sections": [
+      "intent_vector",
+      "payload_ptr"
+    ]
+  }
 }

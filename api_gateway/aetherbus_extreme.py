@@ -44,6 +44,7 @@ class AkashicEnvelope:
 
 
 def zero_copy_send(sock: Any, data: bytes | bytearray | memoryview) -> int:
+    """Blocking zero-copy send helper for synchronous socket workflows."""
     mv = memoryview(data)
     total_sent = 0
     while total_sent < len(mv):
@@ -54,15 +55,33 @@ def zero_copy_send(sock: Any, data: bytes | bytearray | memoryview) -> int:
     return total_sent
 
 
-async def zero_copy_send_async(sock: Any, data: bytes | bytearray | memoryview) -> int:
+async def async_zero_copy_send(
+    loop: asyncio.AbstractEventLoop,
+    sock: Any,
+    data: bytes | bytearray | memoryview,
+) -> int:
+    """Non-blocking async zero-copy send helper for asyncio contexts."""
     mv = memoryview(data)
-    loop = asyncio.get_running_loop()
-    await loop.sock_sendall(sock, mv)
-    return len(mv)
+    original_timeout = sock.gettimeout() if hasattr(sock, "gettimeout") else None
+    if hasattr(sock, "setblocking"):
+        sock.setblocking(False)
+
+    try:
+        while True:
+            try:
+                await loop.sock_sendall(sock, mv)
+                return len(mv)
+            except (BlockingIOError, InterruptedError):
+                await asyncio.sleep(0)
+    finally:
+        if hasattr(sock, "settimeout"):
+            sock.settimeout(original_timeout)
 
 
 def _load_msgspec() -> Any:
-    return importlib.import_module("msgspec")
+    if not hasattr(_load_msgspec, "_module"):
+        _load_msgspec._module = importlib.import_module("msgspec")
+    return _load_msgspec._module
 
 
 def serialize_to_msgpack(data: Any) -> bytes:
@@ -162,9 +181,11 @@ class AetherBusExtreme:
             await asyncio.gather(self._worker_task, return_exceptions=True)
 
         if self._background_tasks:
-            for task in self._background_tasks:
+            tasks = list(self._background_tasks)
+            for task in tasks:
                 task.cancel()
-            await asyncio.gather(*self._background_tasks, return_exceptions=True)
+            await asyncio.gather(*tasks, return_exceptions=True)
+            self._background_tasks = {task for task in self._background_tasks if not task.done()}
 
 
 class NATSJetStreamManager:
@@ -182,6 +203,9 @@ class NATSJetStreamManager:
             raise RuntimeError("NATS client is not connected")
         await self.nc.publish(subject, payload)
 
+    async def publish_via_socket(self, loop: asyncio.AbstractEventLoop, sock: Any, payload: bytes) -> int:
+        return await async_zero_copy_send(loop, sock, payload)
+
     async def close(self) -> None:
         if self.nc is not None:
             await self.nc.close()
@@ -195,7 +219,7 @@ class StateConvergenceProcessor:
     def update_state(self, key: str, value: Any, version: int | None = None) -> bool:
         current_version = self._versions.get(key, -1)
         candidate_version = current_version + 1 if version is None else version
-        if candidate_version < current_version:
+        if candidate_version <= current_version:
             return False
 
         self._state[key] = value

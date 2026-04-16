@@ -11,10 +11,21 @@ from datetime import datetime, timezone
 from statistics import mean
 from typing import Any, Literal
 from urllib.parse import urlparse
+from collections import deque
+from datetime import datetime, timezone
+from contextlib import asynccontextmanager
+from typing import Any, Dict, List, Literal, Optional, Union
+from enum import Enum
 
-import httpx
-from fastapi import FastAPI, Header, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Header, Request, Query
+from .scholar_router import router as scholar_router
+from .variation_service import generate_variation_set
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+import redis.asyncio as redis
+import nats
+from governor.runtime_governor import RuntimeGovernor, GovernorContext
+from .deterministic_replay import INCIDENT_REPLAY_PACKAGES
 
 app = FastAPI(title="AGNS Cognitive DSL Gateway", version="1.3.0")
 
@@ -23,10 +34,10 @@ app = FastAPI(title="AGNS Cognitive DSL Gateway", version="1.3.0")
 
 FIRMA_CONSTRAINTS = {
     "max_particles_by_tier": {
-        1: 5_000,
-        2: 10_000,
-        3: 20_000,
-        4: 50_000,
+        "LOW": 2000,
+        "MID": 5000,
+        "HIGH": 12000,
+        "ULTRA": 25000,
     }
 }
 
@@ -56,28 +67,29 @@ MODEL_PROVIDER_MAP = {
 # --- Pydantic Models ---
 
 class IntentVector(BaseModel):
-    category: str
-    emotional_valence: float = Field(ge=-1.0, le=1.0)
-    energy_level: float = Field(ge=0.0, le=1.0)
+    category: str = "guide"
+    emotional_valence: float = Field(default=0.0, ge=-1.0, le=1.0)
+    energy_level: float = Field(default=0.5, ge=0.0, le=1.0)
 
 class ColorPalette(BaseModel):
-    primary: str
-    secondary: str | None = None
+    primary: str = "#FFFFFF"
+    secondary: str = "#88CCFF"
+    accent: Optional[str] = None
 
 class ParticlePhysics(BaseModel):
-    turbulence: float = Field(ge=0.0, le=1.0)
-    flow_direction: str
-    luminance_mass: float = Field(ge=0.0, le=1.0)
-    particle_count: int = Field(default=0, ge=0)
+    turbulence: float = Field(default=0.0, ge=0.0, le=1.0)
+    flow_direction: str = "still"
+    luminance_mass: float = Field(default=0.5, ge=0.0, le=1.0)
+    particle_count: int = Field(default=1000, ge=0)
 
 class VisualManifestation(BaseModel):
-    base_shape: str
-    transition_type: str
-    color_palette: ColorPalette
-    particle_physics: ParticlePhysics
-    chromatic_mode: str
+    base_shape: str = "ring"
+    transition_type: str = "pulse"
+    color_palette: ColorPalette = Field(default_factory=ColorPalette)
+    particle_physics: ParticlePhysics = Field(default_factory=ParticlePhysics)
+    chromatic_mode: str = "adaptive"
     emergency_override: bool = False
-    device_tier: int = Field(default=1, ge=1, le=4)
+    device_tier: int = 2
 
 class GenerateRequest(BaseModel):
     prompt: str
@@ -92,11 +104,11 @@ class GenerateResponse(BaseModel):
     intent_vector: IntentVector
     visual_manifestation: VisualManifestation
 
-class ModelResponse(BaseModel):
-    trace_id: str
-    reasoning_trace: str
-    intent_vector: IntentVector
-    visual_manifestation: VisualManifestation
+class CognitiveEmitRequest(BaseModel):
+    session_id: str
+    model_response: CognitiveModelResponse
+    model_metadata: Dict[str, Any]
+    governor_context: Dict[str, Any]
 
 class ModelMetadata(BaseModel):
     model_name: str
@@ -119,6 +131,40 @@ class Metrics(BaseModel):
     validation_failures: int = 0
     generative_requests: int = 0
 
+class ParticlePalette(BaseModel):
+    mode: str
+    primary: str
+    secondary: str
+    accent: Optional[str] = None
+
+
+class IntentState(BaseModel):
+    state: str
+    shape: str
+    particle_density: float
+    velocity: float
+    turbulence: float
+    cohesion: float
+    flow_direction: str
+    glow_intensity: float
+    flicker: float
+    attractor: str
+    palette: ParticlePalette
+
+
+class RendererControls(BaseModel):
+    base_shape: str
+    chromatic_mode: str
+    particle_count: int
+    flow_field: str
+    shader_uniforms: Dict[str, Union[float, int, str, bool]]
+    runtime_profile: str
+
+
+class ParticleControlContract(BaseModel):
+    intent_state: IntentState
+    renderer_controls: RendererControls
+
 class TelemetryPoint(BaseModel):
     metric: str
     value: float
@@ -127,6 +173,115 @@ class TelemetryPoint(BaseModel):
 
 class TelemetryIngestRequest(BaseModel):
     points: list[TelemetryPoint]
+
+class ExportArtifactType(str, Enum):
+    PNG = "PNG"
+    SVG = "SVG"
+    MP4 = "MP4"
+    LAYER_PACKAGE = "layer_package"
+    MANIFEST_JSON = "manifest_json"
+    PROMPT_LINEAGE_BUNDLE = "prompt_lineage_bundle"
+
+class ExportRequest(BaseModel):
+    session_id: str = Field(..., min_length=1)
+    lineage_id: str = Field(..., min_length=1)
+    selected_variation_id: str = Field(..., min_length=1)
+    artifact_type: ExportArtifactType
+    options: Dict[str, Any] = Field(default_factory=dict)
+    requested_by: Optional[str] = None
+
+class ExportResponse(BaseModel):
+    export_id: str
+    session_id: str
+    lineage_id: str
+    selected_variation_id: str
+    artifact_type: ExportArtifactType
+    status: Literal["accepted"]
+    audit_trail_id: str
+    replay_key: str
+    review_status: Literal["ready_for_enterprise_review"]
+    created_at: datetime
+    options: Dict[str, Any] = Field(default_factory=dict)
+
+# --- Validation ---
+
+class FirmaValidator:
+    @staticmethod
+    def validate_dsl_response(payload: CognitiveEmitRequest) -> tuple[bool, list[str]]:
+        violations: list[str] = []
+        visual = payload.model_response.visual_manifestation
+        primary = (visual.color_palette.primary or "").lower()
+        if primary == "#dc143c" and not visual.emergency_override:
+            violations.append("policy_violation: crimson_requires_emergency_override")
+        return len(violations) == 0, violations
+
+# --- App Initialization ---
+
+logger = logging.getLogger("api-gateway")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global r, nc
+    if not os.getenv("AETHERIUM_API_KEY"):
+        logger.error("AETHERIUM_API_KEY is not configured; protected endpoints will fail closed")
+    try:
+        r = redis.from_url(REDIS_URL, decode_responses=True)
+        nc = await nats.connect(NATS_URL)
+        logger.info("Connected to Redis and NATS")
+    except Exception as e:
+        logger.error(f"Startup failed: {e}")
+
+    try:
+        yield
+    finally:
+        if nc:
+            try:
+                await nc.close()
+            except Exception:
+                logger.exception("Failed to close NATS connection cleanly")
+        if r:
+            try:
+                await r.aclose()
+            except Exception:
+                logger.exception("Failed to close Redis connection cleanly")
+
+app = FastAPI(title="Aetherium API Gateway", lifespan=lifespan)
+app.include_router(scholar_router)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Configuration
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")
+GOVERNOR_SERVICE_URL = os.getenv("GOVERNOR_SERVICE_URL", "http://governor.aetherium.svc.cluster.local")
+REQUIRE_REDIS_FOR_READINESS = os.getenv("REQUIRE_REDIS_FOR_READINESS", "0") == "1"
+REQUIRE_NATS_FOR_READINESS = os.getenv("REQUIRE_NATS_FOR_READINESS", "0") == "1"
+
+# External Clients
+r: Optional[redis.Redis] = None
+nc: Optional[nats.NATS] = None
+NONCE_CACHE: Dict[str, bool] = {}
+RUNTIME_GOVERNOR = RuntimeGovernor()
+EXPORT_AUDIT_TRAIL: deque[Dict[str, Any]] = deque(maxlen=1000)
+TELEMETRY_TS_DB: deque[dict[str, Any]] = deque(maxlen=10000)
+SEV1_INCIDENT_PACKAGES: list[str] = [
+    name for name, package in INCIDENT_REPLAY_PACKAGES.items() if package.get("severity") == "sev1"
+]
+REQUIRED_PIPELINE_ORDER = [
+    "validate",
+    "transition",
+    "profile_map",
+    "clamp",
+    "fallback",
+    "policy_block",
+    "capability_gate",
+    "telemetry_log",
+]
 
 
 # --- In-memory State and Concurrency ---
@@ -143,34 +298,27 @@ ROOMS_LOCK = asyncio.Lock()
 
 class StateSyncRoom:
     def __init__(self) -> None:
-        self.version = 0
         self.shared_state: dict[str, Any] = {}
-        self.user_states: dict[str, dict[str, Any]] = {}
-        self.clients: list[WebSocket] = []
-        self.lock = asyncio.Lock()
+        self.user_state: dict[str, Any] = {}
+        self.clients: list[Any] = []
 
-    def apply_delta(self, delta: dict[str, Any], user_id: str | None, user_delta: dict[str, Any]) -> dict[str, Any]:
-        self.version += 1
+    def apply_delta(
+        self,
+        delta: dict[str, Any],
+        user_id: str,
+        user_delta: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
         self.shared_state.update(delta)
-        if user_id and user_delta:
-            current = self.user_states.setdefault(user_id, {})
-            current.update(user_delta)
-        return self.snapshot(user_id)
-
-    def snapshot(self, user_id: str | None) -> dict[str, Any]:
+        if user_delta:
+            self.user_state.update(user_delta)
         return {
-            "version": self.version,
-            "shared_state": self.shared_state,
-            "user_state": self.user_states.get(user_id or "", {}),
+            "shared_state": dict(self.shared_state),
+            "user_state": dict(self.user_state),
+            "actor": user_id,
         }
 
 # --- DSL Validation ---
 
-class FirmaValidator:
-    @staticmethod
-    def validate_dsl_response(payload: CognitiveEmitRequest) -> tuple[bool, list[str]]:
-        violations: list[str] = []
-        visual = payload.model_response.visual_manifestation
 
         if visual.color_palette.primary.upper() == "#DC143C" and not visual.emergency_override:
             violations.append("Crimson color #DC143C is reserved for emergency overrides")
@@ -181,7 +329,23 @@ class FirmaValidator:
         if particle_count > max_particles:
             violations.append(f"Particle count exceeds limit for Tier {device_tier}")
 
-        return len(violations) == 0, violations
+def _is_blocked_proxy_target(hostname: str) -> bool:
+    try:
+        host = hostname.strip()
+        if not host or any(ch.isspace() for ch in host):
+            return True
+        lowered = host.lower()
+        if lowered in {"localhost", "metadata.google.internal"}:
+            return True
+        ip = ipaddress.ip_address(host)
+        return ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved
+    except ValueError:
+        try:
+            resolved = socket.gethostbyname(hostname)
+            ip = ipaddress.ip_address(resolved)
+            return ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved
+        except Exception:
+            return True
 
 # --- Generative Model Invocation ---
 
@@ -444,6 +608,37 @@ async def query_telemetry(
         "p95": p95,
         "latest": rows[-1] if rows else None,
     }
+    EXPORT_AUDIT_TRAIL.insert(0, audit_record)
+    return ExportResponse(
+        export_id=export_id,
+        session_id=request.session_id,
+        lineage_id=request.lineage_id,
+        selected_variation_id=request.selected_variation_id,
+        artifact_type=request.artifact_type,
+        status="accepted",
+        audit_trail_id=audit_trail_id,
+        replay_key=replay_key,
+        review_status="ready_for_enterprise_review",
+        created_at=created_at,
+        options=request.options,
+    )
+
+@app.get("/api/v1/export/history")
+async def export_history(
+    session_id: Optional[str] = None,
+    lineage_id: Optional[str] = None,
+    selected_variation_id: Optional[str] = None,
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+) -> Dict[str, Any]:
+    _ensure_api_key(x_api_key)
+    records = EXPORT_AUDIT_TRAIL
+    if session_id:
+        records = [record for record in records if record["session_id"] == session_id]
+    if lineage_id:
+        records = [record for record in records if record["lineage_id"] == lineage_id]
+    if selected_variation_id:
+        records = [record for record in records if record["selected_variation_id"] == selected_variation_id]
+    return {"status": "success", "count": len(records), "history": records}
 
 def _resolve_voice_model(language: str, region: str) -> str:
     lang_key = language.split("-", maxsplit=1)[0].lower()

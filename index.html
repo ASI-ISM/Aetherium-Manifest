@@ -799,902 +799,151 @@
           const handlers = listeners.get(eventName) || [];
           handlers.forEach(handler => handler(payload));
         }
-      };
-    })();
 
-    const runtimeConfig = {
-      displayLanguage: 'th',
-      understandingLanguage: 'auto',
-      voiceMode: 'standard',
-      voiceRegion: 'apac',
-      gatewayBaseUrl: 'http://localhost:8000',
-      deltaStateEnabled: true
-    };
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-    function applyDeltaState(target, delta) {
-      if (!runtimeConfig.deltaStateEnabled) return;
-      Object.entries(delta).forEach(([key, value]) => {
-        target[key] = value;
-      });
-      commandBus.emit('state:delta', { keys: Object.keys(delta) });
-    }
+        const points = new THREE.Points(geometry, new THREE.PointsMaterial({
+            size: qualityTier === 'mobile' ? 0.08 : 0.06,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.72,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        }));
+        scene.add(points);
+        camera.position.z = 21;
 
-    function setPanelVisibility(panelKey, visible) {
-      const panel = panelRegistry[panelKey];
-      if (!panel) return;
-      panel.style.display = visible ? '' : 'none';
-      const toggle = refs.panelToggles.find(item => item.dataset.target === panelKey);
-      if (toggle) toggle.checked = visible;
-      if (!visible) telemetry.panelClosed += 1;
-    }
+        const STATE_COLORS = {
+            IDLE: [0.08, 0.12, 0.2],
+            EVALUATING: [0.62, 0.31, 0.93],
+            MANIFESTING: [0.9, 0.92, 1],
+            STREAMING: [0.98, 0.53, 0.34],
+            SEARCHING: [0.52, 0.83, 1],
+            LISTENING: [0.32, 0.6, 1],
+            INTERPRETING: [0.86, 0.3, 0.7],
+            CONVERGING: [0.2, 0.8, 0.95],
+            PROPOSING: [1.0, 0.83, 0.42],
+            REFINING: [0.3, 0.9, 0.7],
+            EXPORTING: [1, 1, 1],
+            NIRODHA: [0.09, 0.08, 0.14]
+        };
 
-    function initializeSettingTabs() {
-      refs.tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-          refs.tabs.forEach(btn => btn.classList.toggle('active', btn === tab));
-          refs.tabContents.forEach(content => {
-            content.classList.toggle('active', content.dataset.tabContent === tab.dataset.tab);
-          });
-        });
-      });
-    }
+        let runtimeState = 'IDLE';
+        let flowState = 'NIRODHA';
+        let route = 'pure_light';
+        let voiceActive = false;
+        let isProcessing = false;
+        let uiMode = 'landing';
+        let lineageCounter = 0;
+        const nodes = [{ id: 'genesis', label: 'Genesis Root', deleted: false }];
+        const variationRegistry = {};
+        const variationSets = [];
+        let branchContext = 'genesis';
+        let hasSubmittedIntent = false;
+        let apiStatus = 'unknown';
+        let wsStatus = 'unknown';
+        let wsClient = null;
+        let lastFrameTime = null;
 
-    function makePanelDraggable(panel) {
-      const header = panel.querySelector('.panel-header');
-      if (!header) return;
-      let dragging = false;
-      let offsetX = 0;
-      let offsetY = 0;
-      header.addEventListener('pointerdown', event => {
-        dragging = true;
-        panel.setPointerCapture(event.pointerId);
-        offsetX = event.clientX - panel.offsetLeft;
-        offsetY = event.clientY - panel.offsetTop;
-        panel.style.right = 'auto';
-        panel.style.bottom = 'auto';
-      });
-      header.addEventListener('pointermove', event => {
-        if (!dragging) return;
-        panel.style.left = `${Math.max(0, event.clientX - offsetX)}px`;
-        panel.style.top = `${Math.max(0, event.clientY - offsetY)}px`;
-      });
-      header.addEventListener('pointerup', event => {
-        dragging = false;
-        panel.releasePointerCapture(event.pointerId);
-      });
-    }
-
-    function addPanelChrome() {
-      Object.entries(panelRegistry).forEach(([key, panel]) => {
-        if (!panel) return;
-        const title = key.toUpperCase();
-        const header = document.createElement('div');
-        header.className = 'panel-header';
-        header.innerHTML = `<span class="panel-title">${title}</span><button class="panel-close" type="button" aria-label="close ${title}">✕</button>`;
-        panel.prepend(header);
-        header.querySelector('.panel-close').addEventListener('click', () => setPanelVisibility(key, false));
-        makePanelDraggable(panel);
-      });
-    }
-
-    const i18nBundles = {};
-
-    async function loadLocaleBundle(lang) {
-      if (i18nBundles[lang]) return i18nBundles[lang];
-      const response = await fetch(`./locales/${lang}.json`);
-      if (!response.ok) throw new Error(`locale ${lang} not found`);
-      const data = await response.json();
-      i18nBundles[lang] = data;
-      return data;
-    }
-
-    function t(key, fallback) {
-      const active = i18nBundles[runtimeConfig.displayLanguage] || i18nBundles.en || {};
-      return active[key] || fallback;
-    }
-
-    async function translateUi(lang) {
-      runtimeConfig.displayLanguage = lang;
-      telemetry.languageChanges += 1;
-      commandBus.emit('ui:language', { lang });
-      try {
-        await loadLocaleBundle(lang);
-      } catch (error) {
-        addBubble('system', `locale fallback: ${error.message}`);
-      }
-      refs.chatToggle.textContent = t('chat_toggle', 'Chat');
-      document.getElementById('send-btn').textContent = t('send', 'Emit Intent');
-      refs.voiceStatus.textContent = t('voice_idle', 'voice: idle');
-    }
-
-    async function analyzeExternalUrl(url) {
-      refs.urlStatus.textContent = t('url_loading', 'status: loading...');
-      try {
-        const proxyUrl = `${runtimeConfig.gatewayBaseUrl}/api/v1/proxy/fetch?url=${encodeURIComponent(url)}`;
-        const response = await fetch(proxyUrl, { headers: { 'X-API-Key': 'demo-key' } });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.detail || 'proxy failed');
-        telemetry.urlAnalyses += 1;
-        refs.urlStatus.textContent = t('url_analyzed', 'status: analyzed via proxy');
-        commandBus.emit('url:analyzed', { url, size: data.content_length, proxied: true });
-        await processTranscript(`URL_ANALYSIS ${data.snippet}`, 'url');
-      } catch (error) {
-        refs.urlStatus.textContent = t('url_failed', 'status: failed (proxy/network)');
-        addBubble('system', `url analysis failed: ${error.message}`);
-      }
-    }
-
-
-    const AETHERIUM_BLUEPRINT = Object.freeze({
-      axis: 'AETHERIUM GENESIS: THE BLUEPRINT OF LIVING LIGHT',
-      version: 'v1.0.0-locked',
-      lockId: 'akashic-axis-001',
-      core: Object.freeze([
-        'Dualism: Inspira (will) + Firma (structure)',
-        'PanGenesis: Git as an Akashic Record',
-        'ALO JIT: driven by pure intent',
-        'Intent-to-Particle Flux: intent -> force field -> living light',
-        'Metabolic Transparency: color/luminance reflect system energy'
-      ])
-    });
-
-    const PATALIMOKKHA_CODE = Object.freeze({
-      maxLoad: 88,
-      minEnergyForDeepReasoning: 14,
-      maxEntropyForAcceptance: 90,
-      maxDeferredItems: 18
-    });
-
-    const metabolicWeights = Object.freeze({
-      request_creation: 0.58,
-      analysis: 0.74,
-      error_recovery: 0.67,
-      request: 0.64,
-      command: 0.7,
-      chat: 0.42
-    });
-
-    const shadowMemory = {
-      deferred: [],
-      debrisCleanups: 0,
-      lastDreamAt: 0
-    };
-
-    function renderBlueprintLock() {
-      refs.blueprintMeta.textContent = `axis=${AETHERIUM_BLUEPRINT.axis} | version=${AETHERIUM_BLUEPRINT.version} | lock=${AETHERIUM_BLUEPRINT.lockId}`;
-      refs.blueprintList.innerHTML = '';
-      for (const item of AETHERIUM_BLUEPRINT.core) {
-        const li = document.createElement('li');
-        li.textContent = item;
-        refs.blueprintList.appendChild(li);
-      }
-    }
-
-    const displayButtons = Array.from(document.querySelectorAll('#display-selector button'));
-
-    function setDisplayPage(page) {
-      document.body.classList.toggle('display-page-2', page === '2');
-      displayButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.page === page));
-    }
-
-    function toggleMiniBox(index) {
-      document.body.classList.toggle(`show-box-${index}`);
-    }
-
-    const mouse = { x: -9999, y: -9999, active: false };
-    let width = 0;
-    let height = 0;
-    let particles = [];
-    let compatMode = false;
-    let compatLastFrameAt = 0;
-    let structuredAttractors = { face: [], human: [] };
-
-    function resize() {
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
-      structuredAttractors = buildStructuredAttractors();
-    }
-
-    function samplePolyline(points, stepsPerSegment = 14) {
-      const samples = [];
-      for (let i = 0; i < points.length - 1; i += 1) {
-        const a = points[i];
-        const b = points[i + 1];
-        for (let s = 0; s < stepsPerSegment; s += 1) {
-          const t = s / stepsPerSegment;
-          samples.push({
-            x: a.x + (b.x - a.x) * t,
-            y: a.y + (b.y - a.y) * t,
-            tx: b.x - a.x,
-            ty: b.y - a.y
-          });
-        }
-      }
-      return samples;
-    }
-
-    function sampleEllipse(cx, cy, rx, ry, count) {
-      const samples = [];
-      for (let i = 0; i < count; i += 1) {
-        const a = (i / count) * Math.PI * 2;
-        samples.push({
-          x: cx + Math.cos(a) * rx,
-          y: cy + Math.sin(a) * ry,
-          tx: -Math.sin(a) * rx,
-          ty: Math.cos(a) * ry
-        });
-      }
-      return samples;
-    }
-
-    function buildStructuredAttractors() {
-      const cx = width * 0.5;
-      const faceCy = height * 0.49;
-
-      const jaw = samplePolyline([
-        { x: cx - width * 0.18, y: faceCy - height * 0.03 },
-        { x: cx - width * 0.14, y: faceCy + height * 0.11 },
-        { x: cx - width * 0.08, y: faceCy + height * 0.2 },
-        { x: cx, y: faceCy + height * 0.24 },
-        { x: cx + width * 0.08, y: faceCy + height * 0.2 },
-        { x: cx + width * 0.14, y: faceCy + height * 0.11 },
-        { x: cx + width * 0.18, y: faceCy - height * 0.03 }
-      ], 10);
-
-      const noseBridge = samplePolyline([
-        { x: cx, y: faceCy - height * 0.13 },
-        { x: cx - width * 0.012, y: faceCy - height * 0.01 },
-        { x: cx, y: faceCy + height * 0.08 },
-        { x: cx + width * 0.025, y: faceCy + height * 0.1 },
-        { x: cx - width * 0.025, y: faceCy + height * 0.1 }
-      ], 12);
-
-      const leftEye = sampleEllipse(cx - width * 0.075, faceCy - height * 0.04, width * 0.05, height * 0.022, 28);
-      const rightEye = sampleEllipse(cx + width * 0.075, faceCy - height * 0.04, width * 0.05, height * 0.022, 28);
-      const browL = samplePolyline([
-        { x: cx - width * 0.135, y: faceCy - height * 0.09 },
-        { x: cx - width * 0.08, y: faceCy - height * 0.11 },
-        { x: cx - width * 0.02, y: faceCy - height * 0.095 }
-      ], 10);
-      const browR = samplePolyline([
-        { x: cx + width * 0.02, y: faceCy - height * 0.095 },
-        { x: cx + width * 0.08, y: faceCy - height * 0.11 },
-        { x: cx + width * 0.135, y: faceCy - height * 0.09 }
-      ], 10);
-
-      const lipsOuter = sampleEllipse(cx, faceCy + height * 0.13, width * 0.072, height * 0.028, 40);
-      const cheekFlowL = samplePolyline([
-        { x: cx - width * 0.16, y: faceCy + height * 0.04 },
-        { x: cx - width * 0.12, y: faceCy + height * 0.085 },
-        { x: cx - width * 0.06, y: faceCy + height * 0.11 }
-      ], 9);
-      const cheekFlowR = samplePolyline([
-        { x: cx + width * 0.06, y: faceCy + height * 0.11 },
-        { x: cx + width * 0.12, y: faceCy + height * 0.085 },
-        { x: cx + width * 0.16, y: faceCy + height * 0.04 }
-      ], 9);
-
-      const face = [jaw, noseBridge, leftEye, rightEye, browL, browR, lipsOuter, cheekFlowL, cheekFlowR].flat();
-
-      const shoulderY = faceCy + height * 0.32;
-      const humanFrame = samplePolyline([
-        { x: cx - width * 0.12, y: shoulderY },
-        { x: cx - width * 0.18, y: shoulderY + height * 0.13 },
-        { x: cx - width * 0.2, y: shoulderY + height * 0.29 },
-        { x: cx - width * 0.19, y: shoulderY + height * 0.4 }
-      ], 12).concat(samplePolyline([
-        { x: cx + width * 0.12, y: shoulderY },
-        { x: cx + width * 0.18, y: shoulderY + height * 0.13 },
-        { x: cx + width * 0.2, y: shoulderY + height * 0.29 },
-        { x: cx + width * 0.19, y: shoulderY + height * 0.4 }
-      ], 12));
-
-      const torsoFlow = samplePolyline([
-        { x: cx - width * 0.08, y: shoulderY + height * 0.03 },
-        { x: cx - width * 0.06, y: shoulderY + height * 0.14 },
-        { x: cx - width * 0.05, y: shoulderY + height * 0.3 },
-        { x: cx - width * 0.02, y: shoulderY + height * 0.41 },
-        { x: cx + width * 0.02, y: shoulderY + height * 0.41 },
-        { x: cx + width * 0.05, y: shoulderY + height * 0.3 },
-        { x: cx + width * 0.06, y: shoulderY + height * 0.14 },
-        { x: cx + width * 0.08, y: shoulderY + height * 0.03 }
-      ], 8);
-
-      const human = face.concat(humanFrame, torsoFlow);
-      return { face, human };
-    }
-
-    function nearestStructuredAttractor(type, x, y) {
-      const points = structuredAttractors[type] || [];
-      if (!points.length) return null;
-      let minDist = Infinity;
-      let nearest = points[0];
-      for (const point of points) {
-        const dx = point.x - x;
-        const dy = point.y - y;
-        const d = dx * dx + dy * dy;
-        if (d < minDist) {
-          minDist = d;
-          nearest = point;
-        }
-      }
-      return nearest;
-    }
-
-    class Particle {
-      constructor() {
-        this.reset();
-      }
-
-      reset() {
-        this.x = Math.random() * width;
-        this.y = Math.random() * height;
-        this.vx = (Math.random() - 0.5) * 0.9;
-        this.vy = (Math.random() - 0.5) * 0.9;
-        this.size = 0.8 + Math.random() * 1.8;
-        this.seed = Math.random();
-      }
-
-      update(t) {
-        const speed = 0.15 + fsm.energyLevel * 1.8;
-        const turbulence = fsm.turbulence * 1.2;
-
-        if (fsm.shape === 'vortex') {
-          const cx = width / 2;
-          const cy = height / 2;
-          const dx = this.x - cx;
-          const dy = this.y - cy;
-          const r = Math.max(24, Math.hypot(dx, dy));
-          this.vx += (-dy / r) * (0.17 + turbulence);
-          this.vy += (dx / r) * (0.17 + turbulence);
-        } else if (fsm.shape === 'sphere') {
-          const cx = width / 2;
-          const cy = height / 2;
-          this.vx += (cx - this.x) * 0.00045;
-          this.vy += (cy - this.y) * 0.00045;
-        } else if (fsm.shape === 'cube') {
-          this.vx += Math.sin(this.y * 0.03 + t * 0.001) * 0.02;
-          this.vy += Math.cos(this.x * 0.03 + t * 0.001) * 0.02;
-        } else if (fsm.shape === 'mountain') {
-          const targetX = (this.seed * width);
-          const peakY = height * (0.35 + Math.abs((this.seed - 0.5) * 0.9));
-          const slope = Math.abs((this.x - targetX) / (width * 0.35));
-          const targetY = clamp(peakY + slope * height * 0.5, height * 0.2, height * 0.92);
-          this.vx += (targetX - this.x) * 0.00035;
-          this.vy += (targetY - this.y) * 0.00055;
-        } else if (fsm.shape === 'river') {
-          const flowY = height * (0.5 + Math.sin((this.x / width) * 8 + t * 0.0013) * 0.2);
-          this.vx += 0.06 + turbulence * 0.1;
-          this.vy += (flowY - this.y) * 0.0012;
-        } else if (fsm.shape === 'face' || fsm.shape === 'human') {
-          const nearest = nearestStructuredAttractor(fsm.shape, this.x, this.y);
-          if (nearest) {
-            const pull = fsm.shape === 'human' ? 0.00052 : 0.0006;
-            this.vx += (nearest.x - this.x) * pull;
-            this.vy += (nearest.y - this.y) * pull;
-
-            const tangentMag = Math.max(0.001, Math.hypot(nearest.tx, nearest.ty));
-            const orbit = (fsm.shape === 'human' ? 0.03 : 0.038) + turbulence * 0.028;
-            this.vx += (nearest.tx / tangentMag) * orbit;
-            this.vy += (nearest.ty / tangentMag) * orbit;
-          }
-        } else {
-          this.vx += Math.sin(this.y * 0.009 + t * 0.001) * (0.03 + turbulence * 0.06);
-          this.vy += Math.cos(this.x * 0.009 + t * 0.001) * (0.03 + turbulence * 0.06);
+        function setUiMode(mode) {
+            uiMode = mode === 'studio' ? 'studio' : 'landing';
+            document.body.dataset.uiMode = uiMode;
+            if (uiMode === 'landing') {
+                document.getElementById('branch-panel').classList.add('opacity-0', 'pointer-events-none');
+            }
         }
 
-        if (mouse.active && fsm.state !== 'NIRODHA') {
-          const dx = mouse.x - this.x;
-          const dy = mouse.y - this.y;
-          const dist = Math.max(1, Math.hypot(dx, dy));
-          if (dist < 280) {
-            const force = ((280 - dist) / 280) * 0.45;
-            this.vx += (dx / dist) * force;
-            this.vy += (dy / dist) * force;
-            fsm.entropy = clamp(fsm.entropy + 0.03, 0, 100);
-          }
+        function openStudio(force = false) {
+            if (!force && !hasSubmittedIntent) return;
+            setUiMode('studio');
         }
 
-        this.vx *= 0.94;
-        this.vy *= 0.94;
-        this.x += this.vx * speed;
-        this.y += this.vy * speed;
-
-        if (this.x < 0) this.x = width;
-        if (this.x > width) this.x = 0;
-        if (this.y < 0) this.y = height;
-        if (this.y > height) this.y = 0;
-      }
-
-      draw() {
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fillStyle = palette[fsm.state] || palette.IDLE;
-        ctx.globalAlpha = fsm.state === 'NIRODHA' ? 0.28 : 0.45 + Math.sin(Date.now() * 0.006) * 0.15;
-        ctx.fill();
-      }
-    }
-
-    function clamp(value, min, max) {
-      return Math.max(min, Math.min(max, value));
-    }
-
-    function runSystemConsistencyCheck() {
-      fsm.energy = clamp(fsm.energy, 0, 100);
-      fsm.load = clamp(fsm.load, 0, 100);
-      fsm.entropy = clamp(fsm.entropy, 0, 100);
-      fsm.energyLevel = clamp(fsm.energyLevel, 0, 1);
-      fsm.turbulence = clamp(fsm.turbulence, 0.08, 0.95);
-      fsm.particleDensity = clamp(fsm.particleDensity, 0.2, 0.95);
-
-      if (fsm.state === 'CRITICAL' && fsm.energy > 32 && fsm.load < 52) {
-        fsm.state = 'RESONATING';
-      }
-
-      if (shadowMemory.deferred.length > PATALIMOKKHA_CODE.maxDeferredItems) {
-        shadowMemory.deferred.splice(0, shadowMemory.deferred.length - PATALIMOKKHA_CODE.maxDeferredItems);
-        shadowMemory.debrisCleanups += 1;
-      }
-    }
-
-    function harmonyCheck(transcript) {
-      const normalized = transcript.toLowerCase();
-      const toxicSignals = /(flood|spam|ddos|loop forever|noise burst)/.test(normalized);
-      const coherence = clamp((transcript.trim().length / 180) + (toxicSignals ? -0.6 : 0.4), 0, 1);
-      return { coherence, toxicSignals };
-    }
-
-    function evaluateCognitiveROI(intent) {
-      const intentWeight = metabolicWeights[intent.intent_category] ?? 0.55;
-      const loadPressure = (fsm.load / 100) * 0.8;
-      const entropyPressure = (fsm.entropy / 100) * 0.5;
-      const gain = (intent.energy_level * 0.7) + Math.max(0, intent.emotional_valence) * 0.3;
-      const cost = intentWeight + loadPressure + entropyPressure;
-      return Number((gain - cost).toFixed(2));
-    }
-
-    function ppalGateDecision(transcript, intent) {
-      const { coherence, toxicSignals } = harmonyCheck(transcript);
-      const roi = evaluateCognitiveROI(intent);
-
-      if (toxicSignals || coherence < 0.12) return { action: 'reject', coherence, roi };
-      if (fsm.load > PATALIMOKKHA_CODE.maxLoad || fsm.energy < PATALIMOKKHA_CODE.minEnergyForDeepReasoning) {
-        return { action: 'inhibit', coherence, roi };
-      }
-      if (fsm.entropy > PATALIMOKKHA_CODE.maxEntropyForAcceptance || roi < -0.25) {
-        return { action: 'defer', coherence, roi };
-      }
-      if (fsm.energy < 5) return { action: 'reboot', coherence, roi };
-      return { action: 'accept', coherence, roi };
-    }
-
-    function enqueueShadowMemory(packet) {
-      shadowMemory.deferred.push({
-        id: `defer-${Date.now()}`,
-        at: Date.now(),
-        packet
-      });
-      runSystemConsistencyCheck();
-    }
-
-    function consolidateShadowMemory() {
-      const now = performance.now();
-      if (shadowMemory.deferred.length === 0) return;
-      if (now - shadowMemory.lastDreamAt < 3500) return;
-      if (fsm.state !== 'IDLE' && fsm.state !== 'NIRODHA') return;
-
-      const revived = shadowMemory.deferred.shift();
-      shadowMemory.lastDreamAt = now;
-      if (revived) {
-        addBubble('system', `dream-cycle revived deferred signal (${shadowMemory.deferred.length} queued)`);
-      }
-    }
-
-    function softReboot() {
-      fsm.state = 'NIRODHA';
-      fsm.energy = Math.max(fsm.energy, 22);
-      fsm.load = clamp(fsm.load * 0.4, 0, 100);
-      fsm.entropy = clamp(fsm.entropy * 0.35, 0, 100);
-      shadowMemory.deferred = [];
-      addBubble('system', 'PPAL soft reboot executed to preserve thermal and cognitive integrity.');
-    }
-
-    function evolveState() {
-      if (drawSettings.frozen) {
-        fsm.state = 'NIRODHA';
-        return;
-      }
-
-      if (fsm.state === 'NIRODHA') {
-        fsm.energy = clamp(fsm.energy + 0.28, 0, 100);
-        fsm.load = clamp(fsm.load - 0.18, 0, 100);
-        fsm.entropy = clamp(fsm.entropy - 0.2, 0, 100);
-        if (fsm.energy > 96) fsm.state = 'IDLE';
-        return;
-      }
-
-      fsm.energy = clamp(fsm.energy - 0.045 - fsm.energyLevel * 0.03, 0, 100);
-      fsm.entropy = clamp(fsm.entropy * 0.996, 0, 100);
-      fsm.load = clamp(fsm.load * 0.994, 0, 100);
-
-      if (fsm.energy < 10 || fsm.load > 92) {
-        fsm.state = 'CRITICAL';
-      } else if (fsm.energy < 18) {
-        fsm.state = 'DECAY';
-      } else if (fsm.load > 65) {
-        fsm.state = 'RESONATING';
-      } else if (fsm.entropy > 45) {
-        fsm.state = 'PROCESSING';
-      } else {
-        fsm.state = 'IDLE';
-      }
-
-      if (fsm.energy <= 1) fsm.state = 'NIRODHA';
-      consolidateShadowMemory();
-      runSystemConsistencyCheck();
-    }
-
-
-    const voicePipeline = {
-      vad: null,
-      listening: false,
-      capturedFrames: 0,
-      startedAt: 0,
-      samples: [],
-      speechRecognition: null,
-      commandActive: false,
-      commandSupported: false
-    };
-
-    const drawSettings = {
-      penColor: '#ffffff',
-      softMode: false,
-      frozen: false
-    };
-
-    const timeline = [];
-
-    function triggerTouchFeedback(element) {
-      if (!element) return;
-      element.classList.remove('touch-pulse');
-      void element.offsetWidth;
-      element.classList.add('touch-pulse');
-      setTimeout(() => element.classList.remove('touch-pulse'), 180);
-    }
-
-    function setVoiceIndicator(mode, message) {
-      refs.voiceButton.classList.toggle('voice-active', mode === 'active');
-      refs.voiceButton.classList.toggle('voice-blocked', mode === 'blocked');
-      refs.voiceButton.setAttribute('aria-pressed', String(mode === 'active'));
-      refs.voiceStatus.textContent = `voice: ${message}`;
-    }
-
-    function markTimeline(action) {
-      timeline.push({ at: Date.now(), action });
-      if (timeline.length > 120) timeline.shift();
-    }
-
-    function setFreezeMode(nextFrozen) {
-      drawSettings.frozen = nextFrozen;
-      if (drawSettings.frozen) {
-        fsm.state = 'NIRODHA';
-        addBubble('system', 'freeze mode enabled');
-      } else {
-        fsm.state = 'IDLE';
-        addBubble('system', 'draw mode resumed');
-      }
-      markTimeline(drawSettings.frozen ? 'freeze' : 'draw');
-    }
-
-    function eraseAll() {
-      refs.chatStream.innerHTML = '';
-      refs.sources.textContent = 'sources: none';
-      refs.json.textContent = 'Intent vector will appear here...';
-      fsm.energy = 100;
-      fsm.entropy = 8;
-      fsm.load = 5;
-      fsm.state = 'IDLE';
-      addBubble('system', 'all traces cleared');
-      markTimeline('erase');
-    }
-
-    function revertLastAction() {
-      const latest = timeline.pop();
-      addBubble('system', latest ? `reverted: ${latest.action}` : 'no action to revert');
-    }
-
-    async function exportToPDF() {
-      const jsPDF = window.jspdf && window.jspdf.jsPDF;
-      if (!jsPDF) {
-        addBubble('system', 'pdf export unavailable (jsPDF not loaded)');
-        return;
-      }
-
-      const imageData = canvas.toDataURL('image/png');
-      const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
-      const w = doc.internal.pageSize.getWidth();
-      const h = doc.internal.pageSize.getHeight();
-      doc.setFillColor(5, 5, 8);
-      doc.rect(0, 0, w, h, 'F');
-      doc.addImage(imageData, 'PNG', 18, 18, w - 36, h - 36, undefined, 'FAST');
-
-      const blob = doc.output('blob');
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `aetherium-snapshot-${Date.now()}.pdf`;
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 100);
-      addBubble('system', 'snapshot exported to PDF');
-      markTimeline('save');
-    }
-
-    function setupVoiceCommands(commands) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        setVoiceIndicator('blocked', 'unsupported');
-        return;
-      }
-
-      const recognition = new SpeechRecognition();
-      recognition.lang = runtimeConfig.understandingLanguage === 'auto' ? 'en-US' : runtimeConfig.understandingLanguage;
-      recognition.continuous = true;
-      recognition.interimResults = false;
-
-      recognition.onresult = event => {
-        const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
-        addBubble('system', `voice command: ${transcript}`);
-        if (refs.voiceTelemetry.checked) telemetry.voiceCommands += 1;
-        commandBus.emit('voice:command', { transcript });
-        Object.entries(commands).forEach(([keyword, action]) => {
-          if (transcript.includes(keyword)) action();
-        });
-      };
-
-      recognition.onstart = () => {
-        voicePipeline.commandActive = true;
-        setVoiceIndicator('active', 'listening');
-      };
-
-      recognition.onend = () => {
-        if (voicePipeline.commandActive) {
-          recognition.start();
-          return;
+        function updateUxState(message, tone = 'normal') {
+            const el = document.getElementById('ux-state');
+            const toneClass = tone === 'error' ? 'text-red-300' : tone === 'warn' ? 'text-yellow-200' : 'text-white/60';
+            el.className = `mt-2 text-center text-xs ${toneClass}`;
+            el.textContent = message;
         }
-        setVoiceIndicator('idle', 'idle');
-      };
 
-      recognition.onerror = () => {
-        setVoiceIndicator('blocked', 'blocked');
-      };
-
-      voicePipeline.speechRecognition = recognition;
-      voicePipeline.commandSupported = true;
-      setVoiceIndicator('idle', 'ready');
-    }
-
-    function startVoiceSystem() {
-      if (!voicePipeline.commandSupported || !voicePipeline.speechRecognition) return;
-      try {
-        if (runtimeConfig.voiceMode === 'thai-fallback' && runtimeConfig.understandingLanguage === 'auto') {
-          voicePipeline.speechRecognition.lang = 'th-TH';
+        function logTerminal(message, level = 'info') {
+            const terminal = document.getElementById('terminal-logs');
+            const map = {
+                info: 'text-blue-200',
+                warn: 'text-yellow-300',
+                success: 'text-emerald-300',
+                system: 'text-purple-300',
+                error: 'text-red-300'
+            };
+            const row = document.createElement('div');
+            row.className = `${map[level] || map.info} mt-1`;
+            row.textContent = `> ${message}`;
+            terminal.appendChild(row);
+            terminal.scrollTop = terminal.scrollHeight;
         }
-        voicePipeline.commandActive = true;
-        voicePipeline.speechRecognition.start();
-      } catch (_) {
-        setVoiceIndicator('blocked', 'already on');
-      }
-    }
 
-    function stopVoiceSystem() {
-      if (!voicePipeline.speechRecognition) return;
-      voicePipeline.commandActive = false;
-      voicePipeline.speechRecognition.stop();
-      setVoiceIndicator('idle', 'idle');
-    }
-
-    const INTENT_TEMPLATES = Object.freeze({
-      request_creation: {
-        intent_category: 'request_creation',
-        emotional_valence: 0.6,
-        energy_level: 0.78,
-        semantic_concepts: ['creation', 'manifest', 'lightform']
-      },
-      analysis: {
-        intent_category: 'analysis',
-        emotional_valence: 0.15,
-        energy_level: 0.48,
-        semantic_concepts: ['analysis', 'structure', 'inference']
-      },
-      error_recovery: {
-        intent_category: 'error_recovery',
-        emotional_valence: -0.5,
-        energy_level: 0.64,
-        semantic_concepts: ['repair', 'stability', 'fallback']
-      }
-    });
-
-    function detectGraphicsTier() {
-      const cores = navigator.hardwareConcurrency || 4;
-      const memory = navigator.deviceMemory || 4;
-      const lowPower = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      if (lowPower || cores <= 4 || memory <= 4) return 'low';
-      if (cores >= 12 && memory >= 8) return 'high';
-      return 'medium';
-    }
-
-    function applyQualityTier(tier) {
-      fsm.qualityTier = tier;
-      if (tier === 'low') {
-        fsm.targetFps = 30;
-        fsm.particleDensity = Math.min(fsm.particleDensity, 0.5);
-      } else if (tier === 'high') {
-        fsm.targetFps = 60;
-      } else {
-        fsm.targetFps = 45;
-        fsm.particleDensity = Math.min(fsm.particleDensity, 0.75);
-      }
-    }
-
-    function setFrameRateActive(isActive) {
-      if (!isActive) {
-        fsm.targetFps = Math.min(fsm.targetFps, 24);
-      } else {
-        applyQualityTier(fsm.qualityTier);
-      }
-    }
-
-    async function transcribeAudio(audioBlob) {
-      const estimatedSeconds = Number(((audioBlob.size || 4096) / 32000).toFixed(2));
-      return `[mock-stt:${estimatedSeconds}s] build a calm and clear light-state`;
-    }
-
-    async function analyzeIntentWithLLM(transcript) {
-      const t = transcript.toLowerCase();
-      const template = /(error|fail|critical)/.test(t)
-        ? INTENT_TEMPLATES.error_recovery
-        : /(analy|summar|inspect|explain|data)/.test(t)
-          ? INTENT_TEMPLATES.analysis
-          : INTENT_TEMPLATES.request_creation;
-
-      const semantic = new Set(template.semantic_concepts);
-      if (/(water|river|sea|stream)/.test(t)) semantic.add('flow');
-      if (/(mountain)/.test(t)) semantic.add('mountain');
-      if (/(face|human)/.test(t)) semantic.add('human');
-
-      return {
-        ...template,
-        semantic_concepts: Array.from(semantic)
-      };
-    }
-
-    function mapIntentToVisual(intent) {
-      const concepts = intent.semantic_concepts || [];
-      let baseShape = 'sphere';
-      if (intent.intent_category === 'error_recovery') baseShape = 'cracks';
-      else if (concepts.includes('mountain')) baseShape = 'mountain';
-      else if (concepts.includes('flow')) baseShape = 'river';
-      else if (concepts.includes('human')) baseShape = 'human';
-
-      const warm = intent.emotional_valence >= 0 ? '#FFD166' : '#7FDBFF';
-
-      return {
-        intent_category: intent.intent_category,
-        emotional_valence: intent.emotional_valence,
-        energy_level: intent.energy_level,
-        semantic_concepts: concepts,
-        visual_parameters: {
-          base_shape: baseShape,
-          color_palette: warm,
-          particle_density: Number(clamp(0.32 + intent.energy_level * 0.6, 0.2, 0.95).toFixed(2)),
-          turbulence: Number(clamp(0.12 + intent.energy_level * 0.7, 0.08, 0.95).toFixed(2)),
-          flow_direction: intent.emotional_valence >= 0 ? 'upward' : 'inward'
+        function syncStateChips(active) {
+            document.querySelectorAll('.state-chip').forEach((chip) => {
+                chip.classList.toggle('active', chip.dataset.state === active);
+            });
         }
-      };
-    }
 
-    function initializeVoiceSystem(onSpeechEnd) {
-      return {
-        start() {
-          voicePipeline.listening = true;
-          voicePipeline.startedAt = performance.now();
-          voicePipeline.capturedFrames = 0;
-          setVoiceIndicator('active', 'capturing');
-          addBubble('system', 'voice listening started (VAD mock)');
-        },
-        stop() {
-          if (!voicePipeline.listening) return;
-          voicePipeline.listening = false;
-          setVoiceIndicator(voicePipeline.commandActive ? 'active' : 'idle', voicePipeline.commandActive ? 'listening' : 'idle');
-          const elapsed = Math.max(600, performance.now() - voicePipeline.startedAt);
-          const byteSize = Math.round((elapsed / 1000) * 32000);
-          const payload = new Blob([new Uint8Array(byteSize)], { type: 'audio/wav' });
-          onSpeechEnd(payload);
+        function setRuntimeState(next) {
+            runtimeState = next;
+            document.getElementById('sys-state').textContent = next;
         }
-      };
-    }
 
-    async function processTranscript(transcript, source = 'text') {
-      const references = await fetchReferenceSignals(transcript);
-      fsm.sourceHints = references;
-      refs.sources.textContent = references.length
-        ? `sources: ${references.join(' | ')}`
-        : 'sources: none (offline/no match)';
+        function setFlowState(next) {
+            flowState = next;
+            syncStateChips(next);
+        }
 
-      const baseIntent = await analyzeIntentWithLLM(`${transcript} ${references.join(' ')}`.trim());
-      const vector = mapIntentToVisual(baseIntent);
-      const gate = ppalGateDecision(transcript, vector);
-      refs.gateChip.textContent = `gate: ${gate.action} (roi=${gate.roi})`;
+        function setRoute(next) {
+            route = next;
+            document.getElementById('sys-route').textContent = next;
+            document.querySelectorAll('.quick-chip').forEach((chip) => {
+                chip.classList.toggle('active', chip.dataset.mode === next);
+            });
+        }
 
-      if (gate.action === 'reject') {
-        addBubble('system', `[${source}] discarded via harmony check (coherence=${gate.coherence.toFixed(2)})`);
-        return;
-      }
+        function setGovernor(text) {
+            document.getElementById('sys-gov').textContent = text;
+        }
 
-      if (gate.action === 'defer') {
-        enqueueShadowMemory({ transcript, source, references, vector, gate });
-        addBubble('system', `[${source}] deferred to shadow memory (${shadowMemory.deferred.length} pending)`);
-        return;
-      }
+        function enterListening() {
+            if (isProcessing || flowState === 'LISTENING') return;
+            setFlowState('LISTENING');
+            logTerminal('[LIGHT] Intake active: signal becoming intent.', 'info');
+        }
 
-      if (gate.action === 'inhibit') {
-        fsm.state = 'NIRODHA';
-        addBubble('system', `[${source}] inhibited by Patimokkha policy (load=${Math.round(fsm.load)} energy=${Math.round(fsm.energy)})`);
-        return;
-      }
+        function handleKeyDown(event) {
+            if (event.key === 'Enter') emitIntent();
+        }
 
-      if (gate.action === 'reboot') {
-        softReboot();
-        return;
-      }
+        function toggleVoice() {
+            voiceActive = !voiceActive;
+            const btn = document.getElementById('voice-btn');
+            const input = document.getElementById('intent-input');
+            btn.classList.toggle('voice-active', voiceActive);
+            input.placeholder = voiceActive ? 'กำลังฟังเสียง... พูดเพื่อส่งเจตนา' : 'พิมพ์สิ่งที่ต้องการ...';
+            logTerminal(voiceActive ? '[VOICE] Input stream connected.' : '[VOICE] Input stream closed.', 'system');
+        }
 
-      applyIntent(vector);
-      addBubble('system', `[${source}] intent=${vector.intent_category}, form=${vector.visual_parameters.base_shape}, refs=${references.length}`);
-    }
+        function triggerAttach() {
+            const preview = document.getElementById('attachment-preview');
+            const item = document.createElement('div');
+            item.className = 'glass-panel rounded-full px-3 py-1 text-xs text-blue-100 border border-blue-200/20';
+            item.innerHTML = '<i class="fas fa-file-circle-plus mr-1"></i> style_ref.pdf <button aria-label="Remove attachment" class="ml-2 text-white/80 hover:text-white" onclick="this.parentElement.remove()"><i class="fas fa-xmark"></i></button>';
+            preview.appendChild(item);
+            logTerminal('[ATTACH] Reference file added to intent envelope.', 'info');
+        }
 
-    function inferIntentVector(text) {
-      const t = text.toLowerCase();
-      let intentCategory = 'chat';
-      if (/^(run|execute|deploy|start|stop)/.test(t)) intentCategory = 'command';
-      if (/(summary|explain|what|find|search|data|request|help)/.test(t)) intentCategory = 'request';
-      if (/(error|fail|broken)/.test(t)) intentCategory = 'error';
-
-      let emotionalValence = 0;
-      if (/(great|awesome|thanks)/.test(t)) emotionalValence = 0.65;
-      if (/(angry|sad|confused|tired)/.test(t)) emotionalValence = -0.65;
-
-      const urgent = /(urgent|now|asap|immediately|fast)/.test(t);
-      const energyLevel = clamp((text.length / 120) + (urgent ? 0.36 : 0.08), 0, 1);
-
-      const concepts = [];
-      if (/(fire|heat|hot|critical)/.test(t)) concepts.push('fire');
-      if (/(flow|water|stream)/.test(t)) concepts.push('flow');
-      if (/(structure|table|schema|json|order)/.test(t)) concepts.push('structure');
-      if (/(mountain|hill)/.test(t)) concepts.push('mountain');
-      if (/(river|waterfall)/.test(t)) concepts.push('river');
-      if (/(human|body)/.test(t)) concepts.push('human');
-      if (/(face|portrait)/.test(t)) concepts.push('face');
-      if (concepts.length === 0) concepts.push('balance');
-
-      let baseShape = 'sphere';
-      if (intentCategory === 'error') baseShape = 'cracks';
-      else if (concepts.includes('mountain')) baseShape = 'mountain';
-      else if (concepts.includes('river')) baseShape = 'river';
-      else if (concepts.includes('face')) baseShape = 'face';
-      else if (concepts.includes('human')) baseShape = 'human';
-      else if (concepts.includes('flow')) baseShape = 'vortex';
-      else if (concepts.includes('structure')) baseShape = 'cube';
-      else if (energyLevel < 0.25) baseShape = 'cloud';
-
-      return {
-        intent_category: intentCategory,
-        emotional_valence: Number(emotionalValence.toFixed(2)),
-        energy_level: Number(energyLevel.toFixed(2)),
-        semantic_concepts: concepts,
-        visual_parameters: {
-          base_shape: baseShape,
-          turbulence: Number(clamp(0.1 + energyLevel * 0.8, 0, 1).toFixed(2)),
-          particle_density: Number(clamp(0.35 + energyLevel * 0.55, 0, 1).toFixed(2))
+        function inferRoute(intent) {
+            const lower = intent.toLowerCase();
+            if (/ค้นหา|search|อ้างอิง|reference|scholar/.test(lower)) return 'search';
+            if (/วิดีโอ|video|motion|flow/.test(lower)) return 'video';
+            if (/ภาพ|image|poster|visual|ui/.test(lower)) return 'image';
+            return route || 'pure_light';
         }
       };
     }
@@ -1846,246 +1095,392 @@
           p.update(t);
           p.draw();
         }
-      } else if (t - compatLastFrameAt > 500) {
-        renderCompatFrame();
-        compatLastFrameAt = t;
-      }
 
-      ctx.globalAlpha = 1;
-      renderHUD();
-      requestAnimationFrame(tick);
-    }
+        async function requestVariationSet(intent, mode) {
+            const payload = {
+                goal_type: mapGoalType(mode),
+                brand_profile: { palette_lock: mode === 'image' },
+                safety_profile: { strict_mode: mode === 'video', max_branches: mode === 'search' ? 4 : 6 },
+                lineage: { active_context_id: branchContext, intent },
+            };
+            try {
+                const response = await fetch('/api/v1/cognitive/variations/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': 'dev-local-key',
+                    },
+                    body: JSON.stringify(payload),
+                });
+                if (!response.ok) throw new Error(`variation endpoint ${response.status}`);
+                const body = await response.json();
+                return body.data;
+            } catch (error) {
+                logTerminal(`[BRANCH] Variation API unavailable (${error.message}), fallback local set.`, 'warn');
+                const fallback = ['CALM', 'CINEMATIC', 'MINIMAL', 'SACRED'];
+                return {
+                    set_id: `local_${Date.now()}`,
+                    parent_id: branchContext,
+                    variations: fallback.map((preset, idx) => ({
+                        variation_id: `local_${branchContext}_${idx + 1}`,
+                        parent_id: branchContext,
+                        preset,
+                        constraints_delta: { fallback: true },
+                    })),
+                };
+            }
+        }
 
-    window.addEventListener('resize', resize);
-    window.addEventListener('mousemove', e => {
-      mouse.active = true;
-      mouse.x = e.clientX;
-      mouse.y = e.clientY;
-      fsm.energy = clamp(fsm.energy - 0.02, 0, 100);
-      fsm.entropy = clamp(fsm.entropy + 0.03, 0, 100);
-    });
+        function renderBranchPanel(variationSet) {
+            variationSets.push(variationSet);
+            variationSet.variations.forEach((variation) => { variationRegistry[variation.variation_id] = variation; });
 
-    document.getElementById('send-btn').addEventListener('click', async () => {
-      const input = document.getElementById('intent-input');
-      const text = input.value.trim();
-      if (!text) return;
-      await processUserInput(text);
-      input.value = '';
-    });
+            const branchPanel = document.getElementById('branch-panel');
+            const buttons = document.getElementById('branch-buttons');
+            buttons.innerHTML = '';
+            variationSet.variations.forEach((variation) => {
+                const button = document.createElement('button');
+                button.className = 'branch-btn rounded-xl px-3 py-3 font-mono text-xs text-blue-100 text-left';
+                button.onclick = () => selectBranch(variation.variation_id);
+                button.innerHTML = `
+                    <div class="font-bold">${variation.preset}</div>
+                    <div class="text-[10px] text-white/70 mt-1">${variation.variation_id}</div>
+                    <div class="text-[10px] text-white/55 mt-1">Δ ${Object.keys(variation.constraints_delta || {}).join(', ') || 'none'}</div>
+                `;
+                buttons.appendChild(button);
+            });
 
-    document.getElementById('intent-input').addEventListener('keydown', e => {
-      if (e.key === 'Enter') document.getElementById('send-btn').click();
-    });
+            if (uiMode === 'studio') {
+                branchPanel.classList.remove('opacity-0', 'pointer-events-none');
+            }
+            logTerminal(`[BRANCH] Generated ${variationSet.variations.length} branches from ${variationSet.parent_id}.`, 'system');
+        }
 
+        function setStarterPrompt(intent) {
+            const input = document.getElementById('intent-input');
+            input.value = intent;
+            input.focus();
+            updateUxState('พร้อมแล้ว กด Create เพื่อ manifest intent นี้');
+        }
 
+        function emitIntent() {
+            if (isProcessing) return;
+            const input = document.getElementById('intent-input');
+            const intent = input.value.trim() || (voiceActive ? 'voice intent' : '');
+            if (!intent) {
+                updateUxState('พิมพ์ intent ก่อนเริ่มใช้งาน', 'warn');
+                return;
+            }
 
-    async function flushTelemetryToTimeSeries() {
-      const points = telemetry.events.slice(-40).map(event => ({
-        metric: 'ux_event_latency',
-        value: 1,
-        tags: { event: event.eventName, lang: runtimeConfig.displayLanguage }
-      }));
-      if (!points.length) return;
-      try {
-        await fetch(`${runtimeConfig.gatewayBaseUrl}/api/v1/telemetry/ingest`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-API-Key': 'demo-key' },
-          body: JSON.stringify({ points })
+            hasSubmittedIntent = true;
+            isProcessing = true;
+            setUiMode('studio');
+            setRuntimeState('EVALUATING');
+            setFlowState('INTERPRETING');
+            const mode = inferRoute(intent);
+            setRoute(mode);
+            setGovernor('proposed');
+
+            logTerminal(`[INTENT] ${intent}`);
+            logTerminal('[CONTRACT] Contract Proposed -> ai_particle_control_contract_v1', 'system');
+            logTerminal('[GOVERNOR] Analyzing...', 'warn');
+            updateUxState('Intent submitted — runtime กำลังแปลงสู่แสง');
+
+            input.value = '';
+            if (voiceActive) toggleVoice();
+
+            setTimeout(() => {
+                setFlowState('PROPOSING');
+                setGovernor('verified');
+                logTerminal('[GOVERNOR] Approved. Manifest rights granted.', 'success');
+                runManifest(intent, mode);
+            }, 950);
+        }
+
+        async function runManifest(intent, mode) {
+            setRuntimeState(mode === 'video' ? 'STREAMING' : mode === 'search' ? 'SEARCHING' : 'MANIFESTING');
+            setFlowState('CONVERGING');
+            createLineageNode(intent, mode);
+            const variationSet = await requestVariationSet(intent, mode);
+            renderBranchPanel(variationSet);
+
+            if (mode === 'search') {
+                renderScholar(intent);
+            } else {
+                document.getElementById('scholar-panel').classList.add('hidden');
+            }
+
+            setTimeout(() => {
+                setFlowState('MANIFESTING');
+                document.getElementById('manifestation-overlay').style.opacity = '1';
+                logTerminal(`[MANIFEST] ${mode} materializing on light surface.`, 'success');
+                updateUxState('Manifest complete. คุณสามารถ refine ต่อได้ใน Studio');
+                isProcessing = false;
+            }, 1000);
+        }
+
+        function renderScholar(intent) {
+            const panel = document.getElementById('scholar-panel');
+            const content = document.getElementById('scholar-content');
+            panel.classList.remove('hidden');
+            content.innerHTML = `
+                <div class="text-white">Query: ${intent}</div>
+                <div>• Source path: Scholar Agent → Google Search connector (simulated)</div>
+                <div>• Governor citation gate: PASS</div>
+                <div class="text-fuchsia-100/80">สรุป: intent ถูกแยกเป็นเส้นทางค้นหา และไม่รบกวนเส้นทาง image/video manifest</div>
+            `;
+            logTerminal('[SCHOLAR] Search branch opened in side panel.', 'system');
+        }
+
+        function createLineageNode(intent, mode) {
+            lineageCounter += 1;
+            const id = `n${lineageCounter}`;
+            nodes.push({ id, label: intent, mode, parent: branchContext, deleted: false, manifest_context: branchContext });
+            branchContext = id;
+            renderLineage();
+        }
+
+        function renderLineage() {
+            const lineup = document.getElementById('lineage-container');
+            lineup.innerHTML = '';
+            const alive = nodes.filter((n) => !n.deleted);
+            if (!alive.length) {
+                lineup.innerHTML = '<div class="text-xs text-white/55">ยังไม่มี lineage node</div>';
+                return;
+            }
+
+            alive.forEach((node) => {
+                const row = document.createElement('div');
+                row.className = 'lineage-node flex items-center gap-2 rounded-lg border border-white/10 px-2 py-1.5 bg-black/20';
+                row.innerHTML = `
+                    <button aria-label="Time shift to ${node.id}" class="w-6 h-6 rounded-full border border-blue-300/40 text-[10px]" onclick="timeShift('${node.id}')"><i class="fas fa-circle-dot"></i></button>
+                    <div class="text-xs text-white/80 truncate flex-1">${node.id === 'genesis' ? 'Genesis Root' : `${node.label.slice(0, 35)} (${node.mode})`}</div>
+                    ${node.id === 'genesis' ? '' : `<button aria-label="Delete node ${node.id}" class="text-white/40 hover:text-red-300" onclick="deleteNode('${node.id}')"><i class='fas fa-trash'></i></button>`}
+                `;
+                lineup.appendChild(row);
+            });
+            document.getElementById('lineage-count').textContent = `${alive.length} node${alive.length > 1 ? 's' : ''}`;
+        }
+
+        function timeShift(id) {
+            branchContext = id;
+            setFlowState('REFINING');
+            setRuntimeState('MANIFESTING');
+            logTerminal(`[LINEAGE] Time-shifting to ${id}. Ready to branch again.`, 'system');
+        }
+
+        function deleteNode(id) {
+            const node = nodes.find((n) => n.id === id);
+            if (!node) return;
+            node.deleted = true;
+            if (branchContext === id) branchContext = node.parent || 'genesis';
+            logTerminal(`[LINEAGE] Branch ${id} pruned from design tree.`, 'warn');
+            renderLineage();
+        }
+
+        function selectBranch(variationId) {
+            const selected = variationRegistry[variationId];
+            if (!selected) return;
+            branchContext = selected.variation_id;
+            document.getElementById('branch-panel').classList.add('opacity-0', 'pointer-events-none');
+            setFlowState('REFINING');
+            logTerminal(`[BRANCH] Selected ${selected.preset} (${selected.variation_id}), context anchored to parent ${selected.parent_id}.`, 'success');
+        }
+
+        function exportManifest() {
+            const payload = {
+                exported_at: new Date().toISOString(),
+                replay_context: branchContext,
+                lineage_nodes: nodes,
+                variation_sets: variationSets,
+            };
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = `aetherium_manifest_${Date.now()}.json`;
+            anchor.click();
+            URL.revokeObjectURL(url);
+            logTerminal(`[EXPORT] Manifest exported with replay context ${branchContext}.`, 'system');
+        }
+
+        function updateTargetsByState(nowSeconds) {
+            const color = STATE_COLORS[flowState] || STATE_COLORS.IDLE;
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                if (flowState === 'INTERPRETING' || runtimeState === 'EVALUATING') {
+                    const r = Math.random() * 4;
+                    const t = Math.random() * Math.PI * 2;
+                    const p = Math.acos(2 * Math.random() - 1);
+                    targets[i3] = r * Math.sin(p) * Math.cos(t);
+                    targets[i3 + 1] = r * Math.sin(p) * Math.sin(t);
+                    targets[i3 + 2] = r * Math.cos(p);
+                } else if (flowState === 'CONVERGING') {
+                    const cluster = i % 4;
+                    const dx = (cluster - 1.5) * 6;
+                    targets[i3] = dx + (Math.random() - 0.5) * 2;
+                    targets[i3 + 1] = (Math.random() - 0.5) * 3;
+                    targets[i3 + 2] = (Math.random() - 0.5) * 3;
+                } else if (runtimeState === 'STREAMING') {
+                    targets[i3] = Math.sin((i / particleCount) * Math.PI * 12 + nowSeconds * 1.7) * 8;
+                    targets[i3 + 1] = ((i / particleCount) * 22) - 11;
+                    targets[i3 + 2] = Math.cos((i / particleCount) * Math.PI * 12 + nowSeconds * 1.7) * 8;
+                } else if (runtimeState === 'SEARCHING') {
+                    const ring = 11;
+                    const a = (i / particleCount) * Math.PI * 2;
+                    targets[i3] = Math.cos(a) * ring;
+                    targets[i3 + 1] = Math.sin(a) * ring;
+                    targets[i3 + 2] = Math.sin(a * 8) * 0.8;
+                } else if (runtimeState === 'MANIFESTING') {
+                    targets[i3] = (Math.random() - 0.5) * 18;
+                    targets[i3 + 1] = (Math.random() - 0.5) * 10;
+                    targets[i3 + 2] = (Math.random() - 0.5) * 1.5;
+                } else {
+                    targets[i3] = (Math.random() - 0.5) * 48;
+                    targets[i3 + 1] = (Math.random() - 0.5) * 48;
+                    targets[i3 + 2] = (Math.random() - 0.5) * 48;
+                }
+
+                colors[i3] += (color[0] - colors[i3]) * 0.03;
+                colors[i3 + 1] += (color[1] - colors[i3 + 1]) * 0.03;
+                colors[i3 + 2] += (color[2] - colors[i3 + 2]) * 0.03;
+            }
+        }
+
+        function animate(timestamp) {
+            requestAnimationFrame(animate);
+            const nowSeconds = timestamp * 0.001;
+            const dt = lastFrameTime === null ? 0.016 : Math.min((timestamp - lastFrameTime) / 1000, 0.05);
+            lastFrameTime = timestamp;
+
+            updateTargetsByState(nowSeconds);
+            const pos = geometry.attributes.position.array;
+            const blend = Math.min(dt * 2.2, 0.07);
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                pos[i3] += (targets[i3] - pos[i3]) * blend;
+                pos[i3 + 1] += (targets[i3 + 1] - pos[i3 + 1]) * blend;
+                pos[i3 + 2] += (targets[i3 + 2] - pos[i3 + 2]) * blend;
+            }
+            points.rotation.y += dt * 0.08;
+            geometry.attributes.position.needsUpdate = true;
+            geometry.attributes.color.needsUpdate = true;
+            renderer.render(scene, camera);
+        }
+
+        async function checkApiStatus() {
+            try {
+                const res = await fetch('/health');
+                apiStatus = res.ok ? 'online' : 'degraded';
+            } catch (error) {
+                apiStatus = navigator.onLine ? 'offline' : 'network_offline';
+            }
+            updateConnectionUI();
+        }
+
+        function connectWsStatus() {
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+            const wsUrl = `${wsProtocol}://${window.location.host}/ws/cognitive-stream`;
+            try {
+                wsClient = new WebSocket(wsUrl);
+                wsStatus = 'connecting';
+                wsClient.onopen = () => { wsStatus = 'online'; updateConnectionUI(); };
+                wsClient.onerror = () => { wsStatus = 'error'; updateConnectionUI(); };
+                wsClient.onclose = () => { wsStatus = 'offline'; updateConnectionUI(); };
+            } catch (error) {
+                wsStatus = 'offline';
+                updateConnectionUI();
+            }
+            updateConnectionUI();
+        }
+
+        function updateConnectionUI() {
+            const landingStatus = document.getElementById('landing-status');
+            const banner = document.getElementById('connection-banner');
+            const apiDot = apiStatus === 'online' ? 'ok' : (apiStatus === 'unknown' ? 'warn' : 'err');
+            const wsDot = wsStatus === 'online' ? 'ok' : (wsStatus === 'connecting' || wsStatus === 'unknown' ? 'warn' : 'err');
+            landingStatus.innerHTML = `
+                <span><span class="status-dot ${apiDot}"></span>API: ${apiStatus}</span>
+                <span><span class="status-dot ${wsDot}"></span>WS: ${wsStatus}</span>
+                <span><span class="status-dot ok"></span>Quality: ${qualityTier} (${particleCount.toLocaleString()} particles)</span>
+            `;
+
+            if (!navigator.onLine) {
+                banner.textContent = 'Offline mode: ทำงานบน local fallback และ cache เท่านั้น';
+                banner.className = 'rounded-lg border border-red-300/35 bg-red-500/10 px-2.5 py-2 text-xs text-red-200';
+                updateUxState('คุณออฟไลน์อยู่ ผลลัพธ์บางอย่างจะ fallback', 'error');
+                return;
+            }
+
+            if (apiStatus !== 'online' || (wsStatus !== 'online' && wsStatus !== 'connecting')) {
+                banner.textContent = 'Connection degraded: runtime จะใช้ fallback/จำลองในบางเส้นทาง';
+                banner.className = 'rounded-lg border border-yellow-300/35 bg-yellow-500/10 px-2.5 py-2 text-xs text-yellow-100';
+                return;
+            }
+
+            banner.textContent = 'All systems ready: API + WS available';
+            banner.className = 'rounded-lg border border-emerald-300/35 bg-emerald-500/10 px-2.5 py-2 text-xs text-emerald-100';
+        }
+
+        function initStarterPrompts() {
+            const host = document.getElementById('starter-prompts');
+            host.innerHTML = '';
+            STARTER_PROMPTS.forEach((item) => {
+                const button = document.createElement('button');
+                button.className = 'text-left rounded-xl border border-white/15 bg-black/25 hover:bg-white/10 px-4 py-3';
+                button.innerHTML = `<div class="text-blue-100 font-semibold">${item.label}</div><div class="text-white/60 text-xs mt-1 truncate">${item.intent}</div>`;
+                button.onclick = () => setStarterPrompt(item.intent);
+                host.appendChild(button);
+            });
+        }
+
+        function initQuickModes() {
+            const host = document.getElementById('quick-modes');
+            host.innerHTML = '';
+            QUICK_MODES.forEach((item) => {
+                const btn = document.createElement('button');
+                btn.className = 'quick-chip rounded-full border border-white/20 text-xs text-white/75 px-3 py-1.5 hover:border-blue-200/55';
+                btn.dataset.mode = item.key;
+                btn.textContent = item.text;
+                btn.onclick = () => {
+                    setRoute(item.key);
+                    updateUxState(`Quick mode set: ${item.text}`);
+                };
+                host.appendChild(btn);
+            });
+            setRoute(route);
+        }
+
+        function registerServiceWorker() {
+            if (!('serviceWorker' in navigator)) return;
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(() => logTerminal('[PWA] service-worker.js registered.', 'system'))
+                    .catch((error) => logTerminal(`[PWA] service-worker registration failed: ${error.message}`, 'warn'));
+            });
+        }
+
+        window.addEventListener('offline', updateConnectionUI);
+        window.addEventListener('online', () => { checkApiStatus(); connectWsStatus(); });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
         });
-      } catch (error) {
-        addBubble('system', `telemetry store skipped: ${error.message}`);
-      }
-    }
 
-    let stateSyncSocket = null;
-    function initStateSync() {
-      const session = `u-${Math.random().toString(16).slice(2, 9)}`;
-      const wsUrl = runtimeConfig.gatewayBaseUrl.replace('http', 'ws') + `/ws/state-sync/manifest-room?user_id=${session}`;
-      try {
-        stateSyncSocket = new WebSocket(wsUrl);
-        stateSyncSocket.addEventListener('message', event => {
-          const payload = JSON.parse(event.data);
-          if (payload.type === 'state_updated' || payload.type === 'state_snapshot') {
-            applyDeltaState(fsm, payload.shared_state || {});
-          }
-        });
-      } catch (error) {
-        addBubble('system', `state sync offline: ${error.message}`);
-      }
-    }
-
-    function syncStatePatch(delta, userDelta = {}) {
-      if (!stateSyncSocket || stateSyncSocket.readyState !== WebSocket.OPEN) return;
-      stateSyncSocket.send(JSON.stringify({ type: 'patch_state', delta, user_delta: userDelta }));
-    }
-
-    async function refreshVoiceModel() {
-      const lang = runtimeConfig.understandingLanguage === 'auto' ? runtimeConfig.displayLanguage : runtimeConfig.understandingLanguage;
-      const url = `${runtimeConfig.gatewayBaseUrl}/api/v1/voice/model?language=${encodeURIComponent(lang)}&region=${encodeURIComponent(runtimeConfig.voiceRegion)}`;
-      try {
-        const response = await fetch(url);
-        const payload = await response.json();
-        addBubble('system', `${t('voice_model', 'voice model')}: ${payload.model}`);
-      } catch (error) {
-        addBubble('system', `voice model resolve failed: ${error.message}`);
-      }
-    }
-
-    addPanelChrome();
-    initializeSettingTabs();
-
-    refs.settingsToggle.addEventListener('click', () => {
-      const isOpen = document.body.classList.toggle('ui-open');
-      setPanelVisibility('settings', isOpen);
-    });
-
-    displayButtons.forEach(btn => {
-      btn.addEventListener('click', () => setDisplayPage(btn.dataset.page));
-    });
-
-    refs.panelToggles.forEach(toggle => {
-      toggle.addEventListener('change', () => {
-        setPanelVisibility(toggle.dataset.target, toggle.checked);
-      });
-    });
-
-    refs.displayLanguage.addEventListener('change', async event => {
-      await translateUi(event.target.value);
-      await refreshVoiceModel();
-    });
-
-    refs.understandingLanguage.addEventListener('change', async event => {
-      runtimeConfig.understandingLanguage = event.target.value;
-      commandBus.emit('voice:language', { value: event.target.value });
-      await refreshVoiceModel();
-    });
-
-    refs.voiceMode.addEventListener('change', event => {
-      runtimeConfig.voiceMode = event.target.value;
-      commandBus.emit('voice:mode', { value: event.target.value });
-      syncStatePatch({ voiceMode: event.target.value });
-    });
-
-    refs.voiceRegion.addEventListener('change', async event => {
-      runtimeConfig.voiceRegion = event.target.value;
-      await refreshVoiceModel();
-    });
-
-    refs.analyzeUrlBtn.addEventListener('click', async () => {
-      const url = refs.externalUrl.value.trim();
-      if (!url) return;
-      await analyzeExternalUrl(url);
-    });
-
-    document.getElementById('toggle-box-1').addEventListener('click', () => toggleMiniBox(1));
-    document.getElementById('toggle-box-2').addEventListener('click', () => toggleMiniBox(2));
-    document.getElementById('toggle-box-3').addEventListener('click', () => toggleMiniBox(3));
-
-    const voiceSystem = initializeVoiceSystem(async (audioBlob) => {
-      fsm.state = 'PROCESSING';
-      const transcript = await transcribeAudio(audioBlob);
-      addBubble('user', transcript);
-      await processTranscript(transcript, 'voice');
-    });
-
-    setupVoiceCommands({
-      white: () => { drawSettings.penColor = '#ffffff'; addBubble('system', 'pen color: white'); markTimeline('white'); },
-      black: () => { drawSettings.penColor = '#000000'; addBubble('system', 'pen color: black'); markTimeline('black'); },
-      freeze: () => setFreezeMode(true),
-      soft: () => { drawSettings.softMode = true; addBubble('system', 'soft draw enabled'); markTimeline('soft'); },
-      save: () => { exportToPDF(); },
-      etc: () => eraseAll(),
-      erase: () => eraseAll(),
-      rev: () => revertLastAction(),
-      draw: () => setFreezeMode(false)
-    });
-
-    refs.voiceButton.addEventListener('click', () => {
-      triggerTouchFeedback(refs.voiceButton);
-      if (!voicePipeline.commandActive) {
-        startVoiceSystem();
-      } else {
-        stopVoiceSystem();
-      }
-
-      if (voicePipeline.listening) {
-        voiceSystem.stop();
-      } else {
-        voiceSystem.start();
-      }
-    });
-
-    refs.chatToggle.addEventListener('click', () => {
-      document.body.classList.toggle('chat-open');
-    });
-
-    document.getElementById('nirodha-btn').addEventListener('click', () => {
-      setFreezeMode(true);
-      fsm.shape = 'cloud';
-      fsm.intentCategory = 'maintenance';
-      fsm.energyLevel = 0.05;
-      fsm.turbulence = 0.08;
-      refs.json.textContent = JSON.stringify({
-        intent_category: 'maintenance',
-        emotional_valence: 0,
-        energy_level: 0.05,
-        semantic_concepts: ['calm', 'potentiality'],
-        visual_parameters: { base_shape: 'cloud', turbulence: 0.08, particle_density: 0.38 }
-      }, null, 2);
-    });
-
-    document.getElementById('freeze-btn').addEventListener('click', () => {
-      triggerTouchFeedback(document.getElementById('freeze-btn'));
-      setFreezeMode(true);
-    });
-
-    document.getElementById('draw-btn').addEventListener('click', () => {
-      triggerTouchFeedback(document.getElementById('draw-btn'));
-      setFreezeMode(false);
-      drawSettings.softMode = false;
-    });
-
-    document.getElementById('save-btn').addEventListener('click', () => {
-      triggerTouchFeedback(document.getElementById('save-btn'));
-      exportToPDF();
-    });
-
-    document.getElementById('erase-btn').addEventListener('click', () => {
-      triggerTouchFeedback(document.getElementById('erase-btn'));
-      eraseAll();
-    });
-
-    document.querySelectorAll('.btn').forEach(btn => {
-      btn.addEventListener('pointerdown', () => triggerTouchFeedback(btn));
-    });
-
-    document.addEventListener('visibilitychange', () => {
-      setFrameRateActive(!document.hidden);
-    });
-
-    document.body.classList.remove('ui-open');
-    document.body.classList.remove('chat-open');
-    document.body.classList.remove('display-page-2');
-    resize();
-    detectCompatibilityMode();
-    applyQualityTier(detectGraphicsTier());
-    particles = Array.from({ length: 560 }, () => new Particle());
-    renderCompatFrame();
-    renderBlueprintLock();
-    renderHUD();
-    translateUi(runtimeConfig.displayLanguage);
-    refreshVoiceModel();
-    initStateSync();
-    setInterval(flushTelemetryToTimeSeries, 15000);
-    requestAnimationFrame(tick);
-
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./service-worker.js').catch(() => {
-          addBubble('system', 'service worker unavailable; fallback realtime-only mode.');
-        });
-      });
-    }
-  </script>
+        initStarterPrompts();
+        initQuickModes();
+        renderLineage();
+        setUiMode('landing');
+        setFlowState('NIRODHA');
+        setRuntimeState('IDLE');
+        updateUxState('เริ่มได้ทันทีด้วย starter prompt หรือพิมพ์ intent ของคุณ');
+        logTerminal('System initialized. Intent -> Governor -> Manifest pipeline ready.', 'success');
+        checkApiStatus();
+        connectWsStatus();
+        registerServiceWorker();
+        animate(0);
+    </script>
 </body>
 </html>
