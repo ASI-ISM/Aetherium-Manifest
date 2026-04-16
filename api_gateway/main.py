@@ -362,7 +362,7 @@ async def request_export(
     }
     EXPORT_AUDIT_TRAIL.appendleft(audit_record)
     return {
-        "status": "queued",
+        "status": "recorded",
         "data": audit_record,
         "export_history_size": len(EXPORT_AUDIT_TRAIL),
     }
