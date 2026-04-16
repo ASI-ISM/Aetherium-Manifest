@@ -1,0 +1,177 @@
+:root {
+  color-scheme: dark;
+  --bg: #04050a;
+  --ink: #f4fbff;
+  --line: rgba(200, 236, 255, 0.28);
+  --panel: rgba(11, 14, 20, 0.88);
+  --glow: #7fe4ff;
+}
+
+* { box-sizing: border-box; }
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: Inter, Sarabun, system-ui, -apple-system, sans-serif;
+  background: radial-gradient(circle at 50% 16%, #12162a 0%, var(--bg) 48%);
+  color: var(--ink);
+}
+
+#manifestation-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.first-surface {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-rows: 1fr auto auto;
+  align-items: end;
+  padding: 24px;
+  pointer-events: none;
+}
+
+.icon-btn,
+.send-btn,
+#intent-input,
+.settings input,
+.settings select,
+.settings button {
+  pointer-events: auto;
+}
+
+#settings-toggle {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+}
+
+.icon-btn,
+.send-btn {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.icon-btn { width: 42px; height: 42px; }
+.send-btn { padding: 0 16px; height: 42px; }
+
+.ambient-status,
+.readable-fallback {
+  margin: 0 auto;
+  text-align: center;
+  max-width: min(720px, 90vw);
+  text-shadow: 0 0 18px rgba(127, 228, 255, 0.35);
+}
+
+.ambient-status {
+  opacity: 0.84;
+  font-size: clamp(14px, 2.2vw, 20px);
+  margin-bottom: 12px;
+}
+
+.readable-fallback {
+  min-height: 1.2em;
+  margin-bottom: 18px;
+  opacity: 0.92;
+}
+
+.composer {
+  margin: 0 auto;
+  width: min(860px, calc(100vw - 28px));
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 18px;
+  background: rgba(12, 16, 24, 0.64);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(10px);
+}
+
+#intent-input {
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--ink);
+  padding: 0 12px;
+  height: 42px;
+}
+
+#intent-input::placeholder { color: rgba(238, 249, 255, 0.52); }
+
+:focus-visible {
+  outline: 2px solid var(--glow);
+  outline-offset: 2px;
+}
+
+.settings {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: min(410px, calc(100vw - 24px));
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: 18px;
+  padding: 14px;
+  z-index: 10;
+}
+
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.settings section {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.18);
+}
+
+.settings label,
+.settings p,
+.settings h3 {
+  display: block;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+.settings input,
+.settings select,
+.settings button {
+  width: 100%;
+  margin-top: 6px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+  min-height: 36px;
+  padding: 0 10px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip: rect(0, 0, 0, 0);
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
