@@ -226,7 +226,7 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        if nc and nc.is_connected:
+        if nc:
             try:
                 await nc.close()
             except Exception:
