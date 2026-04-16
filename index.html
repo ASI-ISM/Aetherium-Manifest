@@ -733,7 +733,7 @@
 
         async function checkApiStatus() {
             try {
-                const res = await fetch('/api/v1/telemetry/runtime-state', { headers: { 'X-API-Key': 'dev-local-key' } });
+                const res = await fetch('/health');
                 apiStatus = res.ok ? 'online' : 'degraded';
             } catch (error) {
                 apiStatus = navigator.onLine ? 'offline' : 'network_offline';
