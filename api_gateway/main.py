@@ -350,21 +350,21 @@ async def ingest_telemetry(
 
 @app.post("/api/v1/export/request")
 async def request_export(
-    request: ExportRequest,
+    payload: ExportRequest,
     x_api_key: str | None = Header(default=None, alias="X-API-Key"),
 ) -> dict[str, Any]:
     _ensure_api_key(x_api_key)
     audit_record = {
         "export_id": str(uuid.uuid4()),
-        "session_id": request.session_id,
-        "reason": request.reason,
+        "session_id": payload.session_id,
+        "reason": payload.reason,
         "requested_at": datetime.now(timezone.utc).isoformat(),
     }
     EXPORT_AUDIT_TRAIL.appendleft(audit_record)
     return {
-        "status": "recorded",
+        "status": "success",
         "data": audit_record,
-        "export_history_size": len(EXPORT_AUDIT_TRAIL),
+        "total_history_size": len(EXPORT_AUDIT_TRAIL),
     }
 
 
