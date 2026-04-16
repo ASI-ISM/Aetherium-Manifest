@@ -1,6 +1,6 @@
 # Codebase Audit: Pending Tasks (English)
 
-Last audit update: 2026-04-15
+Last audit update: 2026-04-16
 
 This document now keeps only unfinished tasks. Completed recommendations were removed to keep the backlog clean and unambiguous.
 

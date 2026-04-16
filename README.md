@@ -120,6 +120,13 @@ npx --yes tsx --test test_runtime_governor_psycho_safety.test.ts
 npm run lint
 ```
 
+## Audit backlog hygiene (EN/TH)
+
+- Active audit backlogs are maintained in:
+  - `docs/CODEBASE_AUDIT_TASKS_EN.md`
+  - `docs/CODEBASE_AUDIT_TASKS_TH.md`
+- Both files must keep **pending items only**. Completed recommendations should be removed to avoid mixing finished work with active tasks.
+
 ## Notes on runtime security defaults
 
 - Protected API endpoints are fail-closed when `AETHERIUM_API_KEY` is not configured.

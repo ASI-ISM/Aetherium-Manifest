@@ -235,10 +235,11 @@ class ContractPolicyTests(unittest.TestCase):
 
 class ContractCheckerCliTests(unittest.TestCase):
     def test_cli_emits_audit_even_when_validation_fails(self) -> None:
-        payload_path = "tools/contracts/payloads/ipw_v1.payload.json"
-        original = Path(payload_path).read_text(encoding="utf-8")
+        repo_root = Path(__file__).resolve().parent.parent
+        payload_path = repo_root / "tools/contracts/payloads/ipw_v1.payload.json"
+        original = payload_path.read_text(encoding="utf-8")
         try:
-            Path(payload_path).write_text(
+            payload_path.write_text(
                 """{
   "ipw_type": "IPW_V1",
   "predictions": [{"action_id": "A", "p": 0.9}, {"action_id": "B", "p": 0.6}],
@@ -255,12 +256,13 @@ class ContractCheckerCliTests(unittest.TestCase):
                 capture_output=True,
                 text=True,
                 check=False,
+                cwd=repo_root,
             )
             self.assertNotEqual(proc.returncode, 0)
             self.assertIn("[FAIL] ipw_v1", proc.stdout)
             self.assertIn("[AUDIT] ipw_validation.audit.normalized=false", proc.stdout)
         finally:
-            Path(payload_path).write_text(original, encoding="utf-8")
+            payload_path.write_text(original, encoding="utf-8")
 
 
 class GatewayExtensionTests(unittest.IsolatedAsyncioTestCase):
