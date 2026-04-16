@@ -167,6 +167,22 @@ async def incr_metric(name: str):
         try: await r.incr(f"metrics:{name}")
         except Exception: pass
 
+
+def _require_provider_key(model: str | None) -> None:
+    model_name = str(model or "").strip().lower()
+    if model_name.startswith("gemini"):
+        if os.getenv("GEMINI_API_KEY"):
+            return
+        google_fallback = os.getenv("GOOGLE_API_KEY")
+        if google_fallback:
+            logger.warning("GOOGLE_API_KEY is deprecated. Please migrate to GEMINI_API_KEY.")
+            return
+        raise HTTPException(status_code=500, detail="GEMINI_API_KEY is not set")
+    if model_name.startswith(("gpt", "o")) and not os.getenv("OPENAI_API_KEY"):
+        raise HTTPException(status_code=500, detail="OPENAI_API_KEY is not set")
+    if model_name.startswith("claude") and not os.getenv("ANTHROPIC_API_KEY"):
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY is not set")
+
 async def _metrics_snapshot() -> dict[str, Any]:
     m = {"total_dsl_submissions": 0, "successful_renders": 0, "validation_failures": 0}
     if r:
@@ -318,8 +334,10 @@ async def generate_cognitive_dsl(
     x_api_key: str | None = Header(default=None, alias="X-API-Key"),
 ) -> dict[str, Any]:
     _ensure_api_key(x_api_key)
-    if request.get("model") == "unknown-model":
+    model = request.get("model")
+    if model == "unknown-model":
         raise HTTPException(status_code=400, detail="Unsupported model")
+    _require_provider_key(model)
     return {"status": "success"}
 
 @app.get("/api/v1/reliability/temporal-morphogenesis")

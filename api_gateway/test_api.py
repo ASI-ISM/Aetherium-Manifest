@@ -64,6 +64,29 @@ def test_generate_rejects_unsupported_model_with_400(client: TestClient) -> None
     assert "Unsupported model" in response.text
 
 
+def test_generate_requires_gemini_key_when_using_gemini_model(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    response = client.post(
+        "/api/v1/cognitive/generate",
+        headers={"X-API-Key": "test-key"},
+        json={"prompt": "hello", "model": "gemini-pro"},
+    )
+    assert response.status_code == 500
+    assert "GEMINI_API_KEY is not set" in response.text
+
+
+def test_generate_requires_openai_key_when_using_openai_model(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    response = client.post(
+        "/api/v1/cognitive/generate",
+        headers={"X-API-Key": "test-key"},
+        json={"prompt": "hello", "model": "gpt-4o"},
+    )
+    assert response.status_code == 500
+    assert "OPENAI_API_KEY is not set" in response.text
+
+
 def test_proxy_fetch_rejects_urls_with_credentials(client: TestClient) -> None:
     response = client.get(
         "/api/v1/proxy/fetch",

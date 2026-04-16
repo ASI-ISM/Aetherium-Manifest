@@ -34,6 +34,14 @@ def _particle_count_from_density(density: float) -> int:
     return int(round(density * 50000))
 
 
+def _coerce_device_tier(value: Any, default: int = 1) -> int:
+    try:
+        tier = int(value)
+    except (TypeError, ValueError):
+        tier = default
+    return max(1, min(4, tier))
+
+
 def to_renderer_controls(particle_control: dict[str, Any]) -> dict[str, Any]:
     """Compile canonical particle intent/state into explicit renderer/runtime controls."""
     intent = particle_control.get("intent_state", {})
@@ -88,7 +96,7 @@ def to_visual_manifestation(particle_control: dict[str, Any], transition_type: s
         },
         "chromatic_mode": renderer.get("chromatic_mode", "adaptive"),
         "emergency_override": False,
-        "device_tier": max(1, min(4, int(device_tier))),
+        "device_tier": _coerce_device_tier(device_tier),
         "adapter_metadata": {
             "cohesion": _clamp_float(uniforms.get("cohesion"), default=0.5),
             "flicker": _clamp_float(uniforms.get("flicker"), default=0.0),
