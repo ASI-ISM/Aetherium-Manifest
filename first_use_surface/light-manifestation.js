@@ -55,10 +55,10 @@ export function createLightManifestation(canvas, reducedMotion) {
 
     const width = Math.max(420, Math.floor(window.innerWidth * 0.7));
     const height = 160;
-    const offscreen = document.createElement('canvas');
+    const offscreen = updateGlyphMap.canvas || (updateGlyphMap.canvas = document.createElement('canvas'));
+    const offscreenContext = updateGlyphMap.ctx || (updateGlyphMap.ctx = offscreen.getContext('2d', { willReadFrequently: true }));
     offscreen.width = width;
     offscreen.height = height;
-    const offscreenContext = offscreen.getContext('2d', { willReadFrequently: true });
 
     offscreenContext.clearRect(0, 0, width, height);
     offscreenContext.textAlign = 'center';
