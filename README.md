@@ -83,7 +83,7 @@ Aetherium Manifest คือเลเยอร์แสดงผลฝั่ง 
 โฟลเดอร์ `api_gateway/` มีตัวอย่าง Cognitive DSL gateway พร้อม endpoint สำหรับ emit/validate/health/websocket
 
 ### แนวทางต่อยอด (ค้างดำเนินการ)
-- ย้าย mutable runtime state ไป Redis (metrics counters, telemetry cache และ WebSocket room membership) เพื่อรองรับหลาย worker ได้สม่ำเสมอ
+- ย้าย mutable runtime state ไป Redis (metrics counters, telemetry cache และ WebSocket room membership) เพื่อความสอดคล้องของข้อมูล (consistency) เมื่อใช้งานหลาย worker
 - เพิ่มนโยบาย signed outbound proxy (HMAC request intent + per-tenant allowlist) เพื่อเสริมความแข็งแรงด้าน SSRF ระดับองค์กร
 - สร้าง contract-fuzz pipeline: ตัวสร้าง payload แบบ property-based + mutation corpus สำหรับ stress test schema regression
 - เพิ่ม TSDB แบบ persisted (InfluxDB/TimescaleDB) พร้อม retention และ downsampling policies
