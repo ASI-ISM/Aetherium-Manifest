@@ -1256,8 +1256,25 @@ let CACHED_RUNTIME_ABI_VALIDATOR: RuntimeGovernorOptions["schemaValidator"] | nu
 function loadRuntimeAbiSchemaValidator(): RuntimeGovernorOptions["schemaValidator"] | undefined {
   if (CACHED_RUNTIME_ABI_VALIDATOR !== undefined) return CACHED_RUNTIME_ABI_VALIDATOR ?? undefined;
   try {
-    const schemaPath = process.env.PARTICLE_CONTROL_SCHEMA_PATH ?? resolve(process.cwd(), "governor", "particle-control.schema.json");
-    const raw = readFileSync(schemaPath, "utf-8");
+    const configuredPath = process.env.PARTICLE_CONTROL_SCHEMA_PATH;
+    const candidatePaths = configuredPath
+      ? [configuredPath]
+      : [
+          resolve(process.cwd(), "particle-control.schema.json"),
+          resolve(process.cwd(), "governor", "particle-control.schema.json"),
+        ];
+
+    let raw: string | null = null;
+    for (const candidatePath of candidatePaths) {
+      try {
+        raw = readFileSync(candidatePath, "utf-8");
+        break;
+      } catch {
+        // try next candidate
+      }
+    }
+    if (raw == null) throw new Error("schema file not found");
+
     const schema = JSON.parse(raw) as JsonSchema;
     CACHED_RUNTIME_ABI_VALIDATOR = makeNaiveRuntimeAbiValidator(schema);
     return CACHED_RUNTIME_ABI_VALIDATOR;
