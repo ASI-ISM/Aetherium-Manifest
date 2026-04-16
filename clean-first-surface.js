@@ -94,7 +94,10 @@ function bindSettings() {
     ['devtools-toggle', 'change', (event) => { settings.developerTools = event.target.checked; }],
   ];
 
-  bindingMap.forEach(([id, type, handler]) => byId(id).addEventListener(type, handler));
+  bindingMap.forEach(([id, type, handler]) => {
+    const el = byId(id);
+    if (el) el.addEventListener(type, handler);
+  });
   byId('export-session').addEventListener('click', exportSessionAudit);
 
   byId('reduced-motion-toggle').checked = settings.reducedMotion;
