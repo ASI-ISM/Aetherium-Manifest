@@ -46,11 +46,11 @@ python3 -m http.server 4173
 # open http://localhost:4173
 ```
 
-
-### CI/CD note
+### CI/CD Note
 - GitHub/Azure automation that was not in active use has been removed from this repository.
 - Deployment and quality checks should be run manually or from an external CI system outside this repo.
 - If branch protection requires status checks, update required checks in GitHub repository settings to match your active process.
+- See [remove-unused-platform-automation.md](docs/repo-maintenance/remove-unused-platform-automation.md) for more details.
 
 ### Recommended Next Steps
 - Move mutable runtime state to Redis (metrics counters, telemetry cache, and websocket room membership) for multi-worker consistency.
