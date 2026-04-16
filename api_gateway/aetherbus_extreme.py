@@ -6,7 +6,7 @@ import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import Any, Awaitable, Callable, Mapping
+from typing import Any, Awaitable, Callable, Mapping, cast
 
 import importlib
 
@@ -79,9 +79,10 @@ async def async_zero_copy_send(
 
 
 def _load_msgspec() -> Any:
-    if not hasattr(_load_msgspec, "_module"):
-        _load_msgspec._module = importlib.import_module("msgspec")
-    return _load_msgspec._module
+    load_msgspec = cast(Any, _load_msgspec)
+    if not hasattr(load_msgspec, "_module"):
+        load_msgspec._module = importlib.import_module("msgspec")
+    return load_msgspec._module
 
 
 def serialize_to_msgpack(data: Any) -> bytes:
