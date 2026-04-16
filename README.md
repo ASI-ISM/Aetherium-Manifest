@@ -46,6 +46,12 @@ python3 -m http.server 4173
 # open http://localhost:4173
 ```
 
+
+### CI/CD note
+- GitHub/Azure automation that was not in active use has been removed from this repository.
+- Deployment and quality checks should be run manually or from an external CI system outside this repo.
+- If branch protection requires status checks, update required checks in GitHub repository settings to match your active process.
+
 ### Recommended Next Steps
 - Move mutable runtime state to Redis (metrics counters, telemetry cache, and websocket room membership) for multi-worker consistency.
 - Add signed outbound proxy policy (HMAC request intent + per-tenant allowlist) to harden enterprise SSRF controls.
