@@ -1,692 +1,558 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Aetherium Manifest | Cognitive Runtime</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aetherium Manifest | Clean First-Use Surface</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700&family=Inter:wght@300;400;500&display=swap');
+        :root {
+            color-scheme: dark;
+            --bg: #040509;
+            --panel: rgba(7, 10, 18, 0.72);
+            --border: rgba(255, 255, 255, 0.14);
+            --text: #e8ecff;
+            --muted: rgba(232, 236, 255, 0.66);
+            --accent: #95a8ff;
+            --composer: rgba(9, 12, 22, 0.84);
+        }
+
+        * { box-sizing: border-box; }
 
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #050505;
-            font-family: 'Inter', sans-serif;
-            color: #e2e8f0;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-
-        .font-mono {
-            font-family: 'JetBrains Mono', monospace;
+            background: radial-gradient(circle at 30% 25%, #0b1020 0%, var(--bg) 55%);
+            color: var(--text);
+            font-family: Inter, "Noto Sans Thai", system-ui, -apple-system, sans-serif;
         }
 
         #canvas-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
+            position: fixed;
+            inset: 0;
             z-index: 0;
         }
 
-        .glass-panel {
-            background: rgba(10, 10, 15, 0.4);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+        .shell {
+            position: fixed;
+            inset: 0;
+            z-index: 2;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            pointer-events: none;
+            padding: 18px;
         }
 
-        /* Custom Scrollbar for logs */
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 4px; }
+        .top-row {
+            display: flex;
+            justify-content: flex-end;
+        }
 
-        input:focus { outline: none; }
+        button,
+        input,
+        select,
+        textarea {
+            font: inherit;
+            color: inherit;
+        }
 
-        /* Composer animations */
-        .composer-active { box-shadow: 0 0 20px rgba(99, 102, 241, 0.4); border-color: rgba(99, 102, 241, 0.6); }
+        .focus-visible:focus-visible,
+        button:focus-visible,
+        input:focus-visible,
+        select:focus-visible,
+        textarea:focus-visible {
+            outline: 2px solid #b4c1ff;
+            outline-offset: 2px;
+        }
 
-        .glow-text { text-shadow: 0 0 10px rgba(255, 255, 255, 0.5); }
+        .settings-btn {
+            pointer-events: auto;
+            width: 46px;
+            height: 46px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: rgba(8, 12, 24, 0.58);
+            backdrop-filter: blur(10px);
+            color: var(--text);
+            display: grid;
+            place-items: center;
+            cursor: pointer;
+        }
+
+        .manifest-zone {
+            display: grid;
+            place-items: center;
+            padding: 0 1rem;
+        }
+
+        #manifest-text {
+            text-align: center;
+            font-size: clamp(1.2rem, 3.4vw, 2.75rem);
+            font-weight: 520;
+            letter-spacing: 0.02em;
+            max-width: min(78ch, 92vw);
+            line-height: 1.42;
+            color: #eef2ff;
+            text-shadow:
+                0 0 10px rgba(169, 183, 255, 0.55),
+                0 0 30px rgba(91, 214, 255, 0.38);
+            opacity: 0;
+            transform: translateY(8px) scale(0.99);
+            transition: opacity 550ms ease, transform 700ms ease;
+        }
+
+        #manifest-text.visible {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+        .composer-wrap {
+            width: min(860px, 96vw);
+            margin: 0 auto;
+            pointer-events: auto;
+            padding-bottom: max(12px, env(safe-area-inset-bottom));
+        }
+
+        .status-line {
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            min-height: 1.3rem;
+            letter-spacing: 0.02em;
+        }
+
+        .composer {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            border-radius: 18px;
+            border: 1px solid var(--border);
+            padding: 10px;
+            background: var(--composer);
+            backdrop-filter: blur(12px);
+        }
+
+        .composer input {
+            border: 0;
+            background: transparent;
+            padding: 10px 12px;
+            color: var(--text);
+            font-size: 1rem;
+        }
+
+        .composer input::placeholder {
+            color: rgba(232, 236, 255, 0.44);
+        }
+
+        .composer button {
+            border: 1px solid rgba(188, 202, 255, 0.45);
+            border-radius: 12px;
+            background: rgba(136, 153, 255, 0.16);
+            padding: 0 16px;
+            cursor: pointer;
+            min-height: 44px;
+        }
+
+        .settings-panel {
+            position: fixed;
+            right: 16px;
+            top: 74px;
+            width: min(440px, calc(100vw - 28px));
+            max-height: calc(100vh - 88px);
+            overflow: auto;
+            z-index: 4;
+            pointer-events: auto;
+            border-radius: 18px;
+            border: 1px solid var(--border);
+            background: var(--panel);
+            backdrop-filter: blur(14px);
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+            padding: 16px;
+            display: none;
+        }
+
+        .settings-panel.open { display: block; }
+        .settings-panel h2 { margin: 0 0 10px; font-size: 1rem; }
+        .settings-panel p { color: var(--muted); margin-top: 0; font-size: 0.92rem; }
+        .settings-grid { display: grid; gap: 10px; }
+        .settings-grid label { display: grid; gap: 5px; font-size: 0.85rem; color: var(--muted); }
+        .settings-grid input,
+        .settings-grid select {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 8px 10px;
+            background: rgba(8, 10, 18, 0.74);
+        }
+
+        details {
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 8px 10px;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        summary {
+            cursor: pointer;
+            list-style: none;
+            font-size: 0.88rem;
+            color: #d6defe;
+            font-weight: 500;
+        }
+
+        summary::-webkit-details-marker { display: none; }
+        .section-stack { margin-top: 8px; display: grid; gap: 8px; }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            border: 0;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation: none !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
     </style>
 </head>
-<body class="text-sm">
+<body>
+    <div id="canvas-container" aria-hidden="true"></div>
 
-    <!-- WebGL Background -->
-    <div id="canvas-container"></div>
-
-    <!-- UI Overlay -->
-    <div class="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between p-4 sm:p-6">
-
-        <!-- Top Row: HUD & Settings -->
-        <div class="flex justify-between items-start pointer-events-auto w-full">
-
-        <!-- Scholar Agent Panel (Hidden by default) -->
-        <div id="scholar-panel" class="glass-panel absolute right-6 top-6 w-96 max-h-[70vh] rounded-2xl p-6 space-y-4 overflow-y-auto hidden pointer-events-auto border-indigo-500/30">
-            <button id="btn-minimize-scholar" class="absolute right-3 top-3 text-gray-500 hover:text-white transition-colors">
-                <i data-lucide="minus-square" class="w-4 h-4"></i>
+    <main class="shell">
+        <div class="top-row">
+            <button id="btn-settings" class="settings-btn" aria-label="Open settings panel">
+                <i data-lucide="settings-2" aria-hidden="true"></i>
             </button>
-            <div class="flex items-center space-x-3 border-b border-white/10 pb-4">
-                <div class="p-2 bg-indigo-500/20 rounded-lg text-indigo-400">
-                    <i data-lucide="book-open" class="w-5 h-5"></i>
-                </div>
-                <div>
-                    <h3 class="font-bold text-sm tracking-wide text-white">SCHOLAR CORE</h3>
-                    <p id="scholar-status" class="text-[10px] text-indigo-300/70 font-mono uppercase tracking-tighter">Analysis in progress...</p>
-                </div>
-            </div>
-
-            <div id="scholar-summary" class="text-sm leading-relaxed text-gray-200 space-y-3">
-                <!-- Content injected here -->
-            </div>
-
-            <div id="scholar-code-container" class="hidden space-y-2">
-                <div class="flex justify-between items-center text-[10px] font-mono text-gray-500">
-                    <span>CODE PAYLOAD</span>
-                    <button class="hover:text-white transition-colors">COPY</button>
-                </div>
-                <pre class="bg-black/50 p-4 rounded-xl border border-white/5 overflow-x-auto text-[11px] font-mono text-cyan-300 leading-tight"><code id="scholar-code"></code></pre>
-            </div>
-
-            <div id="scholar-sources" class="space-y-2 hidden">
-                <h4 class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Verification Sources</h4>
-                <div id="scholar-sources-list" class="flex flex-wrap gap-2"></div>
-            </div>
         </div>
 
-            <!-- Runtime HUD -->
-            <div class="glass-panel rounded-xl p-4 w-64 space-y-3">
-                <div class="flex justify-between items-center border-b border-white/10 pb-2">
-                    <div class="flex items-center space-x-2">
-                        <div id="status-indicator" class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></div>
-                        <span class="font-bold tracking-wider text-xs text-indigo-200">AETHERIUM OS</span>
-                    </div>
-                    <span class="text-[10px] font-mono text-gray-400">ABI: mf-3.30.0</span>
-                </div>
+        <section class="manifest-zone" aria-live="polite" aria-atomic="true">
+            <p id="manifest-text">ยินดีต้อนรับสู่ Aetherium</p>
+        </section>
 
-                <div class="space-y-2 font-mono text-[10px]">
-                    <div class="flex justify-between">
-                        <span class="text-gray-400">STATE</span>
-                        <span id="metric-state" class="text-cyan-400 glow-text">STANDBY</span>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <span class="text-gray-400">ENERGY</span>
-                        <div class="w-24 h-1 bg-gray-800 rounded-full overflow-hidden">
-                            <div id="bar-energy" class="h-full bg-cyan-400 w-[45%] transition-all duration-300"></div>
-                        </div>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <span class="text-gray-400">ENTROPY</span>
-                        <div class="w-24 h-1 bg-gray-800 rounded-full overflow-hidden">
-                            <div id="bar-entropy" class="h-full bg-purple-400 w-[12%] transition-all duration-300"></div>
-                        </div>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <span class="text-gray-400">LOAD</span>
-                        <span id="metric-load" class="text-emerald-400">12ms</span>
-                    </div>
-                </div>
+        <section class="composer-wrap">
+            <div id="status-text" class="status-line">พร้อมฟัง</div>
+            <form id="composer-form" class="composer" autocomplete="off">
+                <label for="composer-input" class="sr-only">Primary intent input</label>
+                <input id="composer-input" type="text" placeholder="พิมพ์ความตั้งใจของคุณ…" />
+                <button id="btn-emit" type="submit" aria-label="Manifest response">Manifest</button>
+            </form>
+        </section>
+    </main>
 
-                <!-- Mini Console Log -->
-                <div id="console-logs" class="h-20 overflow-y-auto pt-2 border-t border-white/10 font-mono text-[9px] text-gray-500 space-y-1 mt-2">
-                    <div>[SYS] Runtime console initialized.</div>
-                    <div>[SYS] WebSocket connecting...</div>
-                </div>
-            </div>
+    <aside id="settings-panel" class="settings-panel" aria-label="Aetherium settings" aria-hidden="true">
+        <h2>Settings · Advanced controls</h2>
+        <p>ทุกองค์ประกอบเชิงเทคนิคถูกย้ายมาที่นี่เพื่อรักษาหน้าแรกให้เรียบและโฟกัสกับแสง.</p>
 
-            <!-- Settings Toggle & Panel -->
-            <div class="flex flex-col items-end">
-                <button id="btn-settings" class="p-2 glass-panel rounded-full hover:bg-white/10 transition-colors text-gray-400 hover:text-white">
-                    <i data-lucide="settings" class="w-4 h-4"></i>
-                </button>
-
-                <div id="panel-settings" class="glass-panel rounded-xl p-4 mt-2 w-72 hidden transition-all">
-                    <h3 class="text-xs font-bold text-gray-300 mb-3 uppercase tracking-wider">Gateway Configuration</h3>
-                    <div class="space-y-3 font-mono text-[10px]">
-                        <div>
-                            <label class="block text-gray-500 mb-1">API Base (HTTP)</label>
-                            <input type="text" id="cfg-api" value="http://localhost:8080" class="w-full bg-black/50 border border-white/10 rounded px-2 py-1 text-gray-300">
-                        </div>
-                        <div>
-                            <label class="block text-gray-500 mb-1">WS Base (WebSocket)</label>
-                            <input type="text" id="cfg-ws" value="ws://localhost:8090" class="w-full bg-black/50 border border-white/10 rounded px-2 py-1 text-gray-300">
-                        </div>
-                        <div>
-                            <label class="block text-gray-500 mb-1">Target Room ID</label>
-                            <input type="text" id="cfg-room" value="default-cognitive-space" class="w-full bg-black/50 border border-white/10 rounded px-2 py-1 text-gray-300">
-                        </div>
-                        <div class="pt-2">
-                            <button id="btn-connect" class="w-full bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/30 rounded py-1.5 transition-colors">Apply & Reconnect</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div class="settings-grid">
+            <label>API Base
+                <input id="cfg-api" type="text" value="http://localhost:8080" />
+            </label>
+            <label>WS Base
+                <input id="cfg-ws" type="text" value="ws://localhost:8090" />
+            </label>
+            <label>Runtime mode
+                <select id="cfg-runtime-mode">
+                    <option value="balanced">balanced</option>
+                    <option value="cinematic">cinematic</option>
+                    <option value="deterministic">deterministic</option>
+                </select>
+            </label>
+            <label>Language preference
+                <select id="cfg-language">
+                    <option value="auto">Auto</option>
+                    <option value="th">ไทย</option>
+                    <option value="en">English</option>
+                </select>
+            </label>
+            <label>
+                <input id="cfg-reduced-motion" type="checkbox" /> Reduced motion override
+            </label>
+            <label>
+                <input id="cfg-local-lang-detector" type="checkbox" checked /> Enable local language detector (optional)
+            </label>
+            <label>
+                <input id="cfg-voice" type="checkbox" /> Enable voice input (progressive only)
+            </label>
         </div>
 
-        <!-- Bottom Row: Composer -->
-        <div class="w-full max-w-2xl mx-auto pointer-events-auto pb-4 sm:pb-8">
-            <div id="composer-container" class="glass-panel rounded-2xl p-2 flex items-center space-x-2 transition-all duration-300 border border-white/10">
-                <button class="p-2 sm:p-3 text-gray-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors shrink-0" title="Attach concept/schema">
-                    <i data-lucide="paperclip" class="w-5 h-5"></i>
-                </button>
-                <button class="p-2 sm:p-3 text-gray-400 hover:text-cyan-400 hover:bg-white/5 rounded-xl transition-colors shrink-0" title="Voice intent (Mock)">
-                    <i data-lucide="mic" class="w-5 h-5"></i>
-                </button>
-
-                <input type="text" id="composer-input"
-                       class="flex-1 bg-transparent text-white placeholder-gray-500 text-sm sm:text-base py-2 px-2"
-                       placeholder="Converse with light...">
-
-                <button id="btn-emit" class="px-4 py-2 sm:py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-all flex items-center justify-center shrink-0">
-                    <i data-lucide="sparkles" class="w-4 h-4 mr-0 sm:mr-2"></i>
-                    <span class="hidden sm:inline font-medium">Emit</span>
-                </button>
+        <details>
+            <summary>Telemetry</summary>
+            <div class="section-stack">
+                <label><input id="cfg-telemetry" type="checkbox" checked /> Runtime telemetry</label>
+                <label><input id="cfg-replay" type="checkbox" /> Replay capture</label>
             </div>
-
-            <!-- Output visual target indicator (hidden by default) -->
-            <div id="visual-target" class="mt-4 glass-panel rounded-xl p-4 hidden">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center space-x-2">
-                        <i data-lucide="box" class="w-4 h-4 text-cyan-400"></i>
-                        <span class="text-xs text-gray-300 font-mono">Generative Target Acquired</span>
-                    </div>
-                    <button id="btn-close-target" class="text-gray-500 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
-                </div>
-                <div id="target-content" class="mt-2 text-sm text-gray-400">
-                    Processing cognitive intent into structural layout...
-                </div>
-            </div>
-        </div>
-    </div>
+        </details>
+        <details><summary>Lineage / Replay tools</summary><div class="section-stack"><p>Lineage stream and replay controls are intentionally hidden from first view.</p></div></details>
+        <details><summary>Scholar / Search layer</summary><div class="section-stack"><p>Scholar agent and retrieval tuning live here only.</p></div></details>
+        <details><summary>Governor / Debug info</summary><div class="section-stack"><p>Checkpoint traces, logs, and policy diagnostics are kept in settings.</p></div></details>
+        <details><summary>Developer tools</summary><div class="section-stack"><p>Model route options, local model hooks, and language detector backend toggles.</p></div></details>
+    </aside>
 
     <script>
-        // Initialize Lucide Icons
         lucide.createIcons();
 
-        // --- UI & State Management ---
+        const Session = {
+            uiLanguage: 'auto',
+            rememberedLanguage: null,
+            reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+            localDetectorEnabled: true
+        };
+
         const UI = {
-            state: document.getElementById('metric-state'),
-            energy: document.getElementById('bar-energy'),
-            entropy: document.getElementById('bar-entropy'),
-            load: document.getElementById('metric-load'),
-            logs: document.getElementById('console-logs'),
-            composer: document.getElementById('composer-input'),
-            composerContainer: document.getElementById('composer-container'),
-            emitBtn: document.getElementById('btn-emit'),
+            status: document.getElementById('status-text'),
+            manifest: document.getElementById('manifest-text'),
+            form: document.getElementById('composer-form'),
+            input: document.getElementById('composer-input'),
             settingsBtn: document.getElementById('btn-settings'),
-            settingsPanel: document.getElementById('panel-settings'),
-            connectBtn: document.getElementById('btn-connect'),
-            visualTarget: document.getElementById('visual-target'),
-            targetContent: document.getElementById('target-content'),
-            closeTargetBtn: document.getElementById('btn-close-target'),
-            scholarPanel: document.getElementById('scholar-panel'),
-            scholarStatus: document.getElementById('scholar-status'),
-            scholarSummary: document.getElementById('scholar-summary'),
-            scholarCodeContainer: document.getElementById('scholar-code-container'),
-            scholarCode: document.getElementById('scholar-code'),
-            scholarSources: document.getElementById('scholar-sources'),
-            scholarSourcesList: document.getElementById('scholar-sources-list'),
-            scholarMinimizeBtn: document.getElementById('btn-minimize-scholar'),
-            statusIndicator: document.getElementById('status-indicator')
+            settingsPanel: document.getElementById('settings-panel'),
+            cfgLanguage: document.getElementById('cfg-language'),
+            cfgReducedMotion: document.getElementById('cfg-reduced-motion'),
+            cfgLocalDetector: document.getElementById('cfg-local-lang-detector')
         };
 
-        const Config = {
-            apiBase: 'http://localhost:8080',
-            wsBase: 'ws://localhost:8090',
-            roomId: 'default-cognitive-space'
+        const RESPONSE_RULES = {
+            th: {
+                greeting: ['สวัสดีครับ ✨', 'แสงกำลังรับฟังคุณอยู่ครับ'],
+                gratitude: ['ขอบคุณที่ส่งความตั้งใจเข้ามา 💫'],
+                fallback: 'ฉันกำลังตีความอย่างอ่อนโยน—ช่วยขยายอีกเล็กน้อยได้ไหม',
+                question: 'รับทราบคำถามแล้ว: '
+            },
+            en: {
+                greeting: ['Hello ✨', 'The light is listening.'],
+                gratitude: ['Thank you. I appreciate your intent.'],
+                fallback: 'I am interpreting softly—could you add a bit more detail?',
+                question: 'I hear your question: '
+            }
         };
 
-        let sysState = {
-            mode: 'STANDBY', // STANDBY, THINKING, EMITTING
-            energyLevel: 0.2,
-            entropyLevel: 0.1
-        };
-
-        function log(msg, type = 'SYS') {
-            const entry = document.createElement('div');
-            entry.textContent = `[${type}] ${msg}`;
-            if(type === 'ERR') entry.classList.add('text-red-400');
-            if(type === 'WS') entry.classList.add('text-cyan-500');
-            if(type === 'API') entry.classList.add('text-purple-400');
-            UI.logs.appendChild(entry);
-            UI.logs.scrollTop = UI.logs.scrollHeight;
+        function setStatus(text) {
+            UI.status.textContent = text;
         }
 
-        // Settings Toggle
-        UI.settingsBtn.addEventListener('click', () => {
-            UI.settingsPanel.classList.toggle('hidden');
-        });
-
-        // Connection Application (Mock)
-        UI.connectBtn.addEventListener('click', () => {
-            Config.apiBase = document.getElementById('cfg-api').value;
-            Config.wsBase = document.getElementById('cfg-ws').value;
-            Config.roomId = document.getElementById('cfg-room').value;
-            log(`Reconfiguring Gateway: API=${Config.apiBase}`, 'SYS');
-            log(`Reconnecting WS to room: ${Config.roomId}`, 'WS');
-            UI.settingsPanel.classList.add('hidden');
-
-            // Simulate reconnect
-            UI.statusIndicator.classList.remove('bg-indigo-500');
-            UI.statusIndicator.classList.add('bg-yellow-500');
+        function manifestText(text) {
+            UI.manifest.classList.remove('visible');
             setTimeout(() => {
-                UI.statusIndicator.classList.remove('bg-yellow-500');
-                UI.statusIndicator.classList.add('bg-indigo-500');
-                log('State sync established.', 'WS');
-            }, 1000);
-        });
+                UI.manifest.textContent = text;
+                UI.manifest.classList.add('visible');
+            }, Session.reducedMotion ? 0 : 90);
+        }
 
-        UI.closeTargetBtn.addEventListener('click', () => {
-            UI.visualTarget.classList.add('hidden');
-        });
+        function readLocaleLanguage() {
+            const langs = [navigator.language, ...(navigator.languages || [])].filter(Boolean).map(v => v.toLowerCase());
+            return langs.some(v => v.startsWith('th')) ? 'th' : 'en';
+        }
 
-        // --- WebGL Particle System (Aetherium Light Engine) ---
-        // Simulates particle.vert.glsl and glow.frag.glsl runtime behavior
-        let scene, camera, renderer, particles, particleMaterial;
-        let pointer = new THREE.Vector2();
-        let pointerActive = false;
-        let clock = new THREE.Clock();
+        function detectInputLanguage(text) {
+            const trimmed = (text || '').trim();
+            if (!trimmed) return null;
+            const thaiChars = /[\u0E00-\u0E7F]/.test(trimmed);
+            if (thaiChars) return 'th';
 
-        function initThreeJS() {
+            if (Session.localDetectorEnabled) {
+                const englishBias = /\b(hello|hi|thanks|thank you|please|what|why|how)\b/i.test(trimmed);
+                if (englishBias) return 'en';
+            }
+            return /^[\x00-\x7F\s\d.,!?'-]+$/.test(trimmed) ? 'en' : null;
+        }
+
+        function chooseLanguage(inputText) {
+            if (Session.uiLanguage !== 'auto') return Session.uiLanguage;
+            const byInput = detectInputLanguage(inputText);
+            if (byInput) {
+                Session.rememberedLanguage = byInput;
+                return byInput;
+            }
+            if (Session.rememberedLanguage) return Session.rememberedLanguage;
+            const byLocale = readLocaleLanguage();
+            Session.rememberedLanguage = byLocale;
+            return byLocale;
+        }
+
+        function classifyIntent(rawInput, language) {
+            const text = rawInput.trim().toLowerCase();
+            const greetingPatterns = language === 'th'
+                ? [/^\s*(สวัสดี|หวัดดี|ดีครับ|ดีค่ะ)/]
+                : [/^\s*(hello|hi|hey)\b/];
+            const gratitudePatterns = language === 'th'
+                ? [/ขอบคุณ/, /ขอบใจ/]
+                : [/thank you/, /thanks/];
+
+            if (greetingPatterns.some((pattern) => pattern.test(text))) return 'greeting';
+            if (gratitudePatterns.some((pattern) => pattern.test(text))) return 'gratitude';
+            if (text.includes('?') || (language === 'en' && /\b(what|why|how|when|where)\b/.test(text))) return 'question';
+            return 'unknown';
+        }
+
+        function buildResponse(inputText) {
+            const language = chooseLanguage(inputText);
+            const rules = RESPONSE_RULES[language] || RESPONSE_RULES.en;
+            const intent = classifyIntent(inputText, language);
+
+            if (intent === 'greeting') return { language, message: rules.greeting.join(' ') };
+            if (intent === 'gratitude') return { language, message: rules.gratitude[0] };
+            if (intent === 'question') return { language, message: `${rules.question}${inputText.trim()}` };
+            return { language, message: rules.fallback };
+        }
+
+        async function orchestrateResponse(inputText) {
+            if (!inputText.trim()) return;
+            setStatus(Session.uiLanguage === 'th' || chooseLanguage(inputText) === 'th' ? 'กำลังตีความ' : 'Interpreting');
+            if (!Session.reducedMotion) {
+                await new Promise((resolve) => setTimeout(resolve, 360));
+            }
+
+            const response = buildResponse(inputText);
+            manifestText(response.message);
+            setStatus(response.language === 'th' ? 'กำลังก่อรูป' : 'Manifesting');
+
+            if (!Session.reducedMotion) {
+                await new Promise((resolve) => setTimeout(resolve, 420));
+            }
+            setStatus(response.language === 'th' ? 'พร้อมฟัง' : 'Listening');
+        }
+
+        function bindSettings() {
+            UI.settingsBtn.addEventListener('click', () => {
+                UI.settingsPanel.classList.toggle('open');
+                UI.settingsPanel.setAttribute('aria-hidden', UI.settingsPanel.classList.contains('open') ? 'false' : 'true');
+            });
+
+            UI.cfgLanguage.addEventListener('change', (event) => {
+                Session.uiLanguage = event.target.value;
+                if (Session.uiLanguage !== 'auto') {
+                    Session.rememberedLanguage = Session.uiLanguage;
+                }
+            });
+
+            UI.cfgReducedMotion.addEventListener('change', (event) => {
+                Session.reducedMotion = Boolean(event.target.checked);
+            });
+
+            UI.cfgLocalDetector.addEventListener('change', (event) => {
+                Session.localDetectorEnabled = Boolean(event.target.checked);
+            });
+        }
+
+        let scene;
+        let camera;
+        let renderer;
+        let particles;
+        let material;
+        const clock = new THREE.Clock();
+
+        function initLightField() {
             const container = document.getElementById('canvas-container');
             scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x050505, 0.001);
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1500);
+            camera.position.z = 290;
 
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
-            camera.position.z = 400;
-
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.setSize(window.innerWidth, window.innerHeight);
             container.appendChild(renderer.domElement);
 
-            // Particle Geometry
-            const geometry = new THREE.BufferGeometry();
-            const count = window.innerWidth > 768 ? 40000 : 15000; // Adaptive load
+            const count = Session.reducedMotion ? 7000 : 19000;
             const positions = new Float32Array(count * 3);
             const colors = new Float32Array(count * 3);
             const sizes = new Float32Array(count);
-            const phases = new Float32Array(count);
 
-            const colorA = new THREE.Color(0x6366f1); // Indigo
-            const colorB = new THREE.Color(0x06b6d4); // Cyan
-            const colorC = new THREE.Color(0xa855f7); // Purple
+            const cold = new THREE.Color(0x7d8cff);
+            const warm = new THREE.Color(0x7ce4ff);
 
             for (let i = 0; i < count; i++) {
-                // Sphere distribution
+                const r = 90 + Math.random() * 320;
                 const theta = Math.random() * Math.PI * 2;
-                const phi = Math.acos((Math.random() * 2) - 1);
-                const r = 100 + Math.random() * 300;
-
+                const phi = Math.acos(Math.random() * 2 - 1);
                 positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
                 positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
                 positions[i * 3 + 2] = r * Math.cos(phi);
 
-                // Mix colors based on position
-                const mixRatio = Math.random();
-                let c = colorA.clone().lerp(colorB, mixRatio);
-                if(Math.random() > 0.7) c = colorC;
-
-                colors[i * 3] = c.r;
-                colors[i * 3 + 1] = c.g;
-                colors[i * 3 + 2] = c.b;
-
-                sizes[i] = Math.random() * 2.0;
-                phases[i] = Math.random() * Math.PI * 2;
+                const mixed = cold.clone().lerp(warm, Math.random());
+                colors[i * 3] = mixed.r;
+                colors[i * 3 + 1] = mixed.g;
+                colors[i * 3 + 2] = mixed.b;
+                sizes[i] = Math.random() * 1.6 + 0.2;
             }
 
-            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-            geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-            geometry.setAttribute('phase', new THREE.BufferAttribute(phases, 1));
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
 
-            // Custom Shader Material mimicking the described OS
-            particleMaterial = new THREE.ShaderMaterial({
-                uniforms: {
-                    time: { value: 0 },
-                    sysEnergy: { value: 0.2 },
-                    sysEntropy: { value: 0.1 },
-                    pointerPos: { value: new THREE.Vector3(0,0,0) },
-                    pointerActive: { value: 0.0 }
-                },
+            material = new THREE.ShaderMaterial({
+                uniforms: { time: { value: 0 }, reduced: { value: Session.reducedMotion ? 1 : 0 } },
                 vertexShader: `
                     uniform float time;
-                    uniform float sysEnergy;
-                    uniform float sysEntropy;
-                    uniform vec3 pointerPos;
-                    uniform float pointerActive;
-
+                    uniform float reduced;
                     attribute float size;
                     attribute vec3 color;
-                    attribute float phase;
-
                     varying vec3 vColor;
-
                     void main() {
                         vColor = color;
-
                         vec3 pos = position;
-
-                        // Default ambient movement
-                        float noise = sin(time * 0.5 + phase) * (10.0 * sysEntropy);
-                        pos.x += sin(time + pos.y * 0.01) * noise;
-                        pos.y += cos(time + pos.x * 0.01) * noise;
-                        pos.z += sin(time + pos.z * 0.01) * noise;
-
-                        // Interaction burst (Touch burst grammar)
-                        if (pointerActive > 0.5) {
-                            float dist = distance(pos, pointerPos);
-                            if (dist < 150.0) {
-                                vec3 dir = normalize(pos - pointerPos);
-                                pos += dir * (150.0 - dist) * sysEnergy * 0.5;
-                            }
-                        }
-
-                        // High energy state pull (Cognitive emit)
-                        if (sysEnergy > 0.8) {
-                            pos += normalize(pos) * sin(time * 10.0 + phase) * 20.0;
-                        }
-
+                        float amp = mix(8.0, 1.5, reduced);
+                        pos.x += sin(time * 0.3 + pos.y * 0.01) * amp;
+                        pos.y += cos(time * 0.25 + pos.x * 0.01) * amp;
                         vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-                        gl_PointSize = size * (300.0 / -mvPosition.z) * (1.0 + sysEnergy * 2.0);
+                        gl_PointSize = size * (300.0 / -mvPosition.z);
                         gl_Position = projectionMatrix * mvPosition;
                     }
                 `,
                 fragmentShader: `
                     varying vec3 vColor;
                     void main() {
-                        // Circular glowing particle
                         float dist = distance(gl_PointCoord, vec2(0.5));
                         if (dist > 0.5) discard;
-
                         float alpha = (0.5 - dist) * 2.0;
-                        gl_FragColor = vec4(vColor, alpha * 0.8);
+                        gl_FragColor = vec4(vColor, alpha * 0.78);
                     }
                 `,
                 transparent: true,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false
+                depthWrite: false,
+                blending: THREE.AdditiveBlending
             });
 
-            particles = new THREE.Points(geometry, particleMaterial);
+            particles = new THREE.Points(geo, material);
             scene.add(particles);
 
-            // Interaction Event Listeners
-            window.addEventListener('resize', onWindowResize);
-            document.addEventListener('mousemove', onPointerMove);
-            document.addEventListener('touchmove', onPointerMove, {passive: true});
-            document.addEventListener('mousedown', () => pointerActive = true);
-            document.addEventListener('mouseup', () => pointerActive = false);
-            document.addEventListener('touchstart', () => pointerActive = true, {passive: true});
-            document.addEventListener('touchend', () => pointerActive = false);
-            document.getElementById('canvas-container').addEventListener('dblclick', () => {
-                const hud = document.querySelector('.absolute.inset-0.z-10');
-                hud.classList.toggle('opacity-0');
-                hud.classList.toggle('pointer-events-none');
-                log('[SYS] UI Visibility Toggled', 'SYS');
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
             });
 
             animate();
         }
 
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        function onPointerMove(event) {
-            let clientX = event.clientX || (event.touches && event.touches[0].clientX);
-            let clientY = event.clientY || (event.touches && event.touches[0].clientY);
-
-            if(clientX !== undefined) {
-                pointer.x = (clientX / window.innerWidth) * 2 - 1;
-                pointer.y = -(clientY / window.innerHeight) * 2 + 1;
-            }
-        }
-
         function animate() {
             requestAnimationFrame(animate);
-
-            const elapsedTime = clock.getElapsedTime();
-            clock.getDelta();
-
-            // Update Uniforms
-            particleMaterial.uniforms.time.value = elapsedTime;
-            particleMaterial.uniforms.sysEnergy.value = THREE.MathUtils.lerp(particleMaterial.uniforms.sysEnergy.value, sysState.energyLevel, 0.05);
-            particleMaterial.uniforms.sysEntropy.value = THREE.MathUtils.lerp(particleMaterial.uniforms.sysEntropy.value, sysState.entropyLevel, 0.05);
-            particleMaterial.uniforms.pointerActive.value = pointerActive ? 1.0 : 0.0;
-
-            // Map 2D pointer to 3D space for interaction
-            let vector = new THREE.Vector3(pointer.x, pointer.y, 0.5);
-            vector.unproject(camera);
-            let dir = vector.sub(camera.position).normalize();
-            let distance = - camera.position.z / dir.z;
-            let pos = camera.position.clone().add(dir.multiplyScalar(distance));
-            particleMaterial.uniforms.pointerPos.value.copy(pos);
-
-            // Rotate system slightly based on state
-            if (sysState.mode === 'THINKING' || mode === 'INTERPRETING') {
-                particles.rotation.y += 0.01;
-                particles.rotation.x += 0.005;
-            } else if (sysState.mode === 'EMITTING') {
-                particles.rotation.y += 0.05;
-            } else {
-                particles.rotation.y += 0.001; // STANDBY
-            }
-
-            // Simulate UI Load metric
-            if (Math.random() > 0.9) {
-                UI.load.textContent = Math.floor(10 + Math.random() * 15) + 'ms';
-            }
-
+            const t = clock.getElapsedTime();
+            material.uniforms.time.value = t;
+            particles.rotation.y += Session.reducedMotion ? 0.00045 : 0.0018;
             renderer.render(scene, camera);
         }
 
-        // --- Core OS Logic (Mocks API & WebSockets) ---
-
-        function setSystemState(mode) {
-            sysState.mode = mode;
-            UI.state.textContent = mode;
-
-            if (mode === 'STANDBY') {
-                sysState.energyLevel = 0.2;
-                sysState.entropyLevel = 0.1;
-                UI.state.className = 'text-cyan-400 glow-text';
-                UI.composerContainer.classList.remove('composer-active');
-            } else if (mode === 'THINKING' || mode === 'INTERPRETING') {
-                sysState.energyLevel = 0.6;
-                sysState.entropyLevel = 0.8;
-                UI.state.className = 'text-yellow-400 glow-text';
-                UI.composerContainer.classList.add('composer-active');
-            } else if (mode === 'EMITTING') {
-                sysState.energyLevel = 1.0;
-                sysState.entropyLevel = 0.3;
-                UI.state.className = 'text-indigo-400 glow-text animate-pulse';
-            }
-
-            // Update UI Bars
-            UI.energy.style.width = (sysState.energyLevel * 100) + '%';
-            UI.entropy.style.width = (sysState.entropyLevel * 100) + '%';
-        }
-
-        async function triggerScholarPipeline(intentText) {
-            if (!intentText.trim()) return;
-
-            UI.composer.value = '';
-            UI.composer.disabled = true;
-            UI.emitBtn.disabled = true;
-            UI.scholarPanel.classList.remove('hidden');
-            UI.scholarSummary.innerHTML = '<p class="animate-pulse text-indigo-300">Synthesizing knowledge...</p>';
-            UI.scholarCodeContainer.classList.add('hidden');
-            UI.scholarSources.classList.add('hidden');
-            UI.scholarStatus.textContent = 'Analyzing question...';
-
-            log(`Scholar Intent: "${intentText}"`, 'SYS');
-            setSystemState('INTERPRETING');
-
-            try {
-                log('[POST] /api/v1/scholar/request', 'API');
-                // Using relative path for the actual gateway we implemented
-                const response = await fetch('/api/v1/scholar/request', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-API-Key': 'scholar-test-key'
-                    },
-                    body: JSON.stringify({
-                        prompt: intentText,
-                        intent_state: { tone: 'formal' }
-                    })
-                });
-
-                const result = await response.json();
-                if (result.status === 'success') {
-                    const data = result.data;
-                    const scholar = data.intent_state.scholar;
-
-                    setSystemState('EMITTING');
-                    UI.scholarStatus.textContent = 'Manifesting Knowledge...';
-
-                    // Manifest Visual Metadata
-                    log(`[WS] Manifesting: ${scholar.visual_interpretation}`, 'WS');
-
-                    await new Promise(r => setTimeout(r, 1000));
-
-                    // Update UI
-                    // Update UI safely
-                    UI.scholarSummary.innerHTML = '';
-                    scholar.summary.split('\n').forEach(paraText => {
-                        const p = document.createElement('p');
-                        p.textContent = paraText;
-                        UI.scholarSummary.appendChild(p);
-                    });
-
-                    if (scholar.code_snippet) {
-                        UI.scholarCode.textContent = scholar.code_snippet;
-                        UI.scholarCodeContainer.classList.remove('hidden');
-                    }
-
-                    if (scholar.cited_sources && scholar.cited_sources.length > 0) {
-                        UI.scholarSourcesList.innerHTML = scholar.cited_sources.map(url =>
-                            `<a href="${url}" target="_blank" class="px-2 py-1 bg-white/5 border border-white/10 rounded text-[10px] text-indigo-300 hover:bg-white/10 transition-colors truncate max-w-[150px]">${new URL(url).hostname}</a>`
-                        ).join('');
-                        UI.scholarSources.classList.remove('hidden');
-                    }
-
-                    const hasTrusted = scholar.cited_sources && scholar.cited_sources.length > 0 && !scholar.unverified_source_detected;
-                    if (scholar.unverified_source_detected) {
-                        UI.scholarStatus.innerHTML = '<span class="text-amber-400">⚠️ UNVERIFIED SOURCES DETECTED</span>';
-                        UI.scholarPanel.classList.add('border-amber-500/50');
-                        UI.scholarPanel.classList.remove('border-indigo-500/30');
-                    } else {
-                        UI.scholarPanel.classList.add('border-indigo-500/30');
-                        UI.scholarPanel.classList.remove('border-amber-500/50');
-                        if (hasTrusted) {
-                            UI.scholarPanel.classList.add('shadow-[0_0_20px_rgba(99,102,241,0.3)]');
-                            log("[SYS] Trusted Knowledge Rewarded: Chromatic Aberration Active", "API");
-                        } else {
-                            UI.scholarPanel.classList.remove('shadow-[0_0_20px_rgba(99,102,241,0.3)]');
-                        }
-                    }
-                    UI.scholarStatus.textContent = 'Embodied Knowledge';
-                } else {
-                    throw new Error(result.detail || 'Scholar error');
-                }
-            } catch (err) {
-                log(`Scholar failed: ${err.message}`, 'ERR');
-                UI.scholarSummary.innerHTML = `<p class="text-red-400">Failed to manifest knowledge: ${err.message}</p>`;
-            }
-
-            setSystemState('STANDBY');
-            UI.composer.disabled = false;
-            UI.emitBtn.disabled = false;
-            UI.composer.focus();
-        }
-
-        async function triggerCognitivePipeline(intentText) {
-            if (!intentText.trim()) return;
-
-            UI.composer.value = '';
-            UI.composer.disabled = true;
-            UI.emitBtn.disabled = true;
-            UI.visualTarget.classList.add('hidden');
-
-            log(`Intent capture: "${intentText}"`, 'SYS');
-            setSystemState('INTERPRETING');
-
-            // 1. Mock POST /api/v1/cognitive/validate
-            log('[POST] /api/v1/cognitive/validate', 'API');
-            await new Promise(r => setTimeout(r, 600));
-            log('Intent parsed. Structural validity: OK', 'API');
-
-            // 2. Mock GET /api/v1/reliability/temporal-morphogenesis
-            log('[GET] /api/v1/reliability/temporal-morphogenesis', 'API');
-            await new Promise(r => setTimeout(r, 400));
-
-            // 3. Mock POST /api/v1/cognitive/emit
-            setSystemState('EMITTING');
-            log('[POST] /api/v1/cognitive/emit -> Triggering Light Burst', 'API');
-
-            // Simulating WS state sync receipt
-            setTimeout(() => {
-                log('[WS] Received state envelope: {"intent": "generative", "target": "visual"}', 'WS');
-            }, 500);
-
-            // Let burst happen
-            await new Promise(r => setTimeout(r, 1500));
-
-            // 4. Mock POST /api/v1/telemetry/ingest
-            log('[POST] /api/v1/telemetry/ingest (Status 200)', 'API');
-
-            // Presentation of Output
-            UI.visualTarget.classList.remove('hidden');
-            UI.targetContent.innerHTML = `
-                <div class="space-y-2">
-                    <p class="text-white">Rendered interpretation of: <span class="italic text-cyan-300">"${intentText}"</span></p>
-                    <div class="h-24 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-white/10 rounded-lg flex items-center justify-center text-xs">
-                        [ Cognitive Target Field Visualized ]
-                    </div>
-                </div>
-            `;
-
-            setSystemState('STANDBY');
-            UI.composer.disabled = false;
-            UI.emitBtn.disabled = false;
-            UI.composer.focus();
-        }
-
-        // Event Bindings
-        UI.emitBtn.addEventListener('click', () => {
-            triggerScholarPipeline(UI.composer.value);
+        UI.form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const value = UI.input.value;
+            UI.input.value = '';
+            await orchestrateResponse(value);
+            UI.input.focus();
         });
 
-        UI.composer.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') triggerScholarPipeline(UI.composer.value);
-        });
-
-        // Init
-        UI.scholarMinimizeBtn.addEventListener('click', () => {
-            const isMinimized = UI.scholarPanel.classList.toggle('max-h-12');
-            UI.scholarPanel.classList.toggle('overflow-hidden');
-            UI.scholarMinimizeBtn.innerHTML = isMinimized ? '<i data-lucide="plus-square" class="w-4 h-4"></i>' : '<i data-lucide="minus-square" class="w-4 h-4"></i>';
-            lucide.createIcons();
-        });
-
-        window.onload = () => {
-            initThreeJS();
-            setSystemState('STANDBY');
-
-            // Initial telemetry ping mock
-            setTimeout(() => {
-                log('[POST] /api/v1/telemetry/ingest (Boot)', 'API');
-            }, 2000);
-        };
-
+        bindSettings();
+        initLightField();
+        manifestText('ยินดีต้อนรับสู่ Aetherium');
+        UI.input.focus();
     </script>
 </body>
 </html>
