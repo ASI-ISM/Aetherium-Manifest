@@ -79,10 +79,9 @@ async def async_zero_copy_send(
 
 
 def _load_msgspec() -> Any:
-    load_msgspec = cast(Any, _load_msgspec)
-    if not hasattr(load_msgspec, "_module"):
-        load_msgspec._module = importlib.import_module("msgspec")
-    return load_msgspec._module
+    if not hasattr(_load_msgspec, "_module"):
+        setattr(_load_msgspec, "_module", importlib.import_module("msgspec"))
+    return getattr(_load_msgspec, "_module")
 
 
 def serialize_to_msgpack(data: Any) -> bytes:
