@@ -28,6 +28,7 @@ FIRMA_CONSTRAINTS = {
         "ULTRA": 25000,
     }
 }
+EXPORT_REASON_MAX_CHARS = 1024
 
 # --- Models ---
 
@@ -104,7 +105,7 @@ class TelemetryIngestRequest(BaseModel):
 
 class ExportRequest(BaseModel):
     session_id: str
-    reason: str | None = None
+    reason: str | None = Field(default=None, max_length=EXPORT_REASON_MAX_CHARS)
 
 # --- Validation ---
 
@@ -354,10 +355,11 @@ async def request_export(
     x_api_key: str | None = Header(default=None, alias="X-API-Key"),
 ) -> dict[str, Any]:
     _ensure_api_key(x_api_key)
+    bounded_reason = request.reason[:EXPORT_REASON_MAX_CHARS] if request.reason else None
     audit_record = {
         "export_id": str(uuid.uuid4()),
         "session_id": request.session_id,
-        "reason": request.reason,
+        "reason": bounded_reason,
         "requested_at": datetime.now(timezone.utc).isoformat(),
     }
     EXPORT_AUDIT_TRAIL.appendleft(audit_record)
