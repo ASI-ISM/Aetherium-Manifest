@@ -12,21 +12,21 @@ Sample gateway for receiving Cognitive DSL payloads from external model provider
 
 ### Required Headers
 - `X-API-Key`
-- `X-Model-Provider` (emit only)
-- `X-Model-Version` (emit only)
 
 ### Run (Quick Development)
-For a quick development server, you can use `uvicorn` directly. Note that this mode may not reflect all production environment requirements.
+For a quick development server, you can use `uvicorn` directly. This mode is convenient, but it does not enforce every production-like preflight check.
 
 ```bash
 # An API key is required for protected endpoints
 export OPENAI_API_KEY=demo-key
+# Optional for Google model calls:
+export GEMINI_API_KEY=demo-key
 
 uvicorn api_gateway.main:app --host 0.0.0.0 --port 8080 --reload
 ```
 
 ### Run (Production-like)
-For an environment that closer resembles production, use the provided shell script. This script ensures that necessary environment variables, like API keys, are set.
+For an environment that more closely resembles production, use the provided shell script. It validates that at least one provider API key is set before startup, and runs via `uv run uvicorn`.
 
 ```bash
 ./api_gateway/start_cognitive_api.sh
@@ -68,8 +68,6 @@ Gateway ตัวอย่างสำหรับรับ Cognitive DSL จา
 
 ### Header ที่ต้องมี
 - `X-API-Key`
-- `X-Model-Provider` (เฉพาะ emit)
-- `X-Model-Version` (เฉพาะ emit)
 
 ### การรัน (สำหรับพัฒนาเร็ว)
 สำหรับ Development Server สามารถใช้ `uvicorn` โดยตรงได้เลย แต่โหมดนี้อาจไม่ได้บังคับหรือจำลองสภาพแวดล้อมเหมือน Production ทั้งหมด
@@ -77,12 +75,14 @@ Gateway ตัวอย่างสำหรับรับ Cognitive DSL จา
 ```bash
 # ต้องมี API key สำหรับเรียกใช้งาน endpoint ที่ป้องกันสิทธิ์
 export OPENAI_API_KEY=demo-key
+# หากต้องเรียก Google model ให้ตั้งเพิ่ม
+export GEMINI_API_KEY=demo-key
 
 uvicorn api_gateway.main:app --host 0.0.0.0 --port 8080 --reload
 ```
 
 ### การรัน (สำหรับ Production)
-สำหรับสภาพแวดล้อมที่ใกล้เคียงกับ Production แนะนำให้ใช้สคริปต์ที่เตรียมไว้ ซึ่งจะมีการตรวจสอบและตั้งค่า Environment Variable ที่จำเป็น เช่น API Key ให้ครบถ้วน
+สำหรับสภาพแวดล้อมที่ใกล้เคียงกับ Production แนะนำให้ใช้สคริปต์ที่เตรียมไว้ สคริปต์จะตรวจว่ามี provider API key อย่างน้อยหนึ่งค่า และรันผ่าน `uv run uvicorn`
 
 ```bash
 ./api_gateway/start_cognitive_api.sh

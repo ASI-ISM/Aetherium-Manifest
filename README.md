@@ -47,15 +47,14 @@ python3 -m http.server 4173
 ```
 
 ### Recommended Next Steps
-- ✅ Proxy fetch upgraded to async `httpx` with SSRF guardrails (host allowlist + private/link-local/loopback/rfc-reserved IP blocking).
-- ✅ Mutable runtime states are protected with `asyncio.Lock` (metrics, telemetry store, and state-sync rooms) to ensure concurrency safety.
-- ✅ Contract checker now uses `jsonschema` and keeps payload fixtures immutable during validation (audit-only fallback hints).
-- ✅ Browser URL analysis now routes through server-side proxy endpoint `/api/v1/proxy/fetch` to reduce CORS issues.
-- ✅ Telemetry pipeline now ingests to in-memory time-series storage via `/api/v1/telemetry/ingest` and aggregates via `/api/v1/telemetry/query`.
-- ✅ i18n now uses dynamic locale bundles in `locales/*.json`.
-- ✅ Voice model resolution now supports language-region mapping via `/api/v1/voice/model`, with region selector in Settings.
-- ✅ Deterministic multi-user state synchronization is available via `/ws/state-sync/{room_id}`.
-- ✅ Runtime quality tests were updated to match immutable contract-check behavior and async telemetry endpoints.
+- Move mutable runtime state to Redis (metrics counters, telemetry cache, and websocket room membership) for multi-worker consistency.
+- Add signed outbound proxy policy (HMAC request intent + per-tenant allowlist) to harden enterprise SSRF controls.
+- Build a contract-fuzz pipeline: property-based payload generators + mutation corpus for schema regression stress tests.
+- Add persisted TSDB backend (InfluxDB/TimescaleDB) with retention and downsampling policies.
+- Add proxy allowlist/denylist + content-type and size guardrails for stronger SSRF safety.
+- Add locale QA checks (missing-key scanner + pseudolocale) in CI.
+- Add voice A/B routing and collect WER/latency metrics by language-region cohort.
+- Add CRDT merge (Yjs/Automerge) for conflict-free collaborative editing beyond simple delta updates.
 
 ---
 
@@ -84,23 +83,22 @@ Aetherium Manifest คือเลเยอร์แสดงผลฝั่ง 
 โฟลเดอร์ `api_gateway/` มีตัวอย่าง Cognitive DSL gateway พร้อม endpoint สำหรับ emit/validate/health/websocket
 
 ### แนวทางต่อยอด
-- ✅ อัปเกรด proxy เป็น async (`httpx`) พร้อม SSRF protection (allowlist + block private/link-local/loopback IP)
-- ✅ เพิ่ม asyncio locks ครอบ state ที่แก้ไขได้ เพื่อความปลอดภัยในการทำงานพร้อมกัน
-- ✅ เปลี่ยน contract checker ไปใช้ `jsonschema` และตัด side effects ที่ไปแก้ payload ระหว่างการตรวจสอบ
-- ✅ ทำ URL proxy ฝั่งเซิร์ฟเวอร์ผ่าน `/api/v1/proxy/fetch` เพื่อลดปัญหา CORS
-- ✅ เก็บ telemetry ลง time-series store ผ่าน `/api/v1/telemetry/ingest` และสรุปผลผ่าน `/api/v1/telemetry/query`
-- ✅ ทำ i18n แบบแยกไฟล์ภาษาใน `locales/*.json` และโหลดแบบ dynamic
-- ✅ เลือกโมเดลเสียงตามภาษา/ภูมิภาคผ่าน `/api/v1/voice/model` และตัวเลือกภูมิภาคในหน้า Settings
-- ✅ เพิ่ม state sync แบบ deterministic สำหรับหลายผู้ใช้ด้วย `/ws/state-sync/{room_id}`
-- ✅ ปรับปรุงชุดทดสอบ runtime quality ให้สอดคล้องกับพฤติกรรมใหม่ (contract checker แบบไม่แก้ payload และ telemetry endpoint แบบ async)
+- ย้าย mutable runtime state ไปที่ Redis (metrics counters, telemetry cache และสมาชิกห้อง websocket) เพื่อรองรับหลาย worker ได้สม่ำเสมอ
+- เพิ่มนโยบาย signed outbound proxy (HMAC request intent + allowlist ตาม tenant) เพื่อเสริมความปลอดภัย SSRF ระดับองค์กร
+- สร้าง contract-fuzz pipeline ด้วยตัวสร้าง payload เชิง property-based และ mutation corpus สำหรับ stress test schema regression
+- เพิ่ม persisted TSDB backend (InfluxDB/TimescaleDB) พร้อมนโยบาย retention และ downsampling
+- เพิ่ม allowlist/denylist, content-type guardrail และขนาด payload guardrail ใน proxy
+- เพิ่ม locale QA checks ใน CI (missing-key scanner + pseudolocale)
+- เพิ่ม voice A/B routing และเก็บ WER/latency แยกตามภาษาและภูมิภาค
+- เพิ่มกลไก CRDT merge (Yjs/Automerge) สำหรับงาน collaborative editing ที่ซับซ้อนกว่า delta พื้นฐาน
 
 
 ## Extension Ideas
-- Move mutable runtime state to Redis (metrics counters, telemetry cache, ws room membership) for multi-worker consistency.
+- Move mutable runtime state to Redis (metrics counters, telemetry cache, and websocket room membership) for multi-worker consistency.
 - Add signed outbound proxy policy (HMAC request intent + per-tenant allowlist) to harden enterprise SSRF controls.
-- Build contract-fuzz pipeline: property-based payload generators + mutation corpus for schema regression stress tests.
-- Add persisted TSDB backend (InfluxDB/TimescaleDB) with retention + downsampling policies.
+- Build a contract-fuzz pipeline: property-based payload generators + mutation corpus for schema regression stress tests.
+- Add persisted TSDB backend (InfluxDB/TimescaleDB) with retention and downsampling policies.
 - Add proxy allowlist/denylist + content-type and size guardrails for stronger SSRF safety.
-- Add locale QA checks (missing key scanner + pseudolocale) in CI.
-- Add voice A/B routing and collect WER / latency metrics by language-region cohort.
+- Add locale QA checks (missing-key scanner + pseudolocale) in CI.
+- Add voice A/B routing and collect WER/latency metrics by language-region cohort.
 - Add CRDT merge (Yjs/Automerge) for conflict-free collaborative editing beyond simple delta updates.

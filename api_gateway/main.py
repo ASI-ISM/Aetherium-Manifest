@@ -191,7 +191,7 @@ async def invoke_generative_model(prompt: str, model: str, temperature: float) -
         raise HTTPException(status_code=400, detail=f"Unsupported model: {model}")
 
     if provider == "google":
-        api_key = os.getenv("GEMINI_API_KEY")
+        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
         if not api_key:
             raise HTTPException(status_code=500, detail="GEMINI_API_KEY is not set")
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
@@ -422,7 +422,7 @@ async def ingest_telemetry(req: TelemetryIngestRequest, x_api_key: str | None = 
     async with TELEMETRY_LOCK:
         for point in req.points:
             series = TELEMETRY_TS_DB.setdefault(point.metric, [])
-            series.append(point.model_dump())
+            series.append(point.model_dump(mode="json"))
             series[:] = series[-2500:]
         return {"ingested": len(req.points), "series_count": len(TELEMETRY_TS_DB)}
 
@@ -445,10 +445,15 @@ async def query_telemetry(
         "latest": rows[-1] if rows else None,
     }
 
+def _resolve_voice_model(language: str, region: str) -> str:
+    lang_key = language.split("-", maxsplit=1)[0].lower()
+    region_key = region.lower()
+    return VOICE_MODEL_MAP.get((lang_key, region_key), f"whisper-general-{lang_key}")
+
+
 @app.get("/api/v1/voice/model")
 def resolve_voice_model(language: str = "en-US", region: str = "us") -> dict[str, str]:
-    lang_key, region_key = language.split("-")[0].lower(), region.lower()
-    model = VOICE_MODEL_MAP.get((lang_key, region_key), f"whisper-general-{lang_key}")
+    model = _resolve_voice_model(language, region)
     return {"language": language, "region": region, "model": model}
 
 # --- WebSocket Endpoints ---
