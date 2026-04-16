@@ -86,7 +86,7 @@ Aetherium Manifest คือเลเยอร์แสดงผลฝั่ง 
 - ย้าย mutable runtime state ไป Redis (metrics counters, telemetry cache และ WebSocket room membership) เพื่อความสอดคล้องของข้อมูล (consistency) เมื่อใช้งานหลาย worker
 - เพิ่มนโยบาย signed outbound proxy (HMAC request intent + per-tenant allowlist) เพื่อเสริมความแข็งแรงด้าน SSRF ระดับองค์กร
 - สร้าง contract-fuzz pipeline: ตัวสร้าง payload แบบ property-based + mutation corpus สำหรับ stress test schema regression
-- เพิ่ม TSDB แบบ persisted (InfluxDB/TimescaleDB) พร้อม retention และ downsampling policies
+- เพิ่ม TSDB แบบ persisted (InfluxDB/TimescaleDB) พร้อมนโยบายการเก็บรักษา (retention) และการลดความละเอียดข้อมูล (downsampling)
 - เพิ่ม proxy allowlist/denylist พร้อม guardrails ด้าน content-type และขนาดข้อมูล เพื่อเพิ่มความปลอดภัยจาก SSRF
 - เพิ่ม locale QA checks ใน CI (ตัวสแกน missing key + pseudolocale)
 - เพิ่ม voice A/B routing และเก็บตัวชี้วัด WER/latency แยกตาม language-region cohort
