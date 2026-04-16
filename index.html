@@ -4,15 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aetherium Manifest | Light-Native Runtime Surface</title>
+    <link rel="manifest" href="/app.webmanifest">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700&family=Noto+Sans+Thai:wght@300;400;700&display=swap');
 
-        :root {
-            color-scheme: dark;
-        }
+        :root { color-scheme: dark; }
+        * { box-sizing: border-box; }
 
         body {
             margin: 0;
@@ -37,9 +37,36 @@
             box-shadow: 0 8px 40px rgba(0, 0, 0, 0.45);
         }
 
-        body[data-ui-surface="clean"] .studio-only {
-            display: none !important;
+        #landing-layer {
+            position: fixed;
+            inset: 0;
+            z-index: 15;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.25rem;
+            opacity: 1;
+            pointer-events: auto;
+            transition: opacity 280ms ease;
         }
+
+        body[data-ui-mode="studio"] #landing-layer {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .status-dot {
+            width: 0.55rem;
+            height: 0.55rem;
+            border-radius: 999px;
+            display: inline-block;
+            margin-right: 0.45rem;
+            box-shadow: 0 0 10px rgba(130, 190, 255, 0.65);
+        }
+
+        .status-dot.ok { background: #34d399; }
+        .status-dot.warn { background: #facc15; }
+        .status-dot.err { background: #f87171; }
 
         #studio-layer {
             position: fixed;
@@ -53,13 +80,8 @@
             pointer-events: none;
         }
 
-        body[data-ui-surface="studio"] #studio-layer {
+        body[data-ui-mode="studio"] #studio-layer {
             transform: translateX(0);
-            pointer-events: auto;
-        }
-
-        body[data-ui-surface="studio"] #studio-backdrop {
-            opacity: 1;
             pointer-events: auto;
         }
 
@@ -73,14 +95,13 @@
             transition: opacity 220ms ease;
         }
 
-        .lineage-node {
-            transition: all 0.25s ease;
+        body[data-ui-mode="studio"] #studio-backdrop {
+            opacity: 1;
+            pointer-events: auto;
         }
 
-        .lineage-node:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 0 18px rgba(130, 190, 255, 0.45);
-        }
+        .lineage-node { transition: all 0.25s ease; }
+        .lineage-node:hover { transform: translateY(-1px); box-shadow: 0 0 18px rgba(130, 190, 255, 0.45); }
 
         .state-chip.active {
             color: #e5edff;
@@ -99,15 +120,7 @@
             background: radial-gradient(circle at center, rgba(130,190,255,0.28), rgba(0,0,0,0) 48%);
         }
 
-        #branch-panel {
-            transition: opacity 500ms ease;
-        }
-
-        aside {
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-        }
+        #branch-panel { transition: opacity 500ms ease; }
 
         .branch-btn {
             border: 1px solid rgba(255, 255, 255, 0.15);
@@ -127,34 +140,66 @@
             100% { box-shadow: 0 0 0 rgba(96,165,250,0.1); }
         }
 
-        .listening-mode {
-            animation: pulse 1.8s infinite;
-        }
+        .listening-mode { animation: pulse 1.8s infinite; }
+        .voice-active { color: #fda4af !important; text-shadow: 0 0 12px rgba(251,113,133,0.8); }
 
-        .voice-active {
-            color: #fda4af !important;
-            text-shadow: 0 0 12px rgba(251,113,133,0.8);
+        .quick-chip.active { border-color: rgba(130, 190, 255, 0.7); background: rgba(130, 190, 255, 0.2); color: #eff6ff; }
+
+        button:focus-visible,
+        input:focus-visible {
+            outline: 2px solid rgba(147, 197, 253, 0.9);
+            outline-offset: 2px;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.25);
         }
 
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.25); border-radius: 2px; }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+
+            .listening-mode { animation: none !important; }
+        }
     </style>
 </head>
-<body class="text-sm" data-ui-surface="clean">
+<body class="text-sm" data-ui-mode="landing">
     <div id="canvas-container"></div>
     <div id="manifestation-overlay"></div>
-    <div id="studio-backdrop" class="studio-only" onclick="setUiSurfaceMode('clean')"></div>
 
-    <section id="studio-layer" class="studio-only p-4">
-        <aside class="glass-panel rounded-2xl p-4 h-full overflow-y-auto">
-            <div class="flex items-center justify-between mb-3">
+    <section id="landing-layer" aria-label="Landing mode">
+        <div class="glass-panel rounded-3xl p-6 md:p-8 w-[min(95vw,58rem)]">
+            <div class="flex items-center justify-between mb-5">
+                <span class="text-[11px] tracking-[0.18em] text-blue-100/80">AETHERIUM MANIFEST</span>
+                <button class="text-xs px-3 py-1.5 rounded-full border border-blue-300/40 text-blue-100 hover:bg-blue-400/15" onclick="openStudio(true)">Advanced Studio</button>
+            </div>
+            <h1 class="text-2xl md:text-4xl font-bold mb-2">Light-native runtime for real user intent.</h1>
+            <p class="text-white/70 max-w-2xl">พิมพ์สิ่งที่ต้องการ แล้วให้แสงจัดรูปแบบ intent เป็นภาพ, UI concept, คำตอบค้นหา, หรือ lighting behavior — โดยไม่ต้องเปิด debug panel ก่อนเริ่ม.</p>
+
+            <div class="grid md:grid-cols-2 gap-2 mt-5" id="starter-prompts"></div>
+
+            <div id="landing-status" class="mt-5 text-xs text-white/75 flex flex-wrap gap-4"></div>
+        </div>
+    </section>
+
+    <div id="studio-backdrop" onclick="setUiMode('landing')"></div>
+
+    <section id="studio-layer" class="p-4" aria-label="Studio mode">
+        <aside class="glass-panel rounded-2xl p-4 h-full overflow-y-auto flex flex-col gap-3">
+            <div class="flex items-center justify-between">
                 <div class="font-mono text-xs text-white/70 tracking-[0.18em]">SETTINGS / STUDIO</div>
-                <button class="w-8 h-8 rounded-full hover:bg-white/10 text-white/60" onclick="setUiSurfaceMode('clean')" title="Close settings">
+                <button aria-label="Close studio panel" class="w-8 h-8 rounded-full hover:bg-white/10 text-white/60" onclick="setUiMode('landing')" title="Close settings">
                     <i class="fas fa-xmark"></i>
                 </button>
             </div>
 
-            <div class="grid grid-cols-2 text-xs gap-y-1 mb-3">
+            <div id="connection-banner" class="rounded-lg border border-white/15 px-2.5 py-2 text-xs text-white/70">Checking API / WS connection...</div>
+
+            <div class="grid grid-cols-2 text-xs gap-y-1">
                 <span class="text-gray-400">RUNTIME STATE</span>
                 <span id="sys-state" class="text-right text-emerald-300">IDLE</span>
                 <span class="text-gray-400">INTENT ROUTE</span>
@@ -163,7 +208,7 @@
                 <span id="sys-gov" class="text-right text-yellow-300">awaiting</span>
             </div>
 
-            <div class="mb-4 flex flex-wrap gap-1.5 font-mono text-[10px]">
+            <div class="flex flex-wrap gap-1.5 font-mono text-[10px]">
                 <span class="state-chip rounded-full border border-white/15 px-2 py-1" data-state="LISTENING">LISTENING</span>
                 <span class="state-chip rounded-full border border-white/15 px-2 py-1" data-state="INTERPRETING">INTERPRETING</span>
                 <span class="state-chip rounded-full border border-white/15 px-2 py-1" data-state="CONVERGING">CONVERGING</span>
@@ -174,13 +219,13 @@
                 <span class="state-chip rounded-full border border-white/15 px-2 py-1" data-state="NIRODHA">NIRODHA</span>
             </div>
 
-            <section id="branch-panel" class="mb-4 opacity-0 pointer-events-none">
+            <section id="branch-panel" class="opacity-0 pointer-events-none">
                 <div id="branch-buttons" class="grid grid-cols-1 md:grid-cols-2 gap-2"></div>
             </section>
 
-            <section id="terminal-logs" class="glass-panel rounded-xl p-3 h-52 overflow-y-auto font-mono text-[10px] text-blue-100 mb-3"></section>
+            <section id="terminal-logs" class="glass-panel rounded-xl p-3 h-44 overflow-y-auto font-mono text-[10px] text-blue-100"></section>
 
-            <section class="glass-panel rounded-xl p-4 min-h-[17rem] overflow-y-auto mb-3">
+            <section class="glass-panel rounded-xl p-4 min-h-[16rem] overflow-y-auto">
                 <div class="font-mono text-xs text-cyan-200 mb-3 border-b border-white/10 pb-2 flex justify-between items-center">
                     <span><i class="fas fa-code-branch mr-2"></i>DESIGN LINEAGE</span>
                     <div class="flex items-center gap-2">
@@ -191,7 +236,7 @@
                 <div id="lineage-container" class="space-y-2"></div>
             </section>
 
-            <section id="scholar-panel" class="glass-panel rounded-xl p-4 hidden min-h-[14rem]">
+            <section id="scholar-panel" class="glass-panel rounded-xl p-4 hidden min-h-[12rem]">
                 <div class="font-mono text-xs text-fuchsia-200 mb-2 border-b border-fuchsia-300/20 pb-2 flex justify-between">
                     <span><i class="fas fa-book-open mr-2"></i>SCHOLAR AGENT</span>
                     <span class="text-fuchsia-100/60">Search Layer</span>
@@ -201,24 +246,40 @@
         </aside>
     </section>
 
-    <footer class="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 w-[min(95vw,64rem)]">
+    <footer class="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 w-[min(95vw,64rem)]">
         <div id="attachment-preview" class="flex gap-2 mb-2"></div>
+        <div class="mb-2 flex flex-wrap gap-1.5" id="quick-modes"></div>
         <div id="composer" class="glass-panel rounded-2xl p-2.5 flex items-center gap-2 listening-mode">
-            <button class="w-10 h-10 rounded-full hover:bg-white/10 text-white/60 hover:text-white" onclick="toggleStudioLayer()" title="Settings / Studio">
+            <button aria-label="Open advanced studio" class="w-10 h-10 rounded-full hover:bg-white/10 text-white/60 hover:text-white" onclick="openStudio(true)" title="Advanced Studio">
                 <i class="fas fa-sliders"></i>
             </button>
-            <button class="w-10 h-10 rounded-full hover:bg-white/10 text-white/60 hover:text-white" onclick="triggerAttach()" title="Attach">
+            <button aria-label="Attach file" class="w-10 h-10 rounded-full hover:bg-white/10 text-white/60 hover:text-white" onclick="triggerAttach()" title="Attach">
                 <i class="fas fa-paperclip"></i>
             </button>
-            <button id="voice-btn" class="w-10 h-10 rounded-full hover:bg-white/10 text-white/60 hover:text-white" onclick="toggleVoice()" title="Voice">
+            <button id="voice-btn" aria-label="Toggle voice input" class="w-10 h-10 rounded-full hover:bg-white/10 text-white/60 hover:text-white" onclick="toggleVoice()" title="Voice">
                 <i class="fas fa-microphone"></i>
             </button>
-            <input id="intent-input" type="text" class="flex-1 bg-transparent outline-none border-0 text-white placeholder-white/30 px-2" placeholder="สนทนากับแสง... (สร้างภาพ / วิดีโอ / ค้นหา / ควบคุมแสง)" oninput="enterListening()" onkeypress="handleKeyPress(event)">
-            <button class="bg-blue-500/25 border border-blue-300/40 text-blue-100 px-4 py-2 rounded-xl font-mono text-xs" onclick="emitIntent()">EMIT</button>
+            <input id="intent-input" type="text" class="flex-1 bg-transparent outline-none border-0 text-white placeholder-white/30 px-2" placeholder="พิมพ์สิ่งที่ต้องการ..." oninput="enterListening()" onkeydown="handleKeyDown(event)">
+            <button class="bg-blue-500/25 border border-blue-300/40 text-blue-100 px-4 py-2 rounded-xl font-mono text-xs" onclick="emitIntent()">Create</button>
         </div>
+        <div id="ux-state" class="mt-2 text-center text-xs text-white/60"></div>
     </footer>
 
     <script>
+        const STARTER_PROMPTS = [
+            { label: 'สร้างภาพ', intent: 'สร้างภาพ key visual สำหรับ launch campaign โทน cinematic blue' },
+            { label: 'สร้าง UI concept', intent: 'สร้าง UI concept หน้า dashboard แบบ calm futuristic สำหรับ product analytics' },
+            { label: 'ค้นหา', intent: 'ค้นหาเทรนด์ AI interface ล่าสุดและสรุป insight ที่ใช้ได้จริง 3 ข้อ' },
+            { label: 'ควบคุมแสง', intent: 'ควบคุมแสงให้เป็นโหมด focus ตอนทำงานลึก และ calm ตอนพักสายตา' }
+        ];
+
+        const QUICK_MODES = [
+            { key: 'pure_light', text: 'Pure Light' },
+            { key: 'image', text: 'Image' },
+            { key: 'search', text: 'Search' },
+            { key: 'video', text: 'Motion' }
+        ];
+
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -227,7 +288,8 @@
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         container.appendChild(renderer.domElement);
 
-        const particleCount = 18000;
+        const qualityTier = window.matchMedia('(max-width: 768px), (pointer: coarse)').matches ? 'mobile' : 'desktop';
+        const particleCount = qualityTier === 'mobile' ? 9000 : 18000;
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
         const targets = new Float32Array(particleCount * 3);
@@ -248,7 +310,7 @@
         geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
         const points = new THREE.Points(geometry, new THREE.PointsMaterial({
-            size: 0.06,
+            size: qualityTier === 'mobile' ? 0.08 : 0.06,
             vertexColors: true,
             transparent: true,
             opacity: 0.72,
@@ -278,23 +340,36 @@
         let route = 'pure_light';
         let voiceActive = false;
         let isProcessing = false;
-        let ui_surface_mode = 'clean';
+        let uiMode = 'landing';
         let lineageCounter = 0;
         const nodes = [{ id: 'genesis', label: 'Genesis Root', deleted: false }];
         const variationRegistry = {};
         const variationSets = [];
         let branchContext = 'genesis';
+        let hasSubmittedIntent = false;
+        let apiStatus = 'unknown';
+        let wsStatus = 'unknown';
+        let wsClient = null;
+        let lastFrameTime = null;
 
-        function setUiSurfaceMode(mode) {
-            ui_surface_mode = mode === 'studio' ? 'studio' : 'clean';
-            document.body.dataset.uiSurface = ui_surface_mode;
-            if (ui_surface_mode === 'clean') {
+        function setUiMode(mode) {
+            uiMode = mode === 'studio' ? 'studio' : 'landing';
+            document.body.dataset.uiMode = uiMode;
+            if (uiMode === 'landing') {
                 document.getElementById('branch-panel').classList.add('opacity-0', 'pointer-events-none');
             }
         }
 
-        function toggleStudioLayer() {
-            setUiSurfaceMode(ui_surface_mode === 'studio' ? 'clean' : 'studio');
+        function openStudio(force = false) {
+            if (!force && !hasSubmittedIntent) return;
+            setUiMode('studio');
+        }
+
+        function updateUxState(message, tone = 'normal') {
+            const el = document.getElementById('ux-state');
+            const toneClass = tone === 'error' ? 'text-red-300' : tone === 'warn' ? 'text-yellow-200' : 'text-white/60';
+            el.className = `mt-2 text-center text-xs ${toneClass}`;
+            el.textContent = message;
         }
 
         function logTerminal(message, level = 'info') {
@@ -303,7 +378,8 @@
                 info: 'text-blue-200',
                 warn: 'text-yellow-300',
                 success: 'text-emerald-300',
-                system: 'text-purple-300'
+                system: 'text-purple-300',
+                error: 'text-red-300'
             };
             const row = document.createElement('div');
             row.className = `${map[level] || map.info} mt-1`;
@@ -331,6 +407,9 @@
         function setRoute(next) {
             route = next;
             document.getElementById('sys-route').textContent = next;
+            document.querySelectorAll('.quick-chip').forEach((chip) => {
+                chip.classList.toggle('active', chip.dataset.mode === next);
+            });
         }
 
         function setGovernor(text) {
@@ -343,7 +422,7 @@
             logTerminal('[LIGHT] Intake active: signal becoming intent.', 'info');
         }
 
-        function handleKeyPress(event) {
+        function handleKeyDown(event) {
             if (event.key === 'Enter') emitIntent();
         }
 
@@ -352,9 +431,7 @@
             const btn = document.getElementById('voice-btn');
             const input = document.getElementById('intent-input');
             btn.classList.toggle('voice-active', voiceActive);
-            input.placeholder = voiceActive
-                ? 'กำลังฟังเสียง... พูดเพื่อส่งเจตนา'
-                : 'สนทนากับแสง... (สร้างภาพ / วิดีโอ / ค้นหา / ควบคุมแสง)';
+            input.placeholder = voiceActive ? 'กำลังฟังเสียง... พูดเพื่อส่งเจตนา' : 'พิมพ์สิ่งที่ต้องการ...';
             logTerminal(voiceActive ? '[VOICE] Input stream connected.' : '[VOICE] Input stream closed.', 'system');
         }
 
@@ -362,7 +439,7 @@
             const preview = document.getElementById('attachment-preview');
             const item = document.createElement('div');
             item.className = 'glass-panel rounded-full px-3 py-1 text-xs text-blue-100 border border-blue-200/20';
-            item.innerHTML = '<i class="fas fa-file-circle-plus mr-1"></i> style_ref.pdf <i class="fas fa-xmark ml-2 cursor-pointer" onclick="this.parentElement.remove()"></i>';
+            item.innerHTML = '<i class="fas fa-file-circle-plus mr-1"></i> style_ref.pdf <button aria-label="Remove attachment" class="ml-2 text-white/80 hover:text-white" onclick="this.parentElement.remove()"><i class="fas fa-xmark"></i></button>';
             preview.appendChild(item);
             logTerminal('[ATTACH] Reference file added to intent envelope.', 'info');
         }
@@ -371,8 +448,8 @@
             const lower = intent.toLowerCase();
             if (/ค้นหา|search|อ้างอิง|reference|scholar/.test(lower)) return 'search';
             if (/วิดีโอ|video|motion|flow/.test(lower)) return 'video';
-            if (/ภาพ|image|poster|visual/.test(lower)) return 'image';
-            return 'pure_light';
+            if (/ภาพ|image|poster|visual|ui/.test(lower)) return 'image';
+            return route || 'pure_light';
         }
 
         function mapGoalType(mode) {
@@ -419,9 +496,7 @@
 
         function renderBranchPanel(variationSet) {
             variationSets.push(variationSet);
-            variationSet.variations.forEach((variation) => {
-                variationRegistry[variation.variation_id] = variation;
-            });
+            variationSet.variations.forEach((variation) => { variationRegistry[variation.variation_id] = variation; });
 
             const branchPanel = document.getElementById('branch-panel');
             const buttons = document.getElementById('branch-buttons');
@@ -438,19 +513,31 @@
                 buttons.appendChild(button);
             });
 
-            if (ui_surface_mode === 'studio') {
+            if (uiMode === 'studio') {
                 branchPanel.classList.remove('opacity-0', 'pointer-events-none');
             }
             logTerminal(`[BRANCH] Generated ${variationSet.variations.length} branches from ${variationSet.parent_id}.`, 'system');
+        }
+
+        function setStarterPrompt(intent) {
+            const input = document.getElementById('intent-input');
+            input.value = intent;
+            input.focus();
+            updateUxState('พร้อมแล้ว กด Create เพื่อ manifest intent นี้');
         }
 
         function emitIntent() {
             if (isProcessing) return;
             const input = document.getElementById('intent-input');
             const intent = input.value.trim() || (voiceActive ? 'voice intent' : '');
-            if (!intent) return;
+            if (!intent) {
+                updateUxState('พิมพ์ intent ก่อนเริ่มใช้งาน', 'warn');
+                return;
+            }
 
+            hasSubmittedIntent = true;
             isProcessing = true;
+            setUiMode('studio');
             setRuntimeState('EVALUATING');
             setFlowState('INTERPRETING');
             const mode = inferRoute(intent);
@@ -460,6 +547,7 @@
             logTerminal(`[INTENT] ${intent}`);
             logTerminal('[CONTRACT] Contract Proposed -> ai_particle_control_contract_v1', 'system');
             logTerminal('[GOVERNOR] Analyzing...', 'warn');
+            updateUxState('Intent submitted — runtime กำลังแปลงสู่แสง');
 
             input.value = '';
             if (voiceActive) toggleVoice();
@@ -489,6 +577,7 @@
                 setFlowState('MANIFESTING');
                 document.getElementById('manifestation-overlay').style.opacity = '1';
                 logTerminal(`[MANIFEST] ${mode} materializing on light surface.`, 'success');
+                updateUxState('Manifest complete. คุณสามารถ refine ต่อได้ใน Studio');
                 isProcessing = false;
             }, 1000);
         }
@@ -496,9 +585,6 @@
         function renderScholar(intent) {
             const panel = document.getElementById('scholar-panel');
             const content = document.getElementById('scholar-content');
-            if (ui_surface_mode !== 'studio') {
-                setUiSurfaceMode('studio');
-            }
             panel.classList.remove('hidden');
             content.innerHTML = `
                 <div class="text-white">Query: ${intent}</div>
@@ -518,18 +604,23 @@
         }
 
         function renderLineage() {
-            const container = document.getElementById('lineage-container');
-            container.innerHTML = '';
+            const lineup = document.getElementById('lineage-container');
+            lineup.innerHTML = '';
             const alive = nodes.filter((n) => !n.deleted);
+            if (!alive.length) {
+                lineup.innerHTML = '<div class="text-xs text-white/55">ยังไม่มี lineage node</div>';
+                return;
+            }
+
             alive.forEach((node) => {
                 const row = document.createElement('div');
                 row.className = 'lineage-node flex items-center gap-2 rounded-lg border border-white/10 px-2 py-1.5 bg-black/20';
                 row.innerHTML = `
-                    <button class="w-6 h-6 rounded-full border border-blue-300/40 text-[10px]" onclick="timeShift('${node.id}')"><i class="fas fa-circle-dot"></i></button>
+                    <button aria-label="Time shift to ${node.id}" class="w-6 h-6 rounded-full border border-blue-300/40 text-[10px]" onclick="timeShift('${node.id}')"><i class="fas fa-circle-dot"></i></button>
                     <div class="text-xs text-white/80 truncate flex-1">${node.id === 'genesis' ? 'Genesis Root' : `${node.label.slice(0, 35)} (${node.mode})`}</div>
-                    ${node.id === 'genesis' ? '' : `<button class="text-white/40 hover:text-red-300" onclick="deleteNode('${node.id}')"><i class='fas fa-trash'></i></button>`}
+                    ${node.id === 'genesis' ? '' : `<button aria-label="Delete node ${node.id}" class="text-white/40 hover:text-red-300" onclick="deleteNode('${node.id}')"><i class='fas fa-trash'></i></button>`}
                 `;
-                container.appendChild(row);
+                lineup.appendChild(row);
             });
             document.getElementById('lineage-count').textContent = `${alive.length} node${alive.length > 1 ? 's' : ''}`;
         }
@@ -576,7 +667,7 @@
             logTerminal(`[EXPORT] Manifest exported with replay context ${branchContext}.`, 'system');
         }
 
-        function updateTargetsByState() {
+        function updateTargetsByState(nowSeconds) {
             const color = STATE_COLORS[flowState] || STATE_COLORS.IDLE;
             for (let i = 0; i < particleCount; i++) {
                 const i3 = i * 3;
@@ -594,9 +685,9 @@
                     targets[i3 + 1] = (Math.random() - 0.5) * 3;
                     targets[i3 + 2] = (Math.random() - 0.5) * 3;
                 } else if (runtimeState === 'STREAMING') {
-                    targets[i3] = Math.sin((i / particleCount) * Math.PI * 12 + performance.now() * 0.002) * 8;
+                    targets[i3] = Math.sin((i / particleCount) * Math.PI * 12 + nowSeconds * 1.7) * 8;
                     targets[i3 + 1] = ((i / particleCount) * 22) - 11;
-                    targets[i3 + 2] = Math.cos((i / particleCount) * Math.PI * 12 + performance.now() * 0.002) * 8;
+                    targets[i3 + 2] = Math.cos((i / particleCount) * Math.PI * 12 + nowSeconds * 1.7) * 8;
                 } else if (runtimeState === 'SEARCHING') {
                     const ring = 11;
                     const a = (i / particleCount) * Math.PI * 2;
@@ -619,21 +710,121 @@
             }
         }
 
-        function animate() {
+        function animate(timestamp) {
             requestAnimationFrame(animate);
-            updateTargetsByState();
+            const nowSeconds = timestamp * 0.001;
+            const dt = lastFrameTime === null ? 0.016 : Math.min((timestamp - lastFrameTime) / 1000, 0.05);
+            lastFrameTime = timestamp;
+
+            updateTargetsByState(nowSeconds);
             const pos = geometry.attributes.position.array;
+            const blend = Math.min(dt * 2.2, 0.07);
             for (let i = 0; i < particleCount; i++) {
                 const i3 = i * 3;
-                pos[i3] += (targets[i3] - pos[i3]) * 0.035;
-                pos[i3 + 1] += (targets[i3 + 1] - pos[i3 + 1]) * 0.035;
-                pos[i3 + 2] += (targets[i3 + 2] - pos[i3 + 2]) * 0.035;
+                pos[i3] += (targets[i3] - pos[i3]) * blend;
+                pos[i3 + 1] += (targets[i3 + 1] - pos[i3 + 1]) * blend;
+                pos[i3 + 2] += (targets[i3 + 2] - pos[i3 + 2]) * blend;
             }
-            points.rotation.y += 0.0013;
+            points.rotation.y += dt * 0.08;
             geometry.attributes.position.needsUpdate = true;
             geometry.attributes.color.needsUpdate = true;
             renderer.render(scene, camera);
         }
+
+        async function checkApiStatus() {
+            try {
+                const res = await fetch('/api/v1/telemetry/runtime-state', { headers: { 'X-API-Key': 'dev-local-key' } });
+                apiStatus = res.ok ? 'online' : 'degraded';
+            } catch (error) {
+                apiStatus = navigator.onLine ? 'offline' : 'network_offline';
+            }
+            updateConnectionUI();
+        }
+
+        function connectWsStatus() {
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+            const wsUrl = `${wsProtocol}://${window.location.host}/ws`;
+            try {
+                wsClient = new WebSocket(wsUrl);
+                wsStatus = 'connecting';
+                wsClient.onopen = () => { wsStatus = 'online'; updateConnectionUI(); };
+                wsClient.onerror = () => { wsStatus = 'error'; updateConnectionUI(); };
+                wsClient.onclose = () => { wsStatus = 'offline'; updateConnectionUI(); };
+            } catch (error) {
+                wsStatus = 'offline';
+                updateConnectionUI();
+            }
+            updateConnectionUI();
+        }
+
+        function updateConnectionUI() {
+            const landingStatus = document.getElementById('landing-status');
+            const banner = document.getElementById('connection-banner');
+            const apiDot = apiStatus === 'online' ? 'ok' : (apiStatus === 'unknown' ? 'warn' : 'err');
+            const wsDot = wsStatus === 'online' ? 'ok' : (wsStatus === 'connecting' || wsStatus === 'unknown' ? 'warn' : 'err');
+            landingStatus.innerHTML = `
+                <span><span class="status-dot ${apiDot}"></span>API: ${apiStatus}</span>
+                <span><span class="status-dot ${wsDot}"></span>WS: ${wsStatus}</span>
+                <span><span class="status-dot ok"></span>Quality: ${qualityTier} (${particleCount.toLocaleString()} particles)</span>
+            `;
+
+            if (!navigator.onLine) {
+                banner.textContent = 'Offline mode: ทำงานบน local fallback และ cache เท่านั้น';
+                banner.className = 'rounded-lg border border-red-300/35 bg-red-500/10 px-2.5 py-2 text-xs text-red-200';
+                updateUxState('คุณออฟไลน์อยู่ ผลลัพธ์บางอย่างจะ fallback', 'error');
+                return;
+            }
+
+            if (apiStatus !== 'online' || (wsStatus !== 'online' && wsStatus !== 'connecting')) {
+                banner.textContent = 'Connection degraded: runtime จะใช้ fallback/จำลองในบางเส้นทาง';
+                banner.className = 'rounded-lg border border-yellow-300/35 bg-yellow-500/10 px-2.5 py-2 text-xs text-yellow-100';
+                return;
+            }
+
+            banner.textContent = 'All systems ready: API + WS available';
+            banner.className = 'rounded-lg border border-emerald-300/35 bg-emerald-500/10 px-2.5 py-2 text-xs text-emerald-100';
+        }
+
+        function initStarterPrompts() {
+            const host = document.getElementById('starter-prompts');
+            host.innerHTML = '';
+            STARTER_PROMPTS.forEach((item) => {
+                const button = document.createElement('button');
+                button.className = 'text-left rounded-xl border border-white/15 bg-black/25 hover:bg-white/10 px-4 py-3';
+                button.innerHTML = `<div class="text-blue-100 font-semibold">${item.label}</div><div class="text-white/60 text-xs mt-1 truncate">${item.intent}</div>`;
+                button.onclick = () => setStarterPrompt(item.intent);
+                host.appendChild(button);
+            });
+        }
+
+        function initQuickModes() {
+            const host = document.getElementById('quick-modes');
+            host.innerHTML = '';
+            QUICK_MODES.forEach((item) => {
+                const btn = document.createElement('button');
+                btn.className = 'quick-chip rounded-full border border-white/20 text-xs text-white/75 px-3 py-1.5 hover:border-blue-200/55';
+                btn.dataset.mode = item.key;
+                btn.textContent = item.text;
+                btn.onclick = () => {
+                    setRoute(item.key);
+                    updateUxState(`Quick mode set: ${item.text}`);
+                };
+                host.appendChild(btn);
+            });
+            setRoute(route);
+        }
+
+        function registerServiceWorker() {
+            if (!('serviceWorker' in navigator)) return;
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(() => logTerminal('[PWA] service-worker.js registered.', 'system'))
+                    .catch((error) => logTerminal(`[PWA] service-worker registration failed: ${error.message}`, 'warn'));
+            });
+        }
+
+        window.addEventListener('offline', updateConnectionUI);
+        window.addEventListener('online', () => { checkApiStatus(); connectWsStatus(); });
 
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
@@ -641,12 +832,18 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
+        initStarterPrompts();
+        initQuickModes();
         renderLineage();
-        setUiSurfaceMode('clean');
+        setUiMode('landing');
         setFlowState('NIRODHA');
         setRuntimeState('IDLE');
+        updateUxState('เริ่มได้ทันทีด้วย starter prompt หรือพิมพ์ intent ของคุณ');
         logTerminal('System initialized. Intent -> Governor -> Manifest pipeline ready.', 'success');
-        animate();
+        checkApiStatus();
+        connectWsStatus();
+        registerServiceWorker();
+        animate(0);
     </script>
 </body>
 </html>
