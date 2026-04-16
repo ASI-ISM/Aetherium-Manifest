@@ -178,7 +178,7 @@ def _require_provider_key(model: str | None) -> None:
             logger.warning("GOOGLE_API_KEY is deprecated. Please migrate to GEMINI_API_KEY.")
             return
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY is not set")
-    if model_name.startswith(("gpt", "o1", "o3", "o4")) and not os.getenv("OPENAI_API_KEY"):
+    if model_name.startswith(("gpt", "o1", "o2", "o3", "o4")) and not os.getenv("OPENAI_API_KEY"):
         raise HTTPException(status_code=500, detail="OPENAI_API_KEY is not set")
     if model_name.startswith("claude") and not os.getenv("ANTHROPIC_API_KEY"):
         raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY is not set")

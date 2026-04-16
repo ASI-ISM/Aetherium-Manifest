@@ -67,11 +67,13 @@ def test_to_visual_manifestation_device_tier_fallback_and_clamp() -> None:
     payload = {"intent_state": {"palette": {}}}
 
     non_numeric_tier = to_visual_manifestation(payload, device_tier="mid")
+    decimal_string_tier = to_visual_manifestation(payload, device_tier="2.0")
     none_tier = to_visual_manifestation(payload, device_tier=None)
     negative_tier = to_visual_manifestation(payload, device_tier=-9)
     over_max_tier = to_visual_manifestation(payload, device_tier=99)
 
     assert non_numeric_tier["device_tier"] == 1
+    assert decimal_string_tier["device_tier"] == 2
     assert none_tier["device_tier"] == 1
     assert negative_tier["device_tier"] == 1
     assert over_max_tier["device_tier"] == 4

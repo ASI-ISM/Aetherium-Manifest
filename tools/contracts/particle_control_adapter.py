@@ -36,7 +36,7 @@ def _particle_count_from_density(density: float) -> int:
 
 def _coerce_device_tier(value: Any, default: int = 1) -> int:
     try:
-        tier = int(value)
+        tier = int(float(value))
     except (TypeError, ValueError):
         tier = default
     return max(1, min(4, tier))
