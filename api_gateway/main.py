@@ -5,6 +5,7 @@ import uuid
 import logging
 import hmac
 import hashlib
+from collections import deque
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Literal, Optional, Union
 from enum import Enum
@@ -27,6 +28,7 @@ FIRMA_CONSTRAINTS = {
         "ULTRA": 25000,
     }
 }
+EXPORT_REASON_MAX_CHARS = 1024
 
 # --- Models ---
 
@@ -100,6 +102,11 @@ class TelemetryPoint(BaseModel):
 class TelemetryIngestRequest(BaseModel):
     points: list[TelemetryPoint]
 
+
+class ExportRequest(BaseModel):
+    session_id: str
+    reason: str | None = Field(default=None, max_length=EXPORT_REASON_MAX_CHARS)
+
 # --- Validation ---
 
 class FirmaValidator:
@@ -133,6 +140,7 @@ GOVERNOR_SERVICE_URL = os.getenv("GOVERNOR_SERVICE_URL", "http://governor.aether
 r: Optional[redis.Redis] = None
 nc: Optional[nats.NATS] = None
 NONCE_CACHE: Dict[str, bool] = {}
+EXPORT_AUDIT_TRAIL: deque[dict[str, Any]] = deque(maxlen=1000)
 
 @app.on_event("startup")
 async def startup():
@@ -339,6 +347,43 @@ async def ingest_telemetry(
                 await r.lpush("telemetry:queue", json.dumps(point.model_dump(mode="json")))
         except Exception: pass
     return {"status": "success", "inserted": len(request.points)}
+
+
+@app.post("/api/v1/export/request")
+async def request_export(
+    request: ExportRequest,
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+) -> dict[str, Any]:
+    _ensure_api_key(x_api_key)
+    bounded_reason = request.reason[:EXPORT_REASON_MAX_CHARS] if request.reason else None
+    audit_record = {
+        "export_id": str(uuid.uuid4()),
+        "session_id": request.session_id,
+        "reason": bounded_reason,
+        "requested_at": datetime.now(timezone.utc).isoformat(),
+    }
+    EXPORT_AUDIT_TRAIL.appendleft(audit_record)
+    return {
+        "status": "recorded",
+        "data": audit_record,
+        "export_history_size": len(EXPORT_AUDIT_TRAIL),
+    }
+
+
+@app.get("/api/v1/export/history")
+async def get_export_history(
+    limit: int = 100,
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+) -> dict[str, Any]:
+    _ensure_api_key(x_api_key)
+    safe_limit = max(1, min(limit, 1000))
+    history = list(EXPORT_AUDIT_TRAIL)[:safe_limit]
+    return {
+        "status": "success",
+        "data": history,
+        "count": len(history),
+        "total_history_size": len(EXPORT_AUDIT_TRAIL),
+    }
 
 @app.get("/api/v1/proxy/fetch")
 async def proxy_fetch(
