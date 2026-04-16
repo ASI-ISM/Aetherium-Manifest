@@ -6,7 +6,7 @@ import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import Any, Awaitable, Callable, Mapping, cast
+from typing import Any, Awaitable, Callable, Mapping
 
 import importlib
 
