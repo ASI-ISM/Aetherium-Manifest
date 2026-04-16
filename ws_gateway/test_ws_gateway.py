@@ -25,6 +25,13 @@ def test_websocket_stream_with_query_key(client: TestClient) -> None:
         assert response['status'] == 'accepted'
 
 
+def test_websocket_stream_with_header_key(client: TestClient) -> None:
+    with client.websocket_connect('/ws/cognitive-stream', headers={'x-api-key': 'test-key'}) as websocket:
+        websocket.send_json({'type': 'dsl_submission', 'payload': '...'})
+        response = websocket.receive_json()
+        assert response['status'] == 'accepted'
+
+
 def test_state_sync_websocket_requires_api_key(client: TestClient) -> None:
     with pytest.raises(WebSocketDisconnect):
         with client.websocket_connect('/ws/state-sync/demo-room'):

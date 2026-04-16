@@ -1,4 +1,4 @@
-# AGNS Cognitive DSL API Gateway
+# Aetherium Cognitive DSL API Gateway
 
 เอกสารและโค้ดตัวอย่างสำหรับระบบรับ Cognitive DSL จากโมเดลภายนอก (OpenAI / Anthropic / Google / Custom)
 
@@ -7,7 +7,9 @@
 - `POST /api/v1/cognitive/emit`
 - `POST /api/v1/cognitive/validate`
 - `GET /health`
-- `WS /ws/cognitive-stream`
+- `POST /api/v1/cognitive/generate`
+
+> หมายเหตุ: WebSocket endpoints (`/ws/cognitive-stream`, `/ws/state-sync/{room_id}`) อยู่ใน `ws_gateway/main.py`
 
 ## WebSocket scaling primitives (prototype)
 
@@ -34,7 +36,7 @@ uvicorn api_gateway.main:app --host 0.0.0.0 --port 8080 --reload
 ```
 
 ### การรัน (สำหรับ Production)
-สำหรับสภาพแวดล้อมที่ใกล้เคียงกับ Production แนะนำให้ใช้สคริปต์ที่เตรียมไว้ ซึ่งจะมีการตรวจสอบและตั้งค่า Environment Variable ที่จำเป็น เช่น API Key ให้ครบถ้วน
+สำหรับสภาพแวดล้อมที่ใกล้เคียงกับ Production แนะนำให้ใช้สคริปต์ที่เตรียมไว้ ซึ่งจะตรวจสอบและตั้งค่า environment variables ที่จำเป็นให้ครบถ้วน
 
 ```bash
 ./api_gateway/start_cognitive_api.sh

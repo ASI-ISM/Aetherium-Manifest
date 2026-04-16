@@ -85,12 +85,21 @@ uvicorn main:app --host 0.0.0.0 --port 8090 --reload
 
 ```bash
 cd api_gateway && pytest -q
+cd ../ws_gateway && pytest -q
+cd ..
 python3 tools/contracts/contract_checker.py
 python3 tools/contracts/contract_fuzz.py
 python3 tools/benchmarks/runtime_semantic_benchmark.py --input tools/benchmarks/runtime_semantic_samples.sample.json
 npx --yes tsx --test test_runtime_governor_psycho_safety.test.ts
 npm run lint
 ```
+
+## Provider key configuration
+
+- OpenAI models (`gpt*`, `o*`) use `OPENAI_API_KEY`.
+- Anthropic models (`claude*`) use `ANTHROPIC_API_KEY`.
+- Gemini models (`gemini*`) use `GEMINI_API_KEY`.
+- `GOOGLE_API_KEY` is still accepted as a temporary fallback for startup scripts, but it is deprecated and should be migrated to `GEMINI_API_KEY`.
 
 ## Security and governance
 
