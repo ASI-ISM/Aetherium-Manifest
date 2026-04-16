@@ -743,7 +743,7 @@
 
         function connectWsStatus() {
             const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-            const wsUrl = `${wsProtocol}://${window.location.host}/ws`;
+            const wsUrl = `${wsProtocol}://${window.location.host}/ws/cognitive-stream`;
             try {
                 wsClient = new WebSocket(wsUrl);
                 wsStatus = 'connecting';
