@@ -362,9 +362,25 @@ async def request_export(
     }
     EXPORT_AUDIT_TRAIL.appendleft(audit_record)
     return {
-        "status": "queued",
+        "status": "recorded",
         "data": audit_record,
         "export_history_size": len(EXPORT_AUDIT_TRAIL),
+    }
+
+
+@app.get("/api/v1/export/history")
+async def get_export_history(
+    limit: int = 100,
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+) -> dict[str, Any]:
+    _ensure_api_key(x_api_key)
+    safe_limit = max(1, min(limit, 1000))
+    history = list(EXPORT_AUDIT_TRAIL)[:safe_limit]
+    return {
+        "status": "success",
+        "data": history,
+        "count": len(history),
+        "total_history_size": len(EXPORT_AUDIT_TRAIL),
     }
 
 @app.get("/api/v1/proxy/fetch")
