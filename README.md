@@ -19,9 +19,9 @@ Aetherium Manifest is now positioned as a creative operating surface where users
 
 Core embodiment remains a **full-screen light body + bottom composer**, now expanded with governed manifestation states, replayable lineage controls, and multimodal input affordances.
 
-## What's updated (April 2026)
+## What’s updated (April 2026)
 
-- `index.html` is now a fully runnable **runtime console** that works end-to-end with:
+- `index.html` is now a fully runnable **runtime console** that runs end-to-end with:
   - `POST /api/v1/cognitive/emit`
   - `POST /api/v1/cognitive/validate`
   - `POST /api/v1/cognitive/generate`
@@ -30,11 +30,11 @@ Core embodiment remains a **full-screen light body + bottom composer**, now expa
   - `GET /api/v1/reliability/temporal-morphogenesis`
   - `WS /ws/state-sync/{room_id}` (via `ws_gateway`)
   - `WS /ws/cognitive-stream` (via `ws_gateway`)
-- Runtime HUD now exposes state/resonance/entropy with terminal-grade governor checkpoints.
+- The Runtime HUD now exposes state/resonance/entropy with terminal-grade governor checkpoints.
 - Composer now supports **Attach + Voice + EMIT** inside a glassmorphism shell for light-native interaction.
-- Governed manifestation loop is visible in UI (`Contract Proposed -> Governor Verification -> Manifest`).
+- The governed manifestation loop is visible in the UI (`Contract Proposed -> Governor Verification -> Manifest`).
 - Replayable **Design Lineage Tree** enables time-shift, branch pruning, and iterative exploration.
-- Scholar side panel (`AKASHIC SEARCH`) presents mock search summaries and source-trust status.
+- The Scholar side panel (`AKASHIC SEARCH`) presents mock search summaries and source-trust status.
 
 ## Architecture (current)
 
@@ -125,7 +125,8 @@ npm run lint
 - Active audit backlogs are maintained in:
   - `docs/CODEBASE_AUDIT_TASKS_EN.md`
   - `docs/CODEBASE_AUDIT_TASKS_TH.md`
-- Both files must keep **pending items only**. Completed recommendations should be removed to avoid mixing finished work with active tasks.
+- Both files must keep **pending items only**. Completed recommendations must be removed (in both English and Thai) to avoid mixing finished work with active tasks.
+- Current status: both backlog files report **no pending tasks** as of April 16, 2026.
 
 ## Notes on runtime security defaults
 

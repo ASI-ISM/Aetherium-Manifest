@@ -10,6 +10,7 @@ import ipaddress
 from urllib.parse import urlparse
 from collections import deque
 from datetime import datetime, timezone
+from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Literal, Optional, Union
 from enum import Enum
 
@@ -208,9 +209,36 @@ class FirmaValidator:
 
 # --- App Initialization ---
 
-app = FastAPI(title="Aetherium API Gateway")
-app.include_router(scholar_router)
 logger = logging.getLogger("api-gateway")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global r, nc
+    if not os.getenv("AETHERIUM_API_KEY"):
+        logger.error("AETHERIUM_API_KEY is not configured; protected endpoints will fail closed")
+    try:
+        r = redis.from_url(REDIS_URL, decode_responses=True)
+        nc = await nats.connect(NATS_URL)
+        logger.info("Connected to Redis and NATS")
+    except Exception as e:
+        logger.error(f"Startup failed: {e}")
+
+    try:
+        yield
+    finally:
+        if nc and nc.is_connected:
+            try:
+                await nc.close()
+            except Exception:
+                logger.exception("Failed to close NATS connection cleanly")
+        if r:
+            try:
+                await r.aclose()
+            except Exception:
+                logger.exception("Failed to close Redis connection cleanly")
+
+app = FastAPI(title="Aetherium API Gateway", lifespan=lifespan)
+app.include_router(scholar_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -305,18 +333,6 @@ def _is_blocked_proxy_target(hostname: str) -> bool:
             return ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved
         except Exception:
             return True
-
-@app.on_event("startup")
-async def startup():
-    global r, nc
-    if not os.getenv("AETHERIUM_API_KEY"):
-        logger.error("AETHERIUM_API_KEY is not configured; protected endpoints will fail closed")
-    try:
-        r = redis.from_url(REDIS_URL, decode_responses=True)
-        nc = await nats.connect(NATS_URL)
-        logger.info("Connected to Redis and NATS")
-    except Exception as e:
-        logger.error(f"Startup failed: {e}")
 
 # --- Helper Functions ---
 
