@@ -104,6 +104,12 @@ optics.color_mode := monochrome | palette | source_radiance
 - **constraints**: max targets/photons/energy hard limits
 - **particle_control**: low-level runtime-safe control envelope
 
+
+### Formal grammar references
+- AETH grammar (EBNF): `docs/aeth/spec/grammar.ebnf`
+- AETH semantics/versioning: `docs/aeth/spec/semantics.md`, `docs/aeth/spec/versioning.md`
+- LCL JSON schema: `lcl_schema.json`
+
 ---
 
 ## Local development & checks

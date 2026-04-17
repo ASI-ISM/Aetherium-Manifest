@@ -1,6 +1,7 @@
 import { createLanguageLayer } from './first_use_surface/language-layer.js';
 import { createLightManifestation } from './first_use_surface/light-manifestation.js';
 import { routeLightResponse } from './first_use_surface/response-orchestrator.js';
+import { markCompositionEnd, shouldSubmitOnEnter } from './first_use_surface/input-event-policy.js';
 
 const STORAGE_KEY = 'aetherium:first-surface-settings:v1';
 
@@ -52,6 +53,7 @@ const uiText = {
 
 const inputRuntime = {
   isComposing: false,
+  lastCompositionEndAt: -Infinity,
 };
 
 const voiceRuntime = {
@@ -158,17 +160,12 @@ function bindInputEvents() {
     inputRuntime.isComposing = true;
   });
 
-  elements.input.addEventListener('compositionend', () => {
-    inputRuntime.isComposing = false;
+  elements.input.addEventListener('compositionend', (event) => {
+    markCompositionEnd(inputRuntime, event.timeStamp);
   });
 
   elements.input.addEventListener('keydown', (event) => {
-    if (event.key !== 'Enter') return;
-    if (event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return;
-
-    if (event.isComposing || inputRuntime.isComposing || event.keyCode === 229) {
-      return;
-    }
+    if (!shouldSubmitOnEnter(event, inputRuntime)) return;
 
     event.preventDefault();
     elements.form.requestSubmit();

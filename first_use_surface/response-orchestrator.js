@@ -5,6 +5,7 @@ function localized(language, thText, enText) {
 function detectInputLanguage(inputText) {
   const thaiChars = (inputText.match(/[\u0E00-\u0E7F]/g) || []).length;
   const englishChars = (inputText.match(/[A-Za-z]/g) || []).length;
+  if (thaiChars > 0 && englishChars > 0) return 'mixed';
   if (thaiChars > englishChars) return 'th';
   if (englishChars > thaiChars) return 'en';
   return 'unknown';
@@ -19,10 +20,10 @@ export function routeLightResponse(inputText, language) {
   const isQuestion = normalized.includes('?')
     || /^(what|how|why|when|where|who|can|could|should|do|does|is|are|อะไร|ทำไม|อย่างไร|เมื่อไร|ที่ไหน|ใคร)/i.test(normalized);
 
-  if (inputLanguage !== 'mixed' && inputLanguage !== language) {
+  if (inputLanguage !== 'unknown' && inputLanguage !== 'mixed' && inputLanguage !== language) {
     return {
       mood: 'warm',
-      status: localized(language, 'ปรับภาษาให้ตรงกับความตั้งค่าของคุณ', 'Adapting to your preferred language'),
+      status: localized(language, 'ปรับภาษาให้ตรงกับการตั้งค่าของคุณ', 'Adapting to your preferred language'),
       text: localized(
         language,
         'ฉันจะตอบเป็นภาษาไทยตามการตั้งค่า หากต้องการเปลี่ยนภาษา สามารถปรับได้ใน Settings',
