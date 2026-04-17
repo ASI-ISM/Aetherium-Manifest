@@ -17,7 +17,8 @@ def client() -> TestClient:
 
 @pytest.fixture
 def valid_emit_payload() -> dict:
-    return json.loads(Path("api_gateway/sample_emit_payload.json").read_text(encoding="utf-8"))
+    payload_path = Path(__file__).with_name("sample_emit_payload.json")
+    return json.loads(payload_path.read_text(encoding="utf-8"))
 
 
 def test_health_check(client: TestClient) -> None:

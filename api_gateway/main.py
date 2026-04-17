@@ -9,17 +9,17 @@ import os
 import re
 import socket
 import uuid
+import hashlib
 from datetime import datetime, timezone
 from statistics import mean
 from typing import Any, Literal
 from urllib.parse import urlparse
 from collections import deque
-from datetime import datetime, timezone
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Dict, Optional, Union
 from enum import Enum
 
-from fastapi import FastAPI, HTTPException, Header, Request, Query
+from fastapi import FastAPI, HTTPException, Header, Query, WebSocket, WebSocketDisconnect
 from .scholar_router import router as scholar_router
 from .variation_service import generate_variation_set
 from fastapi.middleware.cors import CORSMiddleware
@@ -106,11 +106,11 @@ class GenerateResponse(BaseModel):
     intent_vector: IntentVector
     visual_manifestation: VisualManifestation
 
-class CognitiveEmitRequest(BaseModel):
-    session_id: str
-    model_response: CognitiveModelResponse
-    model_metadata: Dict[str, Any]
-    governor_context: Dict[str, Any]
+class ModelResponse(BaseModel):
+    trace_id: str
+    reasoning_trace: str = ""
+    intent_vector: IntentVector
+    visual_manifestation: VisualManifestation
 
 class ModelMetadata(BaseModel):
     model_name: str
@@ -166,6 +166,42 @@ class RendererControls(BaseModel):
 class ParticleControlContract(BaseModel):
     intent_state: IntentState
     renderer_controls: RendererControls
+
+class SemanticField(BaseModel):
+    semantic_tensors: Dict[str, float] = Field(default_factory=dict)
+    confidence_gradients: list[float] = Field(default_factory=list)
+    polarity: float = 0.0
+    ambiguity: float = 0.0
+
+class MorphogenesisPlan(BaseModel):
+    topology_seeds: list[str] = Field(default_factory=list)
+    attractors: list[str] = Field(default_factory=list)
+    constraints: list[str] = Field(default_factory=list)
+    temporal_operators: list[str] = Field(default_factory=list)
+
+class CompiledLightProgram(BaseModel):
+    shader_uniforms: Dict[str, Union[float, int, str, bool]] = Field(default_factory=dict)
+    particle_targets: Dict[str, int] = Field(default_factory=dict)
+    force_field_descriptors: list[str] = Field(default_factory=list)
+    update_cadence_hz: float = Field(default=30.0, gt=0.0)
+
+class ContainmentInfo(BaseModel):
+    activation_latency_ms: float = 0.0
+
+class RuntimeGuardInfo(BaseModel):
+    containment: ContainmentInfo
+
+class DriftMetrics(BaseModel):
+    semantic_coherence_score: float
+    topology_divergence_index: float
+    temporal_instability_ratio: float
+
+class LightCognitionPipelineResult(BaseModel):
+    trace_id: str
+    semantic_field: SemanticField
+    morphogenesis_plan: MorphogenesisPlan
+    compiled_program: CompiledLightProgram
+    runtime_guard: RuntimeGuardInfo
 
 class TelemetryPoint(BaseModel):
     metric: str
@@ -303,6 +339,7 @@ class StateSyncRoom:
         self.shared_state: dict[str, Any] = {}
         self.user_state: dict[str, Any] = {}
         self.clients: list[Any] = []
+        self.lock = asyncio.Lock()
 
     def apply_delta(
         self,
@@ -319,17 +356,24 @@ class StateSyncRoom:
             "actor": user_id,
         }
 
+    def snapshot(self, user_id: str | None = None) -> dict[str, Any]:
+        return {
+            "shared_state": dict(self.shared_state),
+            "user_state": dict(self.user_state),
+            "actor": user_id,
+        }
+
+    async def broadcast_json(self, message: dict[str, Any]) -> None:
+        survivors: list[Any] = []
+        for client in self.clients:
+            try:
+                await client.send_json(message)
+                survivors.append(client)
+            except Exception:
+                continue
+        self.clients = survivors
+
 # --- DSL Validation ---
-
-
-        if visual.color_palette.primary.upper() == "#DC143C" and not visual.emergency_override:
-            violations.append("Crimson color #DC143C is reserved for emergency overrides")
-
-        particle_count = visual.particle_physics.particle_count
-        device_tier = visual.device_tier
-        max_particles = FIRMA_CONSTRAINTS["max_particles_by_tier"].get(device_tier, 5_000)
-        if particle_count > max_particles:
-            violations.append(f"Particle count exceeds limit for Tier {device_tier}")
 
 def _is_blocked_proxy_target(hostname: str) -> bool:
     try:
@@ -482,6 +526,95 @@ def _is_blocked_proxy_target(hostname: str) -> bool:
     except socket.gaierror:
         return True
     return False
+
+def _semantic_from_intent(intent: IntentVector) -> SemanticField:
+    category_hash = int(hashlib.sha1(intent.category.encode("utf-8")).hexdigest()[:6], 16) / 0xFFFFFF
+    return SemanticField(
+        semantic_tensors={
+            "category_hash": round(category_hash, 6),
+            "valence": intent.emotional_valence,
+            "energy": intent.energy_level,
+        },
+        confidence_gradients=[max(0.0, 1 - abs(intent.emotional_valence)), max(0.0, 1 - abs(0.5 - intent.energy_level))],
+        polarity=float(intent.emotional_valence),
+        ambiguity=max(0.0, min(1.0, 1.0 - abs(intent.emotional_valence))),
+    )
+
+def _semantic_to_morphogenesis(semantic: SemanticField, visual: VisualManifestation) -> MorphogenesisPlan:
+    energy = semantic.semantic_tensors.get("energy", 0.5)
+    return MorphogenesisPlan(
+        topology_seeds=[visual.base_shape],
+        attractors=["coherence"] if semantic.ambiguity < 0.5 else ["stability"],
+        constraints=["governor_safe_bounds"],
+        temporal_operators=["phase_lock"] if energy > 0.4 else ["gentle_settle"],
+    )
+
+def _morphogenesis_to_compiled(plan: MorphogenesisPlan, visual: VisualManifestation) -> CompiledLightProgram:
+    cadence = max(12.0, min(60.0, 16 + (visual.particle_physics.luminance_mass * 22)))
+    return CompiledLightProgram(
+        shader_uniforms={
+            "turbulence": visual.particle_physics.turbulence,
+            "luminance_mass": visual.particle_physics.luminance_mass,
+            "chromatic_mode": visual.chromatic_mode,
+        },
+        particle_targets={"count": visual.particle_physics.particle_count},
+        force_field_descriptors=plan.temporal_operators or ["phase_lock"],
+        update_cadence_hz=cadence,
+    )
+
+def _compute_drift_metrics(
+    baseline: SemanticField,
+    telemetry: SemanticField,
+    compiled: CompiledLightProgram,
+) -> DriftMetrics:
+    base_valence = baseline.semantic_tensors.get("valence", baseline.polarity)
+    base_energy = baseline.semantic_tensors.get("energy", 0.5)
+    tele_valence = telemetry.semantic_tensors.get("valence", telemetry.polarity)
+    tele_energy = telemetry.semantic_tensors.get("energy", 0.5)
+
+    valence_delta = abs(base_valence - tele_valence)
+    energy_delta = abs(base_energy - tele_energy)
+    ambiguity_delta = abs(baseline.ambiguity - telemetry.ambiguity)
+
+    semantic_coherence = max(0.0, 1.0 - (0.6 * valence_delta + 0.3 * energy_delta + 0.2 * ambiguity_delta))
+    topology_divergence = min(1.0, (0.55 * valence_delta) + (0.25 * energy_delta) + (0.4 * ambiguity_delta))
+    cadence_factor = min(1.0, compiled.update_cadence_hz / 120.0)
+    temporal_instability = min(1.0, (1.0 - semantic_coherence) * (0.35 + cadence_factor * 0.15))
+
+    return DriftMetrics(
+        semantic_coherence_score=semantic_coherence,
+        topology_divergence_index=topology_divergence,
+        temporal_instability_ratio=temporal_instability,
+    )
+
+def _run_direct_visual_fallback(visual: VisualManifestation) -> VisualManifestation:
+    return visual.model_copy(deep=True)
+
+def _run_light_cognition_pipeline(
+    intent: IntentVector,
+    particle_control: ParticleControlContract,
+    visual: VisualManifestation,
+    governor_context: GovernorContext,
+    trace_id: str,
+) -> LightCognitionPipelineResult:
+    semantic_field = _semantic_from_intent(intent)
+    morphogenesis_plan = _semantic_to_morphogenesis(semantic_field, visual)
+    compiled_program = _morphogenesis_to_compiled(morphogenesis_plan, visual)
+    containment_latency_ms = max(
+        8.0,
+        min(
+            74.0,
+            14.0 + (visual.particle_physics.turbulence * 28.0) + (intent.energy_level * 18.0),
+        ),
+    )
+    runtime_guard = RuntimeGuardInfo(containment=ContainmentInfo(activation_latency_ms=containment_latency_ms))
+    return LightCognitionPipelineResult(
+        trace_id=trace_id,
+        semantic_field=semantic_field,
+        morphogenesis_plan=morphogenesis_plan,
+        compiled_program=compiled_program,
+        runtime_guard=runtime_guard,
+    )
 
 # --- API Endpoints ---
 
