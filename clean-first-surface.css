@@ -3,7 +3,7 @@
   --bg: #03040a;
   --ink: #f4fbff;
   --line: rgba(200, 236, 255, 0.24);
-  --panel: rgba(11, 14, 20, 0.9);
+  --panel: rgba(11, 14, 20, 0.92);
   --glow: #7fe4ff;
 }
 
@@ -31,10 +31,6 @@ body {
 .first-surface {
   position: fixed;
   inset: 0;
-  display: grid;
-  grid-template-rows: 1fr auto auto;
-  align-items: end;
-  padding: 24px;
   pointer-events: none;
 }
 
@@ -48,9 +44,10 @@ body {
 }
 
 #settings-toggle {
-  position: absolute;
+  position: fixed;
   top: 20px;
   right: 20px;
+  z-index: 4;
 }
 
 .icon-btn,
@@ -67,30 +64,26 @@ body {
 
 .ambient-status,
 .readable-fallback {
-  margin: 0 auto;
-  text-align: center;
-  max-width: min(720px, 90vw);
+  margin: 0;
   text-shadow: 0 0 18px rgba(127, 228, 255, 0.35);
 }
 
 .ambient-status {
-  opacity: 0.8;
-  font-size: clamp(14px, 2.1vw, 20px);
-  margin-bottom: 10px;
+  opacity: 0.84;
+  font-size: 13px;
 }
 
 .readable-fallback {
-  min-height: 1.2em;
-  margin-bottom: 16px;
-  opacity: 0.9;
-  font-size: clamp(16px, 2vw, 20px);
+  min-height: 1.4em;
+  margin: 6px 0 12px;
+  opacity: 0.92;
+  font-size: 14px;
 }
 
 .composer {
-  margin: 0 auto;
-  width: min(820px, calc(100vw - 28px));
+  width: 100%;
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto auto;
   gap: 10px;
   padding: 8px;
   border-radius: 16px;
@@ -106,6 +99,7 @@ body {
   color: var(--ink);
   padding: 0 14px;
   height: 44px;
+  min-width: 0;
 }
 
 #intent-input::placeholder { color: rgba(238, 249, 255, 0.56); }
@@ -119,7 +113,7 @@ body {
   position: fixed;
   top: 20px;
   right: 20px;
-  width: min(410px, calc(100vw - 24px));
+  width: min(460px, calc(100vw - 24px));
   max-height: calc(100vh - 40px);
   overflow: auto;
   border: 1px solid var(--line);

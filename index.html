@@ -11,7 +11,7 @@
   <body>
     <canvas id="manifestation-canvas" aria-hidden="true"></canvas>
 
-    <main class="first-surface" aria-label="Aetherium first-use surface">
+    <main class="first-surface" aria-label="Aetherium light-native surface">
       <button
         id="settings-toggle"
         class="icon-btn"
@@ -22,30 +22,6 @@
       >
         ⚙
       </button>
-
-      <p id="ambient-status" class="ambient-status" aria-live="polite">พร้อมฟัง</p>
-      <p id="readable-fallback" class="readable-fallback" aria-live="polite"></p>
-
-      <form id="composer" class="composer" aria-label="Composer">
-        <label class="sr-only" for="intent-input">พิมพ์ข้อความ</label>
-        <input
-          id="intent-input"
-          name="intent"
-          autocomplete="off"
-          placeholder="พิมพ์ข้อความของคุณ…"
-          enterkeyhint="send"
-        />
-        <button
-          id="voice-btn"
-          class="icon-btn"
-          type="button"
-          aria-label="เปิดหรือปิดการป้อนข้อความด้วยเสียง"
-          aria-pressed="false"
-        >
-          🎙
-        </button>
-        <button id="send-btn" type="submit" class="send-btn">ส่ง</button>
-      </form>
     </main>
 
     <aside id="settings-panel" class="settings" aria-label="Settings" hidden>
@@ -53,6 +29,32 @@
         <h2>Settings</h2>
         <button id="close-settings" class="icon-btn" type="button" aria-label="ปิดการตั้งค่า">✕</button>
       </header>
+
+      <section>
+        <h3>Interaction</h3>
+        <p id="ambient-status" class="ambient-status" aria-live="polite">พร้อมฟัง</p>
+        <p id="readable-fallback" class="readable-fallback" aria-live="polite"></p>
+        <form id="composer" class="composer" aria-label="Composer">
+          <label class="sr-only" for="intent-input">พิมพ์ข้อความ</label>
+          <input
+            id="intent-input"
+            name="intent"
+            autocomplete="off"
+            placeholder="พิมพ์ข้อความของคุณ…"
+            enterkeyhint="send"
+          />
+          <button
+            id="voice-btn"
+            class="icon-btn"
+            type="button"
+            aria-label="เปิดหรือปิดการป้อนข้อความด้วยเสียง"
+            aria-pressed="false"
+          >
+            🎙
+          </button>
+          <button id="send-btn" type="submit" class="send-btn">ส่ง</button>
+        </form>
+      </section>
 
       <section>
         <h3>Connection</h3>

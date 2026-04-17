@@ -1,42 +1,122 @@
 # Aetherium Manifest
 
-## English Documentation
+Aetherium Manifest is a **light-native cognition runtime**: intent is interpreted into deterministic light/particle manifestation with a governor-first safety boundary.
 
-### Overview
-Aetherium Manifest is a light-native first-use runtime. The homepage stays intentionally calm and minimal: one manifestation field, one composer, and one Settings entry point.
+## What changed in this iteration
+- Home is now a **pure light-native scene** (canvas + Settings entry only).
+- Structural UI (composer, runtime controls, voice, connection, export) is moved into **Settings**.
+- Input event handling was modernized to correctly support **IME composition** (Thai/Japanese/etc.) without accidental Enter-submit during composition.
 
-### First-use Surface (Current)
-- Full-screen light field/canvas as the primary reasoning and presentation surface.
-- Minimal bottom composer for immediate natural-language input.
-- Single Settings button for all advanced controls.
-- Subtle human-readable status line plus a readable fallback text line.
-- Greeting inputs (for example: `hello`, `hi`, `สวัสดี`) respond through luminous text manifestation rather than dashboard widgets.
+---
 
-### Settings as the Single Advanced Surface
-All technical/runtime controls are intentionally moved into Settings:
-- API Base / WS Base
-- Runtime mode, telemetry, lineage/replay, scholar/search, governor debug, developer tools
-- Reduced motion, language preference, local language detector profile, voice options
-- Session audit export
+## Architecture
 
-### Language-aware Response Layer (First-run)
-Deterministic language resolution is implemented with progressive fallback:
-1. Explicit language preference in Settings
-2. Browser locale (`navigator.languages` / `navigator.language`)
-3. Input-text heuristics (Thai vs English character ranges)
-4. Optional local detector rules (pluggable; no required network call)
-5. Session language memory
+### Runtime planes
+1. **First-use surface (static frontend)**
+   - `index.html`
+   - `clean-first-surface.css`
+   - `clean-first-surface.js`
+   - `first_use_surface/*`
 
-### API Gateway (Prototype)
-The `api_gateway/` folder includes a sample Cognitive DSL gateway:
-- `POST /api/v1/cognitive/emit`
-- `POST /api/v1/cognitive/validate`
-- `GET /health`
-- `WS /ws/cognitive-stream`
+2. **Gateway plane (FastAPI / WS / distributed adapters)**
+   - `api_gateway/` and top-level gateway helpers
+   - request/validation endpoints for emit/validate
 
-### Run Locally
+3. **Governor plane (canonical control boundary)**
+   - `governor/`
+   - deny-by-default runtime mutation authority
+
+4. **Contracts + tooling plane**
+   - JSON Schemas (root + `docs/schemas/`)
+   - contract checker/fuzzer + drift guard (`tools/contracts/`)
+   - semantic/latency benchmarks (`tools/benchmarks/`)
+
+### Canonical control boundary
+System behavior should preserve this sequence:
+
+`validate → transition → profile_map → clamp → fallback → policy_block → capability_gate → telemetry_log`
+
+This path is the source of truth for safe runtime mutation.
+
+---
+
+## Contracts
+
+Core contracts/schemas in this repo include:
+- `particle-control.schema.json`
+- `lcl_schema.json`
+- `governor/particle-control.schema.json`
+- `governor/scholar_contract_v1.json`
+- `docs/schemas/*.json` (versioned copies/documentation views)
+
+### Contract policy
+- Treat schema changes as **ABI changes**.
+- Maintain compatibility/versioning discipline.
+- Keep runtime governor behavior synchronized with contract evolution.
+
+---
+
+## Runtime flow
+
+### Intent-to-light flow (first-use surface)
+1. User opens Settings and submits text from the Interaction composer.
+2. Language layer resolves language deterministically:
+   - explicit setting → browser locale → char heuristics → optional local detector → session memory
+3. Response orchestrator maps intent class (greeting/question/etc.) to deterministic text+mood.
+4. Manifestation engine renders mood/text into the light scene.
+5. Session audit trail appends event metadata (optional export from Settings).
+
+### Gateway/governor integration flow (full stack)
+1. Emit payload is validated against contract.
+2. Governor applies transition/profile mapping and constraints.
+3. Capability + policy gates enforce deny-by-default behavior.
+4. Runtime output and telemetry are published to consumers.
+
+---
+
+## Grammar (LCL summary)
+
+The Light Control Language (LCL) shape is defined in `light-control-language.ts` and `lcl_schema.json`.
+
+### High-level grammar-like view
+```txt
+LCL := {
+  version,
+  intent,
+  morphology,
+  motion,
+  optics,
+  content,
+  constraints,
+  source_text,
+  retrieved_formation?,
+  particle_control
+}
+
+intent := create_light_form | create_glyph | create_scene
+optics.color_mode := monochrome | palette | source_radiance
+```
+
+### Key semantic groups
+- **morphology**: form family/symmetry/density/scale/edge softness
+- **motion**: archetype/flow/coherence/turbulence/rhythm/attack/settle
+- **optics**: palette/luminance/glow/trail/color mode
+- **constraints**: max targets/photons/energy hard limits
+- **particle_control**: low-level runtime-safe control envelope
+
+---
+
+## Local development & checks
+
+### Recommended minimum before PR
 ```bash
 npm run lint
+cd api_gateway && pytest -q
+python3 tools/contracts/contract_checker.py
+```
+
+### Extended verification set
+```bash
 cd api_gateway && pytest -q
 python3 tools/contracts/contract_checker.py
 python3 tools/contracts/contract_fuzz.py
@@ -44,48 +124,9 @@ python3 tools/benchmarks/runtime_semantic_benchmark.py --input tools/benchmarks/
 npx --yes tsx --test test_runtime_governor_psycho_safety.test.ts
 ```
 
-### Recommended Next Steps (Open)
-- Add persistent telemetry storage with retention/downsampling policies.
-- Add enterprise outbound proxy hardening (allow/deny lists, payload/content guardrails).
-- Expand deterministic response rules beyond greeting/gratitude/simple question flows.
-- Add broader language coverage beyond Thai/English short-text first-run heuristics.
-
 ---
 
-## เอกสารภาษาไทย
-
-### ภาพรวม
-Aetherium Manifest คือรันไทม์หน้าแรกแบบ light-native ที่ออกแบบให้สงบ เรียบ และเริ่มใช้งานได้ทันที โดยให้ “แสง” เป็นแกนหลักของการสื่อความหมาย
-
-### หน้าแรก (เวอร์ชันปัจจุบัน)
-- พื้นที่แสงเต็มหน้าจอเป็นแกนของการให้เหตุผลและการแสดงผล
-- Composer ด้านล่างแบบมินิมอลสำหรับพิมพ์ข้อความได้ทันที
-- ปุ่ม Settings เพียงจุดเดียว
-- มีสถานะที่มนุษย์อ่านได้ และบรรทัดข้อความ fallback ที่อ่านชัด
-- อินพุตทักทาย เช่น `hello`, `hi`, `สวัสดี` จะตอบผ่านข้อความเรืองแสง ไม่ใช้แดชบอร์ดหรือวิดเจ็ตหนัก
-
-### Settings เป็นศูนย์รวมฟังก์ชันขั้นสูง
-ฟังก์ชันเชิงเทคนิคทั้งหมดอยู่ใน Settings เท่านั้น:
-- API Base / WS Base
-- Runtime mode, telemetry, lineage/replay, scholar/search, governor debug, developer tools
-- Reduced motion, language preference, local detector profile, voice options
-- ส่งออก session audit
-
-### ชั้นการตอบสนองเชิงภาษา (สำหรับ first-run)
-ลำดับการเลือกภาษาแบบ deterministic:
-1. ภาษาที่ผู้ใช้กำหนดใน Settings
-2. ภาษาจากเบราว์เซอร์ (`navigator.languages` / `navigator.language`)
-3. ตรวจจากตัวอักษรในข้อความอินพุต (ไทย/อังกฤษ)
-4. local detector แบบเบา (เปิด/ปิดได้ และไม่บังคับเรียกเครือข่าย)
-5. หน่วยความจำภาษาใน session
-
-### API Gateway (ต้นแบบ)
-โฟลเดอร์ `api_gateway/` มีตัวอย่าง Cognitive DSL gateway พร้อม endpoint สำหรับ emit/validate/health/websocket
-
-### แนวทางต่อยอด
-- ย้าย mutable runtime state ไปที่ Redis (metrics counters, telemetry cache และสมาชิกห้อง websocket) เพื่อรองรับหลาย worker ได้สม่ำเสมอ
-- เพิ่มนโยบาย signed outbound proxy (HMAC request intent + allowlist ตาม tenant) เพื่อเสริมความปลอดภัย SSRF ระดับองค์กร
-- เพิ่ม persisted TSDB backend (InfluxDB/TimescaleDB) พร้อมนโยบาย retention และ downsampling
-- เพิ่ม allowlist/denylist, content-type guardrail และขนาด payload guardrail ใน proxy
-- เพิ่ม voice A/B routing และเก็บ WER/latency แยกตามภาษาและภูมิภาค
-- เพิ่มกลไก CRDT merge (Yjs/Automerge) สำหรับงาน collaborative editing ที่ซับซ้อนกว่า delta พื้นฐาน
+## Notes
+- Frontend remains static-host friendly; no mandatory bundle step in-repo.
+- Prototype telemetry persistence is intentionally non-durable by default.
+- Production hardening should include persistent telemetry storage, key rotation, and compatibility gates.
