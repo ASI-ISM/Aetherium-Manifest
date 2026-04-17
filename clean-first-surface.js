@@ -109,8 +109,8 @@ function bindSettings() {
       elements.voiceButton.disabled = !event.target.checked;
       if (!event.target.checked) elements.voiceButton.setAttribute('aria-pressed', 'false');
     }],
-    ['api-base', 'input', (event) => { settings.apiBase = event.target.value.trim(); }],
-    ['ws-base', 'input', (event) => { settings.wsBase = event.target.value.trim(); }],
+    ['api-base', 'change', (event) => { settings.apiBase = event.target.value.trim(); }],
+    ['ws-base', 'change', (event) => { settings.wsBase = event.target.value.trim(); }],
     ['runtime-mode', 'change', (event) => { settings.runtimeMode = event.target.value; }],
     ['telemetry-toggle', 'change', (event) => { settings.telemetry = event.target.checked; }],
     ['lineage-toggle', 'change', (event) => { settings.lineage = event.target.checked; }],
