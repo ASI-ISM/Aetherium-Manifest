@@ -106,7 +106,7 @@ function bindSettings() {
     }],
     ['voice-enabled-toggle', 'change', (event) => {
       settings.voiceEnabled = event.target.checked;
-      elements.voiceButton.disabled = !event.target.checked;
+      elements.voiceButton.disabled = !event.target.checked || !(window.SpeechRecognition || window.webkitSpeechRecognition);
       if (!event.target.checked) elements.voiceButton.setAttribute('aria-pressed', 'false');
     }],
     ['api-base', 'change', (event) => { settings.apiBase = event.target.value.trim(); }],
