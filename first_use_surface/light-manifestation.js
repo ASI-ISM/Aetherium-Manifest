@@ -26,6 +26,27 @@ function clampAlpha(alpha) {
   return Math.max(0, Math.min(1, alpha));
 }
 
+function wrapLines(context, text, maxWidth) {
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length <= 1) return [text];
+
+  const lines = [];
+  let currentLine = words[0];
+
+  for (let i = 1; i < words.length; i += 1) {
+    const candidate = `${currentLine} ${words[i]}`;
+    if (context.measureText(candidate).width <= maxWidth) {
+      currentLine = candidate;
+    } else {
+      lines.push(currentLine);
+      currentLine = words[i];
+    }
+  }
+
+  lines.push(currentLine);
+  return lines.slice(0, 3);
+}
+
 export function createLightManifestation(canvas, reducedMotion) {
   const context = canvas.getContext('2d');
   const particles = createParticleField(320);
@@ -157,7 +178,12 @@ export function createLightManifestation(canvas, reducedMotion) {
       context.shadowColor = `rgba(${palette.glow},0.9)`;
       context.shadowBlur = options.reducedMotion ? 0 : 22;
       context.fillStyle = `rgba(${palette.core},${alpha})`;
-      context.fillText(manifestation.text, width * 0.5, centerY);
+      const wrapped = wrapLines(context, manifestation.text, width * 0.72);
+      const lineHeight = fontSize * 1.15;
+      const top = centerY - ((wrapped.length - 1) * lineHeight) / 2;
+      wrapped.forEach((line, index) => {
+        context.fillText(line, width * 0.5, top + lineHeight * index);
+      });
       context.restore();
     }
 

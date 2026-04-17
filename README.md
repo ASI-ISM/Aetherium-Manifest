@@ -36,8 +36,12 @@ The `api_gateway/` folder includes a sample Cognitive DSL gateway:
 
 ### Run Locally
 ```bash
-python3 -m http.server 4173
-# open http://localhost:4173
+npm run lint
+cd api_gateway && pytest -q
+python3 tools/contracts/contract_checker.py
+python3 tools/contracts/contract_fuzz.py
+python3 tools/benchmarks/runtime_semantic_benchmark.py --input tools/benchmarks/runtime_semantic_samples.sample.json
+npx --yes tsx --test test_runtime_governor_psycho_safety.test.ts
 ```
 
 ### Recommended Next Steps (Open)
@@ -78,8 +82,10 @@ Aetherium Manifest คือรันไทม์หน้าแรกแบบ 
 ### API Gateway (ต้นแบบ)
 โฟลเดอร์ `api_gateway/` มีตัวอย่าง Cognitive DSL gateway พร้อม endpoint สำหรับ emit/validate/health/websocket
 
-### แนวทางต่อยอด (ที่ยังเปิดอยู่)
-- เพิ่มระบบเก็บ telemetry แบบถาวร พร้อมนโยบาย retention/downsampling
-- เสริมความปลอดภัย outbound proxy ระดับองค์กร (allow/deny list และ guardrail ด้าน payload/content)
-- ขยาย deterministic response rules ให้ครอบคลุมเจตนาที่หลากหลายขึ้น
-- เพิ่มการรองรับภาษาอื่นนอกเหนือจากไทย/อังกฤษในกรณีข้อความสั้น
+### แนวทางต่อยอด
+- ย้าย mutable runtime state ไปที่ Redis (metrics counters, telemetry cache และสมาชิกห้อง websocket) เพื่อรองรับหลาย worker ได้สม่ำเสมอ
+- เพิ่มนโยบาย signed outbound proxy (HMAC request intent + allowlist ตาม tenant) เพื่อเสริมความปลอดภัย SSRF ระดับองค์กร
+- เพิ่ม persisted TSDB backend (InfluxDB/TimescaleDB) พร้อมนโยบาย retention และ downsampling
+- เพิ่ม allowlist/denylist, content-type guardrail และขนาด payload guardrail ใน proxy
+- เพิ่ม voice A/B routing และเก็บ WER/latency แยกตามภาษาและภูมิภาค
+- เพิ่มกลไก CRDT merge (Yjs/Automerge) สำหรับงาน collaborative editing ที่ซับซ้อนกว่า delta พื้นฐาน

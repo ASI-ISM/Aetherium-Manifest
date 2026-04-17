@@ -14,22 +14,22 @@ export function routeLightResponse(inputText, language) {
   const normalized = inputText.trim().toLowerCase();
   const inputLanguage = detectInputLanguage(normalized);
 
-  if (inputLanguage !== 'unknown' && inputLanguage !== language) {
-    return {
-      mood: 'warm',
-      status: localized(language, 'กำลังปรับภาษาให้ตรงกับคุณ', 'Adapting language to your preference'),
-      text: localized(
-        language,
-        'ฉันจะตอบเป็นภาษาไทยให้ชัดเจนขึ้น หากต้องการเปลี่ยนภาษา ปรับได้ใน Settings',
-        'I will respond in English for clarity. You can change language anytime in Settings.',
-      ),
-    };
-  }
-
-  const isGreeting = /^(hello|hi|hey|สวัสดี|หวัดดี|ดีจ้า|โย่ว)/i.test(normalized);
+  const isGreeting = /^(hello|hi|hey|good\s?(morning|afternoon|evening)|สวัสดี|หวัดดี|ดีจ้า)/i.test(normalized);
   const isGratitude = /(thank|ขอบคุณ|thx|ขอบใจ)/i.test(normalized);
   const isQuestion = normalized.includes('?')
     || /^(what|how|why|when|where|who|can|could|should|do|does|is|are|อะไร|ทำไม|อย่างไร|เมื่อไร|ที่ไหน|ใคร)/i.test(normalized);
+
+  if (inputLanguage !== 'mixed' && inputLanguage !== language) {
+    return {
+      mood: 'warm',
+      status: localized(language, 'ปรับภาษาให้ตรงกับความตั้งค่าของคุณ', 'Adapting to your preferred language'),
+      text: localized(
+        language,
+        'ฉันจะตอบเป็นภาษาไทยตามการตั้งค่า หากต้องการเปลี่ยนภาษา สามารถปรับได้ใน Settings',
+        'I will answer in English based on your current settings. You can change this in Settings.',
+      ),
+    };
+  }
 
   if (isGreeting) {
     return {
@@ -56,6 +56,14 @@ export function routeLightResponse(inputText, language) {
         'ฉันรับคำถามแล้ว ลองเพิ่มบริบทอีกเล็กน้อยเพื่อคำตอบที่แม่นขึ้น',
         'I received your question. Add a bit more context for a sharper answer.',
       ),
+    };
+  }
+
+  if (normalized.length < 2) {
+    return {
+      mood: 'ambiguity',
+      status: localized(language, 'สัญญาณยังไม่ชัดเจน', 'Signal is still ambiguous'),
+      text: localized(language, 'ฉันรับสัญญาณแล้ว ลองพิมพ์เพิ่มอีกนิดเพื่อให้เข้าใจได้ชัดขึ้น', 'I received your signal. Add a few words for a clearer response.'),
     };
   }
 

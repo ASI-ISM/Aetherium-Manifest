@@ -2,8 +2,8 @@
   color-scheme: dark;
   --bg: #03040a;
   --ink: #f4fbff;
-  --line: rgba(200, 236, 255, 0.28);
-  --panel: rgba(11, 14, 20, 0.88);
+  --line: rgba(200, 236, 255, 0.24);
+  --panel: rgba(11, 14, 20, 0.9);
   --glow: #7fe4ff;
 }
 
@@ -16,7 +16,7 @@ body {
   height: 100%;
   overflow: hidden;
   font-family: Inter, Sarabun, system-ui, -apple-system, sans-serif;
-  background: radial-gradient(circle at 50% 16%, #101527 0%, var(--bg) 52%);
+  background: radial-gradient(circle at 50% 18%, #11172a 0%, var(--bg) 50%);
   color: var(--ink);
 }
 
@@ -57,13 +57,13 @@ body {
 .send-btn {
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--ink);
   cursor: pointer;
 }
 
 .icon-btn { width: 42px; height: 42px; }
-.send-btn { padding: 0 16px; height: 42px; }
+.send-btn { padding: 0 18px; height: 44px; }
 
 .ambient-status,
 .readable-fallback {
@@ -74,26 +74,27 @@ body {
 }
 
 .ambient-status {
-  opacity: 0.84;
-  font-size: clamp(14px, 2.2vw, 20px);
+  opacity: 0.8;
+  font-size: clamp(14px, 2.1vw, 20px);
   margin-bottom: 10px;
 }
 
 .readable-fallback {
   min-height: 1.2em;
   margin-bottom: 16px;
-  opacity: 0.92;
+  opacity: 0.9;
+  font-size: clamp(16px, 2vw, 20px);
 }
 
 .composer {
   margin: 0 auto;
-  width: min(780px, calc(100vw - 28px));
+  width: min(820px, calc(100vw - 28px));
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto;
   gap: 10px;
-  padding: 10px;
-  border-radius: 18px;
-  background: rgba(8, 11, 18, 0.56);
+  padding: 8px;
+  border-radius: 16px;
+  background: rgba(12, 16, 24, 0.5);
   border: 1px solid var(--line);
   backdrop-filter: blur(8px);
 }
@@ -103,11 +104,11 @@ body {
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.06);
   color: var(--ink);
-  padding: 0 12px;
-  height: 42px;
+  padding: 0 14px;
+  height: 44px;
 }
 
-#intent-input::placeholder { color: rgba(238, 249, 255, 0.52); }
+#intent-input::placeholder { color: rgba(238, 249, 255, 0.56); }
 
 :focus-visible {
   outline: 2px solid var(--glow);
@@ -150,7 +151,8 @@ body {
 
 .settings input,
 .settings select,
-.settings button {
+.settings button,
+.settings-inline-btn {
   width: 100%;
   margin-top: 6px;
   border-radius: 10px;
