@@ -94,7 +94,7 @@ body {
   padding: 10px;
   border-radius: 18px;
   background: rgba(8, 11, 18, 0.56);
-  border: 1px solid rgba(200, 236, 255, 0.2);
+  border: 1px solid var(--line);
   backdrop-filter: blur(8px);
 }
 
