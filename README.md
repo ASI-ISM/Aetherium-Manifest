@@ -62,8 +62,12 @@ The `api_gateway/` folder includes a sample Cognitive DSL gateway:
 
 ### Run Locally
 ```bash
-python3 -m http.server 4173
-# open http://localhost:4173
+npm run lint
+cd api_gateway && pytest -q
+python3 tools/contracts/contract_checker.py
+python3 tools/contracts/contract_fuzz.py
+python3 tools/benchmarks/runtime_semantic_benchmark.py --input tools/benchmarks/runtime_semantic_samples.sample.json
+npx --yes tsx --test test_runtime_governor_psycho_safety.test.ts
 ```
 
 ### CI/CD Note

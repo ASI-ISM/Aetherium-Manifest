@@ -77,7 +77,7 @@
       </section>
 
       <section>
-        <h3>Language & Voice</h3>
+        <h3>Language &amp; Voice</h3>
         <label>Preferred Language
           <select id="language-preference">
             <option value="auto">Auto</option>
@@ -93,11 +93,14 @@
           </select>
         </label>
         <label><input id="reduced-motion-toggle" type="checkbox" /> Reduced motion</label>
-        <label><input id="voice-enabled-toggle" type="checkbox" checked /> Voice input options</label>
+        <label><input id="voice-enabled-toggle" type="checkbox" checked /> Enable voice input</label>
+        <button id="voice-capture" type="button" class="settings-inline-btn" aria-label="Start voice capture">
+          Start voice capture
+        </button>
       </section>
 
       <section>
-        <h3>Export & Tools</h3>
+        <h3>Export &amp; Tools</h3>
         <button id="export-session" type="button">Export session audit (JSON)</button>
         <p id="settings-note">Advanced controls live here only by design.</p>
       </section>

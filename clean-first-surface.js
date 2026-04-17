@@ -14,7 +14,7 @@ const elements = {
   settingsPanel: document.getElementById('settings-panel'),
   settingsToggle: document.getElementById('settings-toggle'),
   closeSettings: document.getElementById('close-settings'),
-  voiceButton: document.getElementById('voice-btn'),
+  voiceCaptureButton: document.getElementById('voice-capture'),
 };
 
 const defaultSettings = {
@@ -150,29 +150,32 @@ function bindSettings() {
 
 function initVoice() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
-    elements.voiceButton.disabled = true;
-    elements.voiceButton.title = 'Speech API unavailable';
+  voiceRuntime.isSupported = Boolean(SpeechRecognition);
+
+  if (!voiceRuntime.isSupported) {
+    elements.voiceCaptureButton.disabled = true;
+    elements.voiceCaptureButton.textContent = 'Voice unavailable';
+    elements.voiceCaptureButton.title = 'Speech API unavailable';
     return;
   }
 
   const recognition = new SpeechRecognition();
   recognition.continuous = false;
   recognition.interimResults = false;
+  voiceRuntime.recognition = recognition;
+  elements.voiceCaptureButton.disabled = !settings.voiceEnabled;
 
-  let listening = false;
+  elements.voiceCaptureButton.addEventListener('click', () => {
+    if (!settings.voiceEnabled || !voiceRuntime.recognition) return;
 
-  elements.voiceButton.addEventListener('click', () => {
-    if (!settings.voiceEnabled) return;
-
-    if (listening) {
-      recognition.stop();
+    if (voiceRuntime.isListening) {
+      voiceRuntime.recognition.stop();
       return;
     }
 
     const language = languageLayer.resolveLanguage(elements.input.value || '');
-    recognition.lang = language === 'th' ? 'th-TH' : 'en-US';
-    recognition.start();
+    voiceRuntime.recognition.lang = language === 'th' ? 'th-TH' : 'en-US';
+    voiceRuntime.recognition.start();
   });
 
   recognition.onstart = () => {
@@ -193,8 +196,8 @@ function initVoice() {
   };
 
   recognition.onend = () => {
-    listening = false;
-    elements.voiceButton.setAttribute('aria-pressed', 'false');
+    voiceRuntime.isListening = false;
+    elements.voiceCaptureButton.textContent = localized('เริ่มรับเสียง', 'Start voice capture');
   };
 }
 
@@ -258,6 +261,12 @@ function bindSettingsPanel() {
     const clickedToggle = elements.settingsToggle.contains(target);
 
     if (!clickedInsidePanel && !clickedToggle) closeSettingsPanel();
+  });
+
+  window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !elements.settingsPanel.hidden) {
+      elements.closeSettings.click();
+    }
   });
 }
 

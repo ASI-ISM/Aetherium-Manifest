@@ -18,6 +18,7 @@ function detectFromCharacters(text) {
 
   const thaiChars = (text.match(/[\u0E00-\u0E7F]/g) || []).length;
   const englishChars = (text.match(/[A-Za-z]/g) || []).length;
+  const signal = thaiChars + englishChars;
 
   if (thaiChars === 0 && englishChars === 0) {
     return { language: 'unknown', confidence: 0 };

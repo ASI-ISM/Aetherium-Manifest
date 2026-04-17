@@ -11,7 +11,7 @@ The homepage intentionally renders only:
 - One Settings button.
 - Subtle human-readable status text and a lightweight readable fallback line.
 
-No dashboard/HUD/debug panels are shown on first view.
+No dashboard, HUD, debug panel, scholar panel, lineage panel, or runtime console is shown on first view.
 
 ## Module split
 
@@ -51,7 +51,7 @@ All advanced controls are kept inside Settings:
 - Runtime mode and telemetry options.
 - Lineage/replay/scholar/governor/developer toggles.
 - Reduced-motion and language/voice/local-detector options.
-- Session audit export.
+- Optional voice capture trigger and session-audit export.
 
 ## Fallback behavior
 
