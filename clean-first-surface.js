@@ -1,7 +1,12 @@
 import { createLanguageLayer } from './first_use_surface/language-layer.js';
 import { createLightManifestation } from './first_use_surface/light-manifestation.js';
 import { routeLightResponse } from './first_use_surface/response-orchestrator.js';
-import { markCompositionEnd, shouldSubmitOnEnter } from './first_use_surface/input-event-policy.js';
+import {
+  markCompositionEnd,
+  markCompositionStart,
+  markInputCommitted,
+  shouldSubmitOnEnter,
+} from './first_use_surface/input-event-policy.js';
 
 const STORAGE_KEY = 'aetherium:first-surface-settings:v1';
 
@@ -157,11 +162,29 @@ function bindInputEvents() {
   });
 
   elements.input.addEventListener('compositionstart', () => {
-    inputRuntime.isComposing = true;
+    markCompositionStart(inputRuntime);
   });
 
   elements.input.addEventListener('compositionend', (event) => {
     markCompositionEnd(inputRuntime, event.timeStamp);
+  });
+
+
+  elements.input.addEventListener('beforeinput', (event) => {
+    if (event.inputType === 'insertCompositionText' || event.inputType === 'deleteCompositionText') {
+      markCompositionStart(inputRuntime);
+    }
+  });
+
+  elements.input.addEventListener('input', (event) => {
+    if (event.isComposing) {
+      markCompositionStart(inputRuntime);
+      return;
+    }
+
+    if (event.inputType !== 'insertCompositionText' && event.inputType !== 'deleteCompositionText') {
+      markInputCommitted(inputRuntime);
+    }
   });
 
   elements.input.addEventListener('keydown', (event) => {

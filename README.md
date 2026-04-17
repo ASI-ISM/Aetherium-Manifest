@@ -5,7 +5,7 @@ Aetherium Manifest is a **light-native cognition runtime**: intent is interprete
 ## What changed in this iteration
 - Home is now a **pure light-native scene** (canvas + Settings entry only).
 - Structural UI (composer, runtime controls, voice, connection, export) is moved into **Settings**.
-- Input event handling was modernized to correctly support **IME composition** (Thai/Japanese/etc.) without accidental Enter-submit during composition.
+- Input event handling was modernized to correctly support **IME composition** (Thai/Japanese/etc.) using composition lifecycle + `beforeinput/input` paths, and now blocks accidental Enter-submit from browser IME process-key events (e.g. `keyCode=229`).
 
 ---
 
@@ -71,6 +71,18 @@ Core contracts/schemas in this repo include:
 2. Governor applies transition/profile mapping and constraints.
 3. Capability + policy gates enforce deny-by-default behavior.
 4. Runtime output and telemetry are published to consumers.
+
+### Runtime control stages
+`validate → transition → profile_map → clamp → fallback → policy_block → capability_gate → telemetry_log`
+
+- `validate`: schema + semantic checks
+- `transition`: state machine handoff
+- `profile_map`: safe perceptual mapping profile
+- `clamp`: hard caps for energy/particle/control limits
+- `fallback`: deterministic safe degradation path
+- `policy_block`: deny-by-default policy enforcement
+- `capability_gate`: runtime/environment capability checks
+- `telemetry_log`: deterministic observability trail
 
 ---
 

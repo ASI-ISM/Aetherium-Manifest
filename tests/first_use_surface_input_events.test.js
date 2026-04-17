@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { markCompositionEnd, shouldSubmitOnEnter } from '../first_use_surface/input-event-policy.js';
+import {
+  markCompositionEnd,
+  markCompositionStart,
+  markInputCommitted,
+  shouldSubmitOnEnter,
+} from '../first_use_surface/input-event-policy.js';
 import { routeLightResponse } from '../first_use_surface/response-orchestrator.js';
 
 describe('input IME enter policy', () => {
@@ -9,6 +14,23 @@ describe('input IME enter policy', () => {
     const event = { key: 'Enter', isComposing: true, shiftKey: false, altKey: false, ctrlKey: false, metaKey: false, repeat: false, timeStamp: 150 };
 
     expect(shouldSubmitOnEnter(event, runtime)).toBe(false);
+  });
+
+  it('blocks Enter with IME process key events', () => {
+    const runtime = { isComposing: false, lastCompositionEndAt: -Infinity };
+    const processEvent = {
+      key: 'Process',
+      keyCode: 229,
+      isComposing: false,
+      shiftKey: false,
+      altKey: false,
+      ctrlKey: false,
+      metaKey: false,
+      repeat: false,
+      timeStamp: 200,
+    };
+
+    expect(shouldSubmitOnEnter(processEvent, runtime)).toBe(false);
   });
 
   it('waits briefly after compositionend before allowing Enter submit', () => {
@@ -20,6 +42,16 @@ describe('input IME enter policy', () => {
 
     expect(shouldSubmitOnEnter(immediateEnter, runtime)).toBe(false);
     expect(shouldSubmitOnEnter(delayedEnter, runtime)).toBe(true);
+  });
+
+  it('tracks composition lifecycle with explicit helpers', () => {
+    const runtime = { isComposing: false, lastCompositionEndAt: -Infinity };
+
+    markCompositionStart(runtime);
+    expect(runtime.isComposing).toBe(true);
+
+    markInputCommitted(runtime);
+    expect(runtime.isComposing).toBe(false);
   });
 });
 
