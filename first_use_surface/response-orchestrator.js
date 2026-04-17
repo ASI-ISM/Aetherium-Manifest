@@ -2,13 +2,35 @@ function localized(language, thText, enText) {
   return language === 'th' ? thText : enText;
 }
 
+function detectInputLanguage(text) {
+  const thai = /[\u0E00-\u0E7F]/.test(text);
+  const english = /[A-Za-z]/.test(text);
+
+  if (thai && !english) return 'th';
+  if (english && !thai) return 'en';
+  return 'mixed';
+}
+
 export function routeLightResponse(inputText, language) {
   const normalized = inputText.trim().toLowerCase();
+  const inputLanguage = detectInputLanguage(normalized);
 
-  const isGreeting = /^(hello|hi|hey|สวัสดี|หวัดดี|ดีจ้า|โย่ว)/i.test(normalized);
+  const isGreeting = /^(hello|hi|hey|good\s?(morning|afternoon|evening)|สวัสดี|หวัดดี|ดีจ้า)/i.test(normalized);
   const isGratitude = /(thank|ขอบคุณ|thx|ขอบใจ)/i.test(normalized);
   const isQuestion = normalized.includes('?')
     || /^(what|how|why|when|where|who|can|could|should|do|does|is|are|อะไร|ทำไม|อย่างไร|เมื่อไร|ที่ไหน|ใคร)/i.test(normalized);
+
+  if (inputLanguage !== 'mixed' && inputLanguage !== language) {
+    return {
+      mood: 'warm',
+      status: localized(language, 'ปรับภาษาให้ตรงกับความตั้งค่าของคุณ', 'Adapting to your preferred language'),
+      text: localized(
+        language,
+        'ฉันจะตอบเป็นภาษาไทยตามการตั้งค่า หากต้องการเปลี่ยนภาษา สามารถปรับได้ใน Settings',
+        'I will answer in English based on your current settings. You can change this in Settings.',
+      ),
+    };
+  }
 
   if (isGreeting) {
     return {
@@ -35,6 +57,14 @@ export function routeLightResponse(inputText, language) {
         'ฉันรับคำถามแล้ว ลองเพิ่มบริบทอีกเล็กน้อยเพื่อคำตอบที่แม่นขึ้น',
         'I received your question. Add a bit more context for a sharper answer.',
       ),
+    };
+  }
+
+  if (normalized.length < 2) {
+    return {
+      mood: 'ambiguity',
+      status: localized(language, 'สัญญาณยังไม่ชัดเจน', 'Signal is still ambiguous'),
+      text: localized(language, 'ฉันรับสัญญาณแล้ว ลองพิมพ์เพิ่มอีกนิดเพื่อให้เข้าใจได้ชัดขึ้น', 'I received your signal. Add a few words for a clearer response.'),
     };
   }
 

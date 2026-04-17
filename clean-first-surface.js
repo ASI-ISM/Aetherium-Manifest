@@ -2,6 +2,8 @@ import { createLanguageLayer } from './first_use_surface/language-layer.js';
 import { createLightManifestation } from './first_use_surface/light-manifestation.js';
 import { routeLightResponse } from './first_use_surface/response-orchestrator.js';
 
+const STORAGE_KEY = 'aetherium:first-surface-settings:v1';
+
 const elements = {
   canvas: document.getElementById('manifestation-canvas'),
   form: document.getElementById('composer'),
@@ -15,7 +17,7 @@ const elements = {
   voiceButton: document.getElementById('voice-btn'),
 };
 
-const settings = {
+const defaultSettings = {
   languagePreference: 'auto',
   useLocalDetector: true,
   localModelProfile: 'tiny-rules',
@@ -29,12 +31,31 @@ const settings = {
   scholar: false,
   governorDebug: false,
   developerTools: false,
-  sessionLanguageMemory: 'th',
+  sessionLanguageMemory: (navigator.language || 'en').toLowerCase().startsWith('th') ? 'th' : 'en',
 };
 
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { ...defaultSettings };
+    return { ...defaultSettings, ...JSON.parse(raw) };
+  } catch {
+    return { ...defaultSettings };
+  }
+}
+
+const settings = loadSettings();
 const sessionAudit = [];
 const languageLayer = createLanguageLayer(settings);
 const manifestationEngine = createLightManifestation(elements.canvas, settings.reducedMotion);
+
+function persistSettings() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+}
+
+function t(th, en) {
+  return settings.sessionLanguageMemory === 'th' ? th : en;
+}
 
 function setStatus(statusText) {
   elements.statusText.textContent = statusText;
@@ -83,7 +104,11 @@ function bindSettings() {
       settings.reducedMotion = event.target.checked;
       manifestationEngine.setReducedMotion(settings.reducedMotion);
     }],
-    ['voice-enabled-toggle', 'change', (event) => { settings.voiceEnabled = event.target.checked; }],
+    ['voice-enabled-toggle', 'change', (event) => {
+      settings.voiceEnabled = event.target.checked;
+      elements.voiceButton.disabled = !event.target.checked;
+      if (!event.target.checked) elements.voiceButton.setAttribute('aria-pressed', 'false');
+    }],
     ['api-base', 'input', (event) => { settings.apiBase = event.target.value.trim(); }],
     ['ws-base', 'input', (event) => { settings.wsBase = event.target.value.trim(); }],
     ['runtime-mode', 'change', (event) => { settings.runtimeMode = event.target.value; }],
@@ -96,11 +121,31 @@ function bindSettings() {
 
   bindingMap.forEach(([id, type, handler]) => {
     const el = byId(id);
-    if (el) el.addEventListener(type, handler);
+    if (!el) return;
+
+    el.addEventListener(type, (event) => {
+      handler(event);
+      persistSettings();
+    });
   });
+
   byId('export-session').addEventListener('click', exportSessionAudit);
 
+  byId('language-preference').value = settings.languagePreference;
+  byId('local-detector-toggle').checked = settings.useLocalDetector;
+  byId('local-model-profile').value = settings.localModelProfile;
   byId('reduced-motion-toggle').checked = settings.reducedMotion;
+  byId('voice-enabled-toggle').checked = settings.voiceEnabled;
+  byId('api-base').value = settings.apiBase;
+  byId('ws-base').value = settings.wsBase;
+  byId('runtime-mode').value = settings.runtimeMode;
+  byId('telemetry-toggle').checked = settings.telemetry;
+  byId('lineage-toggle').checked = settings.lineage;
+  byId('scholar-toggle').checked = settings.scholar;
+  byId('governor-toggle').checked = settings.governorDebug;
+  byId('devtools-toggle').checked = settings.developerTools;
+
+  elements.voiceButton.disabled = !settings.voiceEnabled;
 }
 
 function initVoice() {
@@ -133,7 +178,7 @@ function initVoice() {
   recognition.onstart = () => {
     listening = true;
     elements.voiceButton.setAttribute('aria-pressed', 'true');
-    setStatus(settings.sessionLanguageMemory === 'th' ? 'กำลังฟังเสียง' : 'Listening');
+    setStatus(t('กำลังฟังเสียง', 'Listening'));
   };
 
   recognition.onresult = (event) => {
@@ -144,7 +189,7 @@ function initVoice() {
   };
 
   recognition.onerror = () => {
-    setStatus(settings.sessionLanguageMemory === 'th' ? 'เสียงไม่พร้อม ใช้การพิมพ์แทน' : 'Voice unavailable, type instead');
+    setStatus(t('เสียงไม่พร้อม ใช้การพิมพ์แทน', 'Voice unavailable, type instead'));
   };
 
   recognition.onend = () => {
@@ -159,7 +204,7 @@ function onComposerSubmit(event) {
   if (!text) return;
 
   applySubmissionState(true);
-  setStatus(settings.sessionLanguageMemory === 'th' ? 'กำลังตีความ' : 'Interpreting');
+  setStatus(t('กำลังตีความ', 'Interpreting'));
 
   const language = languageLayer.resolveLanguage(text);
   const response = routeLightResponse(text, language);
@@ -174,22 +219,45 @@ function onComposerSubmit(event) {
     response,
   });
 
+  persistSettings();
   elements.input.value = '';
   applySubmissionState(false);
 }
 
+function openSettingsPanel() {
+  elements.settingsPanel.hidden = false;
+  elements.settingsToggle.setAttribute('aria-expanded', 'true');
+  document.getElementById('api-base').focus();
+}
+
+function closeSettingsPanel() {
+  elements.settingsPanel.hidden = true;
+  elements.settingsToggle.setAttribute('aria-expanded', 'false');
+  elements.settingsToggle.focus();
+}
+
 function bindSettingsPanel() {
   elements.settingsToggle.addEventListener('click', () => {
-    const willOpen = elements.settingsPanel.hidden;
-    elements.settingsPanel.hidden = !willOpen;
-    elements.settingsToggle.setAttribute('aria-expanded', String(willOpen));
-    if (willOpen) document.getElementById('api-base').focus();
+    if (elements.settingsPanel.hidden) openSettingsPanel();
+    else closeSettingsPanel();
   });
 
-  elements.closeSettings.addEventListener('click', () => {
-    elements.settingsPanel.hidden = true;
-    elements.settingsToggle.setAttribute('aria-expanded', 'false');
-    elements.settingsToggle.focus();
+  elements.closeSettings.addEventListener('click', closeSettingsPanel);
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !elements.settingsPanel.hidden) {
+      closeSettingsPanel();
+    }
+  });
+
+  document.addEventListener('click', (event) => {
+    if (elements.settingsPanel.hidden) return;
+
+    const target = event.target;
+    const clickedInsidePanel = elements.settingsPanel.contains(target);
+    const clickedToggle = elements.settingsToggle.contains(target);
+
+    if (!clickedInsidePanel && !clickedToggle) closeSettingsPanel();
   });
 }
 
@@ -202,7 +270,7 @@ function bootstrap() {
   window.addEventListener('resize', manifestationEngine.resize);
 
   manifestationEngine.resize();
-  setStatus('พร้อมฟัง');
+  setStatus(t('พร้อมฟัง', 'Ready to receive'));
   manifestationEngine.manifestText('สวัสดี — Hello', 'greeting');
   setReadableFallback('สวัสดี — Hello');
   requestAnimationFrame(manifestationEngine.render);
