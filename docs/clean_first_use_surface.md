@@ -29,18 +29,19 @@ No dashboard/HUD/debug panels are shown on first view.
   - Optional local rule-based detector layer.
 - `first_use_surface/response-orchestrator.js`
   - Deterministic first-run response rules for greeting/gratitude/question/unknown intent.
+  - Language mismatch adaptation message for preference/input divergence.
 
 ## Language detection strategy
 
 Resolution order:
 
 1. Explicit user preference in Settings.
-2. Browser locale (`navigator.languages` / `navigator.language`).
-3. Input heuristics (Thai unicode range vs Latin range).
+2. Browser locale (`navigator.languages` / `navigator.language`) as deterministic default.
+3. Input heuristics (Thai Unicode range vs Latin range).
 4. Optional local detector rules (pluggable and safe when disabled).
-5. Session language memory.
+5. Session language memory fallback.
 
-## Settings as single advanced-control surface
+## Settings as a single advanced-control surface
 
 All advanced controls are kept inside Settings:
 
@@ -52,12 +53,12 @@ All advanced controls are kept inside Settings:
 
 ## Fallback behavior
 
-- If SpeechRecognition is not available, voice control disables itself without breaking the composer flow.
-- If language detection confidence is low, the runtime uses deterministic fallback + session memory.
-- If animations are reduced, luminous text remains readable without relying on motion cues.
+- If `SpeechRecognition` is not available, voice control disables itself without breaking composer input.
+- If language confidence is low, the runtime falls back deterministically without external calls.
+- If reduced motion is enabled, luminous text remains readable without relying on animation cues.
 
 ## Limitations
 
 - Current language detector is heuristic and local-rule based (no heavy ML model).
 - Voice input depends on browser SpeechRecognition availability.
-- Session audit export remains local-download + in-memory trail.
+- Session audit export remains local-download plus in-memory trail.

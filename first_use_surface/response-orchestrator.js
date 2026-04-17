@@ -2,8 +2,29 @@ function localized(language, thText, enText) {
   return language === 'th' ? thText : enText;
 }
 
+function detectInputLanguage(inputText) {
+  const thaiChars = (inputText.match(/[\u0E00-\u0E7F]/g) || []).length;
+  const englishChars = (inputText.match(/[A-Za-z]/g) || []).length;
+  if (thaiChars > englishChars) return 'th';
+  if (englishChars > thaiChars) return 'en';
+  return 'unknown';
+}
+
 export function routeLightResponse(inputText, language) {
   const normalized = inputText.trim().toLowerCase();
+  const inputLanguage = detectInputLanguage(normalized);
+
+  if (inputLanguage !== 'unknown' && inputLanguage !== language) {
+    return {
+      mood: 'warm',
+      status: localized(language, 'กำลังปรับภาษาให้ตรงกับคุณ', 'Adapting language to your preference'),
+      text: localized(
+        language,
+        'ฉันจะตอบเป็นภาษาไทยให้ชัดเจนขึ้น หากต้องการเปลี่ยนภาษา ปรับได้ใน Settings',
+        'I will respond in English for clarity. You can change language anytime in Settings.',
+      ),
+    };
+  }
 
   const isGreeting = /^(hello|hi|hey|สวัสดี|หวัดดี|ดีจ้า|โย่ว)/i.test(normalized);
   const isGratitude = /(thank|ขอบคุณ|thx|ขอบใจ)/i.test(normalized);

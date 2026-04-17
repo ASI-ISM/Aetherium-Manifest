@@ -1,6 +1,6 @@
 :root {
   color-scheme: dark;
-  --bg: #04050a;
+  --bg: #03040a;
   --ink: #f4fbff;
   --line: rgba(200, 236, 255, 0.28);
   --panel: rgba(11, 14, 20, 0.88);
@@ -16,7 +16,7 @@ body {
   height: 100%;
   overflow: hidden;
   font-family: Inter, Sarabun, system-ui, -apple-system, sans-serif;
-  background: radial-gradient(circle at 50% 16%, #12162a 0%, var(--bg) 48%);
+  background: radial-gradient(circle at 50% 16%, #101527 0%, var(--bg) 52%);
   color: var(--ink);
 }
 
@@ -76,32 +76,32 @@ body {
 .ambient-status {
   opacity: 0.84;
   font-size: clamp(14px, 2.2vw, 20px);
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .readable-fallback {
   min-height: 1.2em;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
   opacity: 0.92;
 }
 
 .composer {
   margin: 0 auto;
-  width: min(860px, calc(100vw - 28px));
+  width: min(780px, calc(100vw - 28px));
   display: grid;
   grid-template-columns: 1fr auto auto;
   gap: 10px;
   padding: 10px;
   border-radius: 18px;
-  background: rgba(12, 16, 24, 0.64);
-  border: 1px solid var(--line);
-  backdrop-filter: blur(10px);
+  background: rgba(8, 11, 18, 0.56);
+  border: 1px solid rgba(200, 236, 255, 0.2);
+  backdrop-filter: blur(8px);
 }
 
 #intent-input {
   border: 1px solid transparent;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.06);
   color: var(--ink);
   padding: 0 12px;
   height: 42px;

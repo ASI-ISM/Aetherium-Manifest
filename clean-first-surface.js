@@ -15,6 +15,23 @@ const elements = {
   voiceButton: document.getElementById('voice-btn'),
 };
 
+const uiText = {
+  th: {
+    ready: 'พร้อมฟัง',
+    interpreting: 'กำลังตีความ',
+    listening: 'กำลังฟังเสียง',
+    voiceUnavailable: 'เสียงไม่พร้อม ใช้การพิมพ์แทน',
+    speechApiUnavailable: 'เบราว์เซอร์ไม่รองรับ Speech API',
+  },
+  en: {
+    ready: 'Ready to listen',
+    interpreting: 'Interpreting',
+    listening: 'Listening',
+    voiceUnavailable: 'Voice unavailable, type instead',
+    speechApiUnavailable: 'Speech API unavailable in this browser',
+  },
+};
+
 const settings = {
   languagePreference: 'auto',
   useLocalDetector: true,
@@ -35,6 +52,15 @@ const settings = {
 const sessionAudit = [];
 const languageLayer = createLanguageLayer(settings);
 const manifestationEngine = createLightManifestation(elements.canvas, settings.reducedMotion);
+
+function activeLanguage() {
+  return settings.sessionLanguageMemory === 'en' ? 'en' : 'th';
+}
+
+function localizedUI(key) {
+  const language = activeLanguage();
+  return uiText[language][key];
+}
 
 function setStatus(statusText) {
   elements.statusText.textContent = statusText;
@@ -98,8 +124,8 @@ function bindSettings() {
     const el = byId(id);
     if (el) el.addEventListener(type, handler);
   });
-  byId('export-session').addEventListener('click', exportSessionAudit);
 
+  byId('export-session').addEventListener('click', exportSessionAudit);
   byId('reduced-motion-toggle').checked = settings.reducedMotion;
 }
 
@@ -107,7 +133,7 @@ function initVoice() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
     elements.voiceButton.disabled = true;
-    elements.voiceButton.title = 'Speech API unavailable';
+    elements.voiceButton.title = localizedUI('speechApiUnavailable');
     return;
   }
 
@@ -133,7 +159,7 @@ function initVoice() {
   recognition.onstart = () => {
     listening = true;
     elements.voiceButton.setAttribute('aria-pressed', 'true');
-    setStatus(settings.sessionLanguageMemory === 'th' ? 'กำลังฟังเสียง' : 'Listening');
+    setStatus(localizedUI('listening'));
   };
 
   recognition.onresult = (event) => {
@@ -144,12 +170,13 @@ function initVoice() {
   };
 
   recognition.onerror = () => {
-    setStatus(settings.sessionLanguageMemory === 'th' ? 'เสียงไม่พร้อม ใช้การพิมพ์แทน' : 'Voice unavailable, type instead');
+    setStatus(localizedUI('voiceUnavailable'));
   };
 
   recognition.onend = () => {
     listening = false;
     elements.voiceButton.setAttribute('aria-pressed', 'false');
+    setStatus(localizedUI('ready'));
   };
 }
 
@@ -159,9 +186,9 @@ function onComposerSubmit(event) {
   if (!text) return;
 
   applySubmissionState(true);
-  setStatus(settings.sessionLanguageMemory === 'th' ? 'กำลังตีความ' : 'Interpreting');
-
   const language = languageLayer.resolveLanguage(text);
+  setStatus(localizedUI('interpreting'));
+
   const response = routeLightResponse(text, language);
 
   manifestationEngine.manifestText(response.text, response.mood);
@@ -191,6 +218,14 @@ function bindSettingsPanel() {
     elements.settingsToggle.setAttribute('aria-expanded', 'false');
     elements.settingsToggle.focus();
   });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !elements.settingsPanel.hidden) {
+      elements.settingsPanel.hidden = true;
+      elements.settingsToggle.setAttribute('aria-expanded', 'false');
+      elements.settingsToggle.focus();
+    }
+  });
 }
 
 function bootstrap() {
@@ -202,9 +237,11 @@ function bootstrap() {
   window.addEventListener('resize', manifestationEngine.resize);
 
   manifestationEngine.resize();
-  setStatus('พร้อมฟัง');
-  manifestationEngine.manifestText('สวัสดี — Hello', 'greeting');
-  setReadableFallback('สวัสดี — Hello');
+  const bootLanguage = languageLayer.resolveLanguage('');
+  settings.sessionLanguageMemory = bootLanguage;
+  setStatus(localizedUI('ready'));
+  manifestationEngine.manifestText(bootLanguage === 'th' ? 'สวัสดี' : 'Hello', 'greeting');
+  setReadableFallback(bootLanguage === 'th' ? 'สวัสดี' : 'Hello');
   requestAnimationFrame(manifestationEngine.render);
 }
 
