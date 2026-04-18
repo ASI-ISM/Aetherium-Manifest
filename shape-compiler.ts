@@ -164,7 +164,7 @@ export function compileShapeField(
   const density = clampFn(lcl.morphology?.density ?? 0.6, 0.1, 1.0);
   const count = Math.floor((lcl.constraints?.max_targets ?? 12000) * density);
   const scale = Math.min(W, HResolved) * clampFn(lcl.morphology?.scale ?? 0.3, 0.12, 0.55);
-  const palette = (lcl.optics?.palette ?? ['#FFFFFF']).map(hexToLinearFn);
+  const palette = (lcl.optics?.palette?.length ? lcl.optics.palette : ['#FFFFFF']).map(hexToLinearFn);
 
   for (let i = 0; i < count; i++) {
     const t = i / Math.max(count, 1);
