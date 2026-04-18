@@ -13,7 +13,22 @@ export interface CompiledField {
   points: TargetPoint[];
 }
 
-type LclLike = Record<string, unknown>;
+interface LclLike {
+  morphology?: {
+    family?: string;
+    density?: number;
+    scale?: number;
+  };
+  constraints?: {
+    max_targets?: number;
+  };
+  optics?: {
+    palette?: string[];
+  };
+  content?: {
+    text?: string | null;
+  };
+}
 
 export function compileGlyphFieldFromAlphaMask(
   alphaMask: Uint8Array,
@@ -35,8 +50,6 @@ export function compileGlyphFieldFromAlphaMask(
 
   return { points };
 }
-
-export function compileShapeField(lcl: LclLike, viewport: Viewport): CompiledField;
 
 export function compileGlyphField(
   lcl: LclLike,
@@ -116,6 +129,18 @@ export function compileSceneField(
   setTargetField(pts.slice(0, lcl.constraints?.max_targets ?? pts.length));
 }
 
+export function compileShapeField(lcl: LclLike, viewport: Viewport): CompiledField;
+export function compileShapeField(
+  lcl: LclLike,
+  W: number,
+  H: number,
+  CX: number,
+  CY: number,
+  hexToLinearFn: (hex: string) => number[],
+  lerpFn: (a: number, b: number, t: number) => number,
+  clampFn: (v: number, lo: number, hi: number) => number,
+  setTargetField: (pts: TargetPoint[]) => void,
+): void;
 export function compileShapeField(
   lcl: LclLike,
   WOrViewport: number | Viewport,
@@ -135,11 +160,11 @@ export function compileShapeField(
   const HResolved = viewport.height;
   const CXResolved = CX ?? W / 2;
   const CYResolved = CY ?? HResolved / 2;
-  const family = lcl.morphology.family;
-  const density = clampFn(lcl.morphology.density, 0.1, 1.0);
-  const count = Math.floor((lcl.constraints.max_targets || 12000) * density);
-  const scale = Math.min(W, HResolved) * clampFn(lcl.morphology.scale, 0.12, 0.55);
-  const palette = (lcl.optics.palette || ['#FFFFFF']).map(hexToLinearFn);
+  const family = lcl.morphology?.family ?? 'sphere';
+  const density = clampFn(lcl.morphology?.density ?? 0.6, 0.1, 1.0);
+  const count = Math.floor((lcl.constraints?.max_targets ?? 12000) * density);
+  const scale = Math.min(W, HResolved) * clampFn(lcl.morphology?.scale ?? 0.3, 0.12, 0.55);
+  const palette = (lcl.optics?.palette ?? ['#FFFFFF']).map(hexToLinearFn);
 
   for (let i = 0; i < count; i++) {
     const t = i / Math.max(count, 1);

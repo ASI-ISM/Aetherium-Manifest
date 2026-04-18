@@ -74,7 +74,7 @@ globalThis.HTMLCanvasElement = MockCanvasElement as typeof HTMLCanvasElement;
 globalThis.window = { innerWidth: 800, innerHeight: 600 } as Window & typeof globalThis;
 globalThis.document = {
   createElement: () => new MockCanvasElement(),
-} as Document;
+} as unknown as Document;
 let rafCalls = 0;
 globalThis.requestAnimationFrame = ((cb: FrameRequestCallback) => {
   rafCalls += 1;

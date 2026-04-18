@@ -132,7 +132,7 @@ export function createGovernorSchemaValidator(
         message: error.message,
       })),
     };
-  });
+  }) as NonNullable<RuntimeGovernorOptions["schemaValidator"]>;
 }
 
 /**

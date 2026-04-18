@@ -1288,7 +1288,7 @@ function makeNaiveRuntimeAbiValidator(schema: JsonSchema): RuntimeGovernorOption
     for (const section of ["intent_state", "renderer_controls"] as const) {
       const sectionSchema = schema.properties?.[section];
       const sectionRequired = sectionSchema?.required ?? [];
-      const sectionValue = (payload as Record<string, Record<string, unknown>>)[section] ?? {};
+      const sectionValue = ((payload as unknown) as Record<string, Record<string, unknown>>)[section] ?? {};
       for (const key of sectionRequired) {
         if (sectionValue[key] == null) {
           errors.push(`${section}.${key}: missing required field`);

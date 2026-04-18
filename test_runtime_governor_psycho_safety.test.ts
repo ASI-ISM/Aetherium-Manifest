@@ -77,7 +77,7 @@ test('psycho_safety_gate caps cadence at WCAG threshold', () => {
   const governor = new RuntimeGovernor();
   const decision = governor.process(makePayload({ flicker: 0.05, glow_intensity: 0.5, velocity: 0.2, cadence_hz: 6.0 }));
 
-  assert.equal(decision.effective_contract.renderer_controls.shader_uniforms.cadence_hz, 3);
+  assert.equal(decision.effective_contract.renderer_controls.shader_uniforms?.cadence_hz, 3);
   assert.equal(decision.mutations.some((note) => note.includes('WCAG <=3 flashes/sec')), true);
 });
 

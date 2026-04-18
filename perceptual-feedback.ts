@@ -110,7 +110,7 @@ export function perceptualFeedbackLoop(
   lastLCL: LclLike,
   kernel: KernelLike,
   clamp: (v: number, lo: number, hi: number) => number,
-  applyPatch: (patch: Record<string, unknown>) => void,
+  applyPatch: (patch: EvalMetrics | Record<string, unknown>) => void,
 ): void {
   if (!photons.length) {
     applyPatch({ readability: 0, coverage: 0, stability: 0 });
