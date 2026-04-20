@@ -181,7 +181,7 @@ function isRecord(value) {
 function sanitizePaletteValue(value, fallback) {
   if (typeof value !== 'string') return fallback;
   const normalized = value.trim();
-  return /^#([0-9a-fA-F]{6})$/.test(normalized) ? normalized : fallback;
+  return /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(normalized) ? normalized : fallback;
 }
 
 function validateIncomingStateSchema(payload) {
