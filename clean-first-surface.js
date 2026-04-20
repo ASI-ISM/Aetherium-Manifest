@@ -27,6 +27,7 @@ const elements = {
   settingsToggle: document.getElementById('settings-toggle'),
   closeSettings: document.getElementById('close-settings'),
   voiceCaptureButton: document.getElementById('voice-capture'),
+  connectionStatus: document.getElementById('connection-status'),
 };
 
 const defaultSettings = {
@@ -72,6 +73,14 @@ const voiceRuntime = {
   recognition: null,
 };
 
+const connectionRuntime = {
+  socket: null,
+  reconnectTimer: null,
+  reconnectAttempts: 0,
+  shouldReconnect: true,
+  url: '',
+};
+
 function loadSettings() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -104,6 +113,11 @@ function setStatus(statusText) {
   elements.statusText.textContent = statusText;
 }
 
+function setConnectionStatus(state) {
+  if (!elements.connectionStatus) return;
+  elements.connectionStatus.textContent = state;
+}
+
 function setReadableFallback(text) {
   elements.fallbackText.textContent = text;
 }
@@ -118,6 +132,110 @@ function pushSessionEvent(payload) {
     ...payload,
     at: new Date().toISOString(),
   });
+}
+
+function resolveWsUrl(inputUrl = '') {
+  const source = inputUrl.trim() || settings.wsBase;
+  if (!source) return '';
+
+  if (/^wss?:\/\//i.test(source)) return source;
+  if (/^https?:\/\//i.test(source)) {
+    return source.replace(/^http/i, 'ws');
+  }
+
+  const base = new URL(window.location.href);
+  const wsProtocol = base.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${wsProtocol}//${base.host}${source.startsWith('/') ? source : `/${source}`}`;
+}
+
+function nextReconnectDelayMs(attempt) {
+  return Math.min(8000, 2000 * (2 ** Math.max(0, attempt - 1)));
+}
+
+function clearReconnectTimer() {
+  if (connectionRuntime.reconnectTimer === null) return;
+  window.clearTimeout(connectionRuntime.reconnectTimer);
+  connectionRuntime.reconnectTimer = null;
+}
+
+function handleIncomingState(payload) {
+  const fallbackText = payload?.text
+    ?? payload?.message
+    ?? payload?.intent_state?.state
+    ?? payload?.state
+    ?? '';
+
+  if (fallbackText) {
+    manifestationEngine.manifestText(String(fallbackText), 'stream');
+    setReadableFallback(String(fallbackText));
+  }
+
+  pushSessionEvent({
+    session_id: sessionId,
+    transport: 'ws_state',
+    payload,
+  });
+}
+
+function scheduleReconnect() {
+  clearReconnectTimer();
+  if (!connectionRuntime.shouldReconnect || !connectionRuntime.url) {
+    setConnectionStatus('DISCONNECTED');
+    return;
+  }
+
+  connectionRuntime.reconnectAttempts += 1;
+  const delayMs = nextReconnectDelayMs(connectionRuntime.reconnectAttempts);
+  setConnectionStatus('RECONNECTING');
+  setStatus(`Reconnecting in ${Math.round(delayMs / 1000)}s`);
+
+  connectionRuntime.reconnectTimer = window.setTimeout(() => {
+    connectWS(connectionRuntime.url);
+  }, delayMs);
+}
+
+function connectWS(url) {
+  const resolvedUrl = resolveWsUrl(url);
+  connectionRuntime.url = resolvedUrl;
+
+  clearReconnectTimer();
+
+  if (connectionRuntime.socket) {
+    connectionRuntime.shouldReconnect = false;
+    connectionRuntime.socket.close();
+    connectionRuntime.socket = null;
+  }
+
+  connectionRuntime.shouldReconnect = true;
+  setConnectionStatus('RECONNECTING');
+
+  const socket = new WebSocket(resolvedUrl);
+  connectionRuntime.socket = socket;
+
+  socket.onopen = () => {
+    connectionRuntime.reconnectAttempts = 0;
+    setConnectionStatus('CONNECTED');
+    setStatus('WS connected');
+  };
+
+  socket.onmessage = (event) => {
+    const payload = JSON.parse(event.data);
+    handleIncomingState(payload);
+  };
+
+  socket.onclose = () => {
+    if (connectionRuntime.socket === socket) {
+      connectionRuntime.socket = null;
+    }
+    scheduleReconnect();
+  };
+
+  socket.onerror = () => {
+    setConnectionStatus('RECONNECTING');
+    if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+      socket.close();
+    }
+  };
 }
 
 function exportSessionAudit() {
@@ -266,7 +384,14 @@ function bindSettings() {
       }
     }],
     ['api-base', 'change', (event) => { settings.apiBase = event.target.value.trim(); }],
-    ['ws-base', 'change', (event) => { settings.wsBase = event.target.value.trim(); }],
+    ['ws-base', 'change', (event) => {
+      settings.wsBase = event.target.value.trim();
+      const cfgWs = byId('cfg-ws');
+      if (cfgWs && !cfgWs.value.trim()) {
+        cfgWs.value = settings.wsBase;
+      }
+    }],
+    ['cfg-ws', 'change', (event) => { settings.wsBase = event.target.value.trim(); }],
     ['runtime-mode', 'change', (event) => { settings.runtimeMode = event.target.value; }],
     ['telemetry-toggle', 'change', (event) => { settings.telemetry = event.target.checked; }],
     ['lineage-toggle', 'change', (event) => { settings.lineage = event.target.checked; }],
@@ -295,11 +420,20 @@ function bindSettings() {
   byId('api-base').value = settings.apiBase;
   byId('ws-base').value = settings.wsBase;
   byId('runtime-mode').value = settings.runtimeMode;
+  if (byId('cfg-ws')) {
+    byId('cfg-ws').value = settings.wsBase;
+  }
   byId('telemetry-toggle').checked = settings.telemetry;
   byId('lineage-toggle').checked = settings.lineage;
   byId('scholar-toggle').checked = settings.scholar;
   byId('governor-toggle').checked = settings.governorDebug;
   byId('devtools-toggle').checked = settings.developerTools;
+  if (byId('btn-connect')) {
+    byId('btn-connect').addEventListener('click', () => {
+      const manualUrl = byId('cfg-ws')?.value?.trim() ?? settings.wsBase;
+      connectWS(manualUrl);
+    });
+  }
 }
 
 function setVoiceUiState(isListening) {
@@ -416,9 +550,11 @@ function bootstrap() {
   const bootLanguage = languageLayer.resolveLanguage('');
   settings.sessionLanguageMemory = bootLanguage;
   setStatus(localizedUI('ready'));
+  setConnectionStatus('DISCONNECTED');
   manifestationEngine.manifestText(bootLanguage === 'th' ? 'สวัสดี' : 'Hello', 'greeting');
   setReadableFallback(bootLanguage === 'th' ? 'สวัสดี' : 'Hello');
   requestAnimationFrame(manifestationEngine.render);
+  connectWS(settings.wsBase);
 }
 
 bootstrap();
