@@ -1,6 +1,5 @@
 import { createLanguageLayer } from './first_use_surface/language-layer.js';
 import { createLightManifestation } from './first_use_surface/light-manifestation.js';
-import { routeLightResponse } from './first_use_surface/response-orchestrator.js';
 import {
   markCompositionEnd,
   markCompositionStart,
@@ -9,6 +8,12 @@ import {
 } from './first_use_surface/input-event-policy.js';
 
 const STORAGE_KEY = 'aetherium:first-surface-settings:v1';
+const DEFAULT_INTENT_TIMEOUT_MS = 10000;
+
+function createSessionId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `session_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
 
 const elements = {
   canvas: document.getElementById('manifestation-canvas'),
@@ -82,6 +87,7 @@ function persistSettings() {
 }
 
 const settings = loadSettings();
+const sessionId = createSessionId();
 const sessionAudit = [];
 const languageLayer = createLanguageLayer(settings);
 const manifestationEngine = createLightManifestation(elements.canvas, settings.reducedMotion);
@@ -130,29 +136,73 @@ function exportSessionAudit() {
   URL.revokeObjectURL(url);
 }
 
-function submitIntent(intent) {
+async function emitIntent(intent) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), DEFAULT_INTENT_TIMEOUT_MS);
+
+  try {
+    const apiBase = settings.apiBase.replace(/\/$/, '');
+    const response = await fetch(`${apiBase}/intent`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        intent,
+        session_id: sessionId,
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error(`Timeout after ${DEFAULT_INTENT_TIMEOUT_MS}ms`);
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
+async function submitIntent(intent) {
   const text = intent.trim();
   if (!text) return;
 
   applySubmissionState(true);
-  setStatus(localizedUI('interpreting'));
+  setStatus('Intent sent');
 
-  const language = languageLayer.resolveLanguage(text);
-  const response = routeLightResponse(text, language);
+  try {
+    await emitIntent(text);
+    console.info('Intent sent', { session_id: sessionId });
+    setStatus('Awaiting stream update');
+    setReadableFallback('Awaiting stream update');
+    console.info('Awaiting stream update', { session_id: sessionId });
 
-  manifestationEngine.manifestText(response.text, response.mood);
-  setReadableFallback(response.text);
-  setStatus(response.status);
+    pushSessionEvent({
+      session_id: sessionId,
+      intent: text,
+      transport: 'intent_posted',
+    });
 
-  pushSessionEvent({
-    input: text,
-    language,
-    response,
-  });
-
-  elements.input.value = '';
-  persistSettings();
-  applySubmissionState(false);
+    elements.input.value = '';
+    persistSettings();
+  } catch (error) {
+    const transportError = `Transport error: ${error.message}`;
+    console.error(transportError);
+    setStatus(transportError);
+    setReadableFallback(transportError);
+    pushSessionEvent({
+      session_id: sessionId,
+      intent: text,
+      transport: 'intent_failed',
+      error: error.message,
+    });
+  } finally {
+    applySubmissionState(false);
+  }
 }
 
 function bindInputEvents() {

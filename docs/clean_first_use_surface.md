@@ -29,9 +29,9 @@ No dashboard, HUD, debug panel, scholar panel, lineage panel, or runtime console
   - Deterministic language choice with session memory.
   - Browser-locale + character-range baseline detection.
   - Optional local rule-based detector layer (pluggable).
-- `first_use_surface/response-orchestrator.js`
-  - Deterministic first-run response rules for greeting/gratitude/question/unknown intent.
-  - Language mismatch adaptation message for preference/input divergence.
+- `clean-first-surface.js` intent transport
+  - `emitIntent(intent)` sends `{ intent, session_id }` to `${apiBase}/intent`.
+  - Frontend treats backend response as transport-only success/failure and waits for validated state via stream update.
 
 ## Language detection strategy
 
@@ -64,3 +64,4 @@ All advanced controls are kept inside Settings:
 - Current language detector is heuristic and local-rule based (no heavy ML model).
 - Voice input depends on browser SpeechRecognition availability.
 - Session audit export remains local-download plus in-memory trail.
+- Composer now only produces intent; visual/business state is expected from validated stream events.
