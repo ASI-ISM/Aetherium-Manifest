@@ -239,9 +239,9 @@ function validateIncomingStateSchema(payload) {
       visual: {
         energy: clamp(visual.energy, 0, 1.5),
         entropy: clamp(visual.entropy, 0, 1.5),
-        turbulence: clamp(visual.turbulence ?? 0, 0, 1.5),
-        flow: clamp(visual.flow ?? 0, 0, 1.5),
-        shape: clamp(visual.shape ?? 0, 0, 1.5),
+        turbulence: visual.turbulence != null ? clamp(visual.turbulence, 0, 1.5) : undefined,
+        flow: visual.flow != null ? clamp(visual.flow, 0, 1.5) : undefined,
+        shape: visual.shape != null ? clamp(visual.shape, 0, 1.5) : undefined,
         color_palette: {
           primary: sanitizePaletteValue(visual.color_palette.primary, '#7FE4FF'),
           secondary: sanitizePaletteValue(visual.color_palette.secondary, '#EBF9FF'),
