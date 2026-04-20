@@ -28,6 +28,9 @@ const elements = {
   closeSettings: document.getElementById('close-settings'),
   voiceCaptureButton: document.getElementById('voice-capture'),
   connectionStatus: document.getElementById('connection-status'),
+  systemStateLabel: document.getElementById('system-state-label'),
+  energyBar: document.getElementById('energy-bar'),
+  entropyBar: document.getElementById('entropy-bar'),
 };
 
 const defaultSettings = {
@@ -86,6 +89,23 @@ const sysState = {
   visual: {
     energy: 0,
     entropy: 0,
+    energyLevel: 0,
+    entropyLevel: 0,
+    turbulence: 0,
+    flow: 0,
+    shape: 0,
+    color: null,
+    color_palette: {
+      primary: '#7FE4FF',
+      secondary: '#EBF9FF',
+    },
+  },
+  targetVisual: {
+    energyLevel: 0,
+    entropyLevel: 0,
+    turbulence: 0,
+    flow: 0,
+    shape: 0,
     color_palette: {
       primary: '#7FE4FF',
       secondary: '#EBF9FF',
@@ -170,8 +190,10 @@ function clearReconnectTimer() {
   connectionRuntime.reconnectTimer = null;
 }
 
-function clampToVisualRange(value) {
-  return Math.max(0, Math.min(1.5, value));
+function clamp(value, min, max) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return min;
+  return Math.max(min, Math.min(max, numeric));
 }
 
 function isRecord(value) {
@@ -215,8 +237,11 @@ function validateIncomingStateSchema(payload) {
     value: {
       state: state.trim(),
       visual: {
-        energy: clampToVisualRange(visual.energy),
-        entropy: clampToVisualRange(visual.entropy),
+        energy: clamp(visual.energy, 0, 1.5),
+        entropy: clamp(visual.entropy, 0, 1.5),
+        turbulence: clamp(visual.turbulence ?? 0, 0, 1.5),
+        flow: clamp(visual.flow ?? 0, 0, 1.5),
+        shape: clamp(visual.shape ?? 0, 0, 1.5),
         color_palette: {
           primary: sanitizePaletteValue(visual.color_palette.primary, '#7FE4FF'),
           secondary: sanitizePaletteValue(visual.color_palette.secondary, '#EBF9FF'),
@@ -226,17 +251,61 @@ function validateIncomingStateSchema(payload) {
   };
 }
 
+function setSystemState(mode) {
+  const normalized = typeof mode === 'string' ? mode.trim() : '';
+  if (!normalized) return;
+  sysState.state = normalized;
+  if (elements.systemStateLabel) {
+    elements.systemStateLabel.textContent = normalized;
+  }
+}
+
+function updateVisualUI() {
+  const energyPercent = clamp(sysState.visual.energyLevel / 1.5, 0, 1) * 100;
+  const entropyPercent = clamp(sysState.visual.entropyLevel / 1.5, 0, 1) * 100;
+
+  if (elements.energyBar) {
+    elements.energyBar.style.width = `${energyPercent}%`;
+  }
+
+  if (elements.entropyBar) {
+    elements.entropyBar.style.width = `${entropyPercent}%`;
+  }
+
+  document.documentElement.style.setProperty('--runtime-primary-color', sysState.visual.color_palette.primary);
+  document.documentElement.style.setProperty('--runtime-secondary-color', sysState.visual.color_palette.secondary);
+}
+
+function animate() {
+  const lerpFactor = settings.reducedMotion ? 0.25 : 0.08;
+
+  sysState.visual.energyLevel += (sysState.targetVisual.energyLevel - sysState.visual.energyLevel) * lerpFactor;
+  sysState.visual.entropyLevel += (sysState.targetVisual.entropyLevel - sysState.visual.entropyLevel) * lerpFactor;
+  sysState.visual.turbulence += (sysState.targetVisual.turbulence - sysState.visual.turbulence) * lerpFactor;
+  sysState.visual.flow += (sysState.targetVisual.flow - sysState.visual.flow) * lerpFactor;
+  sysState.visual.shape += (sysState.targetVisual.shape - sysState.visual.shape) * lerpFactor;
+
+  sysState.visual.energy = sysState.visual.energyLevel;
+  sysState.visual.entropy = sysState.visual.entropyLevel;
+
+  updateVisualUI();
+  requestAnimationFrame(animate);
+}
+
 function applyVisualParameters(visual) {
   const palette = {
     primary: sanitizePaletteValue(visual.color_palette?.primary, '#7FE4FF'),
     secondary: sanitizePaletteValue(visual.color_palette?.secondary, '#EBF9FF'),
   };
 
-  sysState.visual = {
-    energy: clampToVisualRange(visual.energy),
-    entropy: clampToVisualRange(visual.entropy),
-    color_palette: palette,
-  };
+  sysState.targetVisual.energyLevel = clamp(visual.energy, 0, 1.5);
+  sysState.targetVisual.entropyLevel = clamp(visual.entropy, 0, 1.5);
+  sysState.targetVisual.turbulence = clamp(visual.turbulence ?? sysState.targetVisual.turbulence, 0, 1.5);
+  sysState.targetVisual.flow = clamp(visual.flow ?? sysState.targetVisual.flow, 0, 1.5);
+  sysState.targetVisual.shape = clamp(visual.shape ?? sysState.targetVisual.shape, 0, 1.5);
+  sysState.targetVisual.color_palette = palette;
+
+  sysState.visual.color_palette = palette;
 
   if (globalThis.THREE?.Color) {
     // เตรียมสีที่ sanitize แล้วสำหรับ stage geometry/material ที่ใช้ THREE.
@@ -250,7 +319,7 @@ function applyVisualParameters(visual) {
 function handleIncomingState(payload) {
   const validation = validateIncomingStateSchema(payload);
   if (validation.ok) {
-    sysState.state = validation.value.state;
+    setSystemState(validation.value.state);
     applyVisualParameters(validation.value.visual);
   } else {
     console.warn('Non-fatal stream validation failure', {
@@ -654,6 +723,7 @@ function bootstrap() {
   manifestationEngine.manifestText(bootLanguage === 'th' ? 'สวัสดี' : 'Hello', 'greeting');
   setReadableFallback(bootLanguage === 'th' ? 'สวัสดี' : 'Hello');
   requestAnimationFrame(manifestationEngine.render);
+  requestAnimationFrame(animate);
   connectWS(settings.wsBase);
 }
 

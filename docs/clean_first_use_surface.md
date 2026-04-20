@@ -20,6 +20,10 @@ No dashboard, HUD, debug panel, scholar panel, lineage panel, or runtime console
   - Settings wiring, persistence, and session audit export.
   - Voice progressive-enhancement integration.
   - Settings drawer keyboard/mouse dismissal behavior.
+  - Stream visual pipeline:
+    - `setSystemState(mode)` now updates only state label/UI text.
+    - `applyVisualParameters(visual)` is the single target-update path for energy/entropy/palette (plus future-ready `turbulence`/`flow`/`shape`).
+    - `animate()` continuously lerps current visual values toward targets for smoothing.
 - `first_use_surface/light-manifestation.js`
   - Luminous text renderer with glyph-sampling particle halo.
   - Calm ambient particle field.
