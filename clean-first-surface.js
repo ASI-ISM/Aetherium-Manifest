@@ -81,6 +81,18 @@ const connectionRuntime = {
   url: '',
 };
 
+const sysState = {
+  state: '',
+  visual: {
+    energy: 0,
+    entropy: 0,
+    color_palette: {
+      primary: '#7FE4FF',
+      secondary: '#EBF9FF',
+    },
+  },
+};
+
 function loadSettings() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -158,11 +170,99 @@ function clearReconnectTimer() {
   connectionRuntime.reconnectTimer = null;
 }
 
+function clampToVisualRange(value) {
+  return Math.max(0, Math.min(1.5, value));
+}
+
+function isRecord(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function sanitizePaletteValue(value, fallback) {
+  if (typeof value !== 'string') return fallback;
+  const normalized = value.trim();
+  return /^#([0-9a-fA-F]{6})$/.test(normalized) ? normalized : fallback;
+}
+
+function validateIncomingStateSchema(payload) {
+  if (!isRecord(payload)) {
+    return { ok: false, reason: 'payload must be an object' };
+  }
+
+  const { state, visual } = payload;
+  if (typeof state !== 'string' || !state.trim()) {
+    return { ok: false, reason: 'payload.state must be a non-empty string' };
+  }
+
+  if (!isRecord(visual)) {
+    return { ok: false, reason: 'payload.visual must be an object' };
+  }
+
+  if (typeof visual.energy !== 'number' || !Number.isFinite(visual.energy)) {
+    return { ok: false, reason: 'payload.visual.energy must be a finite number' };
+  }
+
+  if (typeof visual.entropy !== 'number' || !Number.isFinite(visual.entropy)) {
+    return { ok: false, reason: 'payload.visual.entropy must be a finite number' };
+  }
+
+  if (!isRecord(visual.color_palette)) {
+    return { ok: false, reason: 'payload.visual.color_palette must be an object' };
+  }
+
+  return {
+    ok: true,
+    value: {
+      state: state.trim(),
+      visual: {
+        energy: clampToVisualRange(visual.energy),
+        entropy: clampToVisualRange(visual.entropy),
+        color_palette: {
+          primary: sanitizePaletteValue(visual.color_palette.primary, '#7FE4FF'),
+          secondary: sanitizePaletteValue(visual.color_palette.secondary, '#EBF9FF'),
+        },
+      },
+    },
+  };
+}
+
+function applyVisualParameters(visual) {
+  const palette = {
+    primary: sanitizePaletteValue(visual.color_palette?.primary, '#7FE4FF'),
+    secondary: sanitizePaletteValue(visual.color_palette?.secondary, '#EBF9FF'),
+  };
+
+  sysState.visual = {
+    energy: clampToVisualRange(visual.energy),
+    entropy: clampToVisualRange(visual.entropy),
+    color_palette: palette,
+  };
+
+  if (globalThis.THREE?.Color) {
+    // เตรียมสีที่ sanitize แล้วสำหรับ stage geometry/material ที่ใช้ THREE.
+    sysState.visual.color = {
+      primary: new globalThis.THREE.Color(palette.primary),
+      secondary: new globalThis.THREE.Color(palette.secondary),
+    };
+  }
+}
+
 function handleIncomingState(payload) {
+  const validation = validateIncomingStateSchema(payload);
+  if (validation.ok) {
+    sysState.state = validation.value.state;
+    applyVisualParameters(validation.value.visual);
+  } else {
+    console.warn('Non-fatal stream validation failure', {
+      reason: validation.reason,
+      payload,
+    });
+  }
+
   const fallbackText = payload?.text
     ?? payload?.message
     ?? payload?.intent_state?.state
-    ?? payload?.state
+    ?? (validation.ok ? validation.value.state : '')
     ?? '';
 
   if (fallbackText) {
