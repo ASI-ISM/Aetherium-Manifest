@@ -88,13 +88,23 @@ const connectionRuntime = {
 
 const sysState = {
   state: '',
-  visual: {
-    energy: 0,
-    entropy: 0,
-    color_palette: {
-      primary: '#7FE4FF',
-      secondary: '#EBF9FF',
-    },
+  energyLevel: 0,
+  entropyLevel: 0,
+  palette: {
+    primary: '#7FE4FF',
+    secondary: '#EBF9FF',
+  },
+  target: {
+    energyLevel: 0,
+    entropyLevel: 0,
+    turbulence: 0,
+    flow: 0,
+    shape: 0,
+  },
+  future: {
+    turbulence: 0,
+    flow: 0,
+    shape: 0,
   },
 };
 
@@ -187,8 +197,16 @@ function parseWsPayload(rawMessage) {
   }
 }
 
-function clampToVisualRange(value) {
-  return Math.max(0, Math.min(1.5, value));
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function clampVisualLevel(value) {
+  return clamp(value, 0, 1.5);
+}
+
+function clampFutureLevel(value) {
+  return clamp(value, 0, 1);
 }
 
 function isRecord(value) {
@@ -240,15 +258,31 @@ function validateIncomingStateSchema(payload) {
     value: {
       state: state.trim(),
       visual: {
-        energy: clampToVisualRange(visual.energy),
-        entropy: clampToVisualRange(visual.entropy),
+        energy: clampVisualLevel(visual.energy),
+        entropy: clampVisualLevel(visual.entropy),
         color_palette: {
           primary: sanitizePaletteValue(visual.color_palette.primary, '#7FE4FF'),
           secondary: sanitizePaletteValue(visual.color_palette.secondary, '#EBF9FF'),
         },
+        turbulence: Number.isFinite(visual.turbulence) ? clampFutureLevel(visual.turbulence) : undefined,
+        flow: Number.isFinite(visual.flow) ? clampFutureLevel(visual.flow) : undefined,
+        shape: Number.isFinite(visual.shape) ? clampFutureLevel(visual.shape) : undefined,
       },
     },
   };
+}
+
+function setSystemState(mode) {
+  sysState.state = typeof mode === 'string' ? mode.trim() : '';
+  document.documentElement.dataset.systemState = sysState.state.toLowerCase();
+}
+
+function updateVisualIndicators() {
+  const rootStyle = document.documentElement.style;
+  rootStyle.setProperty('--system-energy-level', String(clamp(sysState.energyLevel, 0, 1.5)));
+  rootStyle.setProperty('--system-entropy-level', String(clamp(sysState.entropyLevel, 0, 1.5)));
+  rootStyle.setProperty('--system-palette-primary', sysState.palette.primary);
+  rootStyle.setProperty('--system-palette-secondary', sysState.palette.secondary);
 }
 
 function applyVisualParameters(visual) {
@@ -257,19 +291,35 @@ function applyVisualParameters(visual) {
     secondary: sanitizePaletteValue(visual.color_palette?.secondary, '#EBF9FF'),
   };
 
-  sysState.visual = {
-    energy: clampToVisualRange(visual.energy),
-    entropy: clampToVisualRange(visual.entropy),
-    color_palette: palette,
+  sysState.target.energyLevel = clampVisualLevel(visual.energy);
+  sysState.target.entropyLevel = clampVisualLevel(visual.entropy);
+  sysState.target.turbulence = Number.isFinite(visual.turbulence)
+    ? clampFutureLevel(visual.turbulence)
+    : sysState.target.turbulence;
+  sysState.target.flow = Number.isFinite(visual.flow)
+    ? clampFutureLevel(visual.flow)
+    : sysState.target.flow;
+  sysState.target.shape = Number.isFinite(visual.shape)
+    ? clampFutureLevel(visual.shape)
+    : sysState.target.shape;
+
+  sysState.future = {
+    turbulence: sysState.target.turbulence,
+    flow: sysState.target.flow,
+    shape: sysState.target.shape,
   };
 
-  if (globalThis.THREE?.Color) {
-    // เตรียมสีที่ sanitize แล้วสำหรับ stage geometry/material ที่ใช้ THREE.
-    sysState.visual.color = {
-      primary: new globalThis.THREE.Color(palette.primary),
-      secondary: new globalThis.THREE.Color(palette.secondary),
-    };
-  }
+  sysState.palette = palette;
+  updateVisualIndicators();
+}
+
+function animate() {
+  const lerp = (current, target, factor) => current + ((target - current) * factor);
+
+  sysState.energyLevel = lerp(sysState.energyLevel, sysState.target.energyLevel, 0.08);
+  sysState.entropyLevel = lerp(sysState.entropyLevel, sysState.target.entropyLevel, 0.08);
+  updateVisualIndicators();
+  requestAnimationFrame(animate);
 }
 
 function handleIncomingState(payload) {
@@ -282,7 +332,7 @@ function handleIncomingState(payload) {
     return;
   }
 
-  sysState.state = validation.value.state;
+  setSystemState(validation.value.state);
   applyVisualParameters(validation.value.visual);
 
   const fallbackText = payload?.text
@@ -693,6 +743,7 @@ function bootstrap() {
   setConnectionStatus('DISCONNECTED');
   manifestationEngine.manifestText(bootLanguage === 'th' ? 'สวัสดี' : 'Hello', 'greeting');
   setReadableFallback(bootLanguage === 'th' ? 'สวัสดี' : 'Hello');
+  animate();
   requestAnimationFrame(manifestationEngine.render);
   connectWS(settings.wsBase);
 }
