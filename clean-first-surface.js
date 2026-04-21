@@ -9,6 +9,11 @@ import {
 
 const STORAGE_KEY = 'aetherium:first-surface-settings:v1';
 const DEFAULT_INTENT_TIMEOUT_MS = 10000;
+const CONNECTION_STATES = Object.freeze({
+  CONNECTED: 'CONNECTED',
+  RECONNECTING: 'RECONNECTING',
+  DISCONNECTED: 'DISCONNECTED',
+});
 
 function createSessionId() {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
@@ -127,7 +132,9 @@ function setStatus(statusText) {
 
 function setConnectionStatus(state) {
   if (!elements.connectionStatus) return;
-  elements.connectionStatus.textContent = state;
+  const normalizedState = CONNECTION_STATES[state] ?? CONNECTION_STATES.DISCONNECTED;
+  elements.connectionStatus.textContent = normalizedState;
+  elements.connectionStatus.dataset.connectionState = normalizedState.toLowerCase();
 }
 
 function setReadableFallback(text) {
@@ -168,6 +175,16 @@ function clearReconnectTimer() {
   if (connectionRuntime.reconnectTimer === null) return;
   window.clearTimeout(connectionRuntime.reconnectTimer);
   connectionRuntime.reconnectTimer = null;
+}
+
+function parseWsPayload(rawMessage) {
+  if (typeof rawMessage !== 'string') return null;
+  try {
+    return JSON.parse(rawMessage);
+  } catch {
+    console.warn('Dropped non-JSON WS message', { rawMessage });
+    return null;
+  }
 }
 
 function clampToVisualRange(value) {
@@ -297,6 +314,12 @@ function scheduleReconnect() {
 function connectWS(url) {
   const resolvedUrl = resolveWsUrl(url);
   connectionRuntime.url = resolvedUrl;
+  if (!resolvedUrl) {
+    connectionRuntime.shouldReconnect = false;
+    setConnectionStatus('DISCONNECTED');
+    setStatus('WS url is empty');
+    return;
+  }
 
   clearReconnectTimer();
 
@@ -319,13 +342,19 @@ function connectWS(url) {
   };
 
   socket.onmessage = (event) => {
-    const payload = JSON.parse(event.data);
-    handleIncomingState(payload);
+    const payload = parseWsPayload(event.data);
+    if (payload !== null) {
+      handleIncomingState(payload);
+    }
   };
 
   socket.onclose = () => {
     if (connectionRuntime.socket === socket) {
       connectionRuntime.socket = null;
+    }
+    if (!connectionRuntime.shouldReconnect) {
+      setConnectionStatus('DISCONNECTED');
+      return;
     }
     scheduleReconnect();
   };
@@ -531,6 +560,8 @@ function bindSettings() {
   if (byId('btn-connect')) {
     byId('btn-connect').addEventListener('click', () => {
       const manualUrl = byId('cfg-ws')?.value?.trim() ?? settings.wsBase;
+      settings.wsBase = manualUrl || settings.wsBase;
+      persistSettings();
       connectWS(manualUrl);
     });
   }
