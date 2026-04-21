@@ -227,6 +227,14 @@ function validateIncomingStateSchema(payload) {
     return { ok: false, reason: 'payload.visual.color_palette must be an object' };
   }
 
+  if (typeof visual.color_palette.primary !== 'string') {
+    return { ok: false, reason: 'payload.visual.color_palette.primary must be a string' };
+  }
+
+  if (typeof visual.color_palette.secondary !== 'string') {
+    return { ok: false, reason: 'payload.visual.color_palette.secondary must be a string' };
+  }
+
   return {
     ok: true,
     value: {
@@ -266,20 +274,21 @@ function applyVisualParameters(visual) {
 
 function handleIncomingState(payload) {
   const validation = validateIncomingStateSchema(payload);
-  if (validation.ok) {
-    sysState.state = validation.value.state;
-    applyVisualParameters(validation.value.visual);
-  } else {
+  if (!validation.ok) {
     console.warn('Non-fatal stream validation failure', {
       reason: validation.reason,
       payload,
     });
+    return;
   }
+
+  sysState.state = validation.value.state;
+  applyVisualParameters(validation.value.visual);
 
   const fallbackText = payload?.text
     ?? payload?.message
     ?? payload?.intent_state?.state
-    ?? (validation.ok ? validation.value.state : '')
+    ?? validation.value.state
     ?? '';
 
   if (fallbackText) {
