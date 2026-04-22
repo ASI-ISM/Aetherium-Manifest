@@ -70,7 +70,7 @@ MODEL_PROVIDER_MAP = {
 
 AETHERIUM_API_KEY_ENV = "AETHERIUM_API_KEY"
 AETHERIUM_API_KEY_ALLOWLIST_ENV = "AETHERIUM_API_KEY_ALLOWLIST"
-EXPECTED_API_KEYS: frozenset[str] = frozenset()
+EXPECTED_API_KEYS: Optional[frozenset[str]] = None
 
 
 def _parse_api_key_allowlist(raw: str) -> set[str]:
