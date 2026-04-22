@@ -16,7 +16,8 @@ No dashboard, HUD, debug panel, scholar panel, lineage panel, runtime console, c
 - `clean-first-surface.js`
   - App bootstrap and orchestration.
   - Settings Workspace wiring, persistence, and session audit export.
-  - Compatibility adapter mapping (`/api/v1/cognitive/generate`, `/api/v1/cognitive/validate`, `/ws/cognitive-stream`) with fallback to `/api/intent`.
+  - Browser-side transport mapping uses canonical routes only (`/api/v1/cognitive/generate`, `/api/v1/cognitive/validate`, `/ws/cognitive-stream`).
+  - Legacy `/api/intent` remains backend-adapter scope only and is not exposed for browser direct-call fallback.
   - Deferred runtime bootstrap; WebSocket, voice, and manifestation rendering remain inactive until Settings opens the Interaction pane (or user action).
   - Settings workspace orchestration and audit export wiring.
 - `first_use_surface/settings-store.js`
@@ -35,8 +36,8 @@ No dashboard, HUD, debug panel, scholar panel, lineage panel, runtime console, c
   - Browser-locale + character-range baseline detection.
   - Optional local rule-based detector layer (pluggable).
 - `clean-first-surface.js` intent transport
-  - `adaptIntentRequest(intent, sessionId)` maps to compatibility payload `{ prompt, session_id, model, temperature }`.
   - `emitIntent(intent)` sends to `${apiBase}/generate` where `apiBase` defaults to `/api/v1/cognitive`.
+  - Auth failures from canonical routes (401/403) are surfaced as `Session ticket required` in Security + Connectivity state instead of falling back to non-canonical endpoints.
   - `adaptIntentResponse(payload)` normalizes backend response into the existing frontend stream shape.
 
 ## Language detection strategy

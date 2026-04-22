@@ -114,16 +114,11 @@ describe('compatibility adapter behavior', () => {
     expect(endpoints.wsUrl).toBe('/ws/cognitive-stream');
   });
 
-  it('falls back to legacy intent endpoint when canonical route rejects unsigned request', async () => {
+  it('keeps browser adapter on canonical cognitive routes when request rejects unsigned session', async () => {
     const dom = setupDom();
     const fetchImpl = vi
       .fn()
-      .mockResolvedValueOnce({ ok: false, status: 401 })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({ text: 'compatibility response', intent_vector: {}, visual_manifestation: {} }),
-      });
+      .mockResolvedValueOnce({ ok: false, status: 401 });
 
     const app = createApp(dom.window.document, {
       manifestationFactory: stubManifestation,
