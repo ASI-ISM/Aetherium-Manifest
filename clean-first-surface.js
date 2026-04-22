@@ -34,7 +34,6 @@ export function resolveCompatibilityEndpoints(preferences) {
   return {
     emitUrl: `${apiBase}/generate`,
     validateUrl: `${apiBase}/validate`,
-    legacyIntentUrl: `${new URL(apiBase, globalThis.location?.href || 'http://localhost').origin}/api/intent`,
     wsUrl: preferences.wsBase || '/ws/cognitive-stream',
   };
 }
@@ -122,6 +121,7 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
     statusText: documentRef.getElementById('ambient-status'),
     fallbackText: documentRef.getElementById('readable-fallback'),
     connectionStatus: documentRef.getElementById('connection-status'),
+    tokenState: documentRef.getElementById('token-state'),
     apiBase: documentRef.getElementById('api-base'),
     wsBase: documentRef.getElementById('ws-base'),
     languagePreference: documentRef.getElementById('language-preference'),
@@ -177,6 +177,11 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
   const setConnection = (state) => {
     if (!elements.connectionStatus) return;
     elements.connectionStatus.textContent = CONNECTION_STATES[state] ?? CONNECTION_STATES.DISCONNECTED;
+  };
+
+  const setSessionTicketState = (text = 'Session ticket: ephemeral') => {
+    if (!elements.tokenState) return;
+    elements.tokenState.textContent = text;
   };
 
   const writeDiagnostics = () => {
@@ -372,24 +377,20 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
     try {
       const endpoints = resolveCompatibilityEndpoints(preferences);
       const fetchImpl = deps.fetchImpl ?? fetch;
-      let response = await fetchImpl(endpoints.emitUrl, {
+      const response = await fetchImpl(endpoints.emitUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(adaptGenerateRequest(intent)),
         signal: controller.signal,
       });
-
-      if (response.status === 401 || response.status === 403 || response.status === 422 || response.status === 404) {
-        response = await fetchImpl(endpoints.legacyIntentUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(adaptIntentRequest(intent, sessionId)),
-          signal: controller.signal,
-        });
+      if (response.status === 401 || response.status === 403) {
+        setSessionTicketState('Session ticket required');
+        setConnection('DISCONNECTED');
+        throw new Error('Session ticket required');
       }
-
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
+      setSessionTicketState('Session ticket: active');
       const payload = await response.json();
       const adapted = adaptIntentResponse(payload);
       ensureManifestation().manifestText(adapted.text || intent, 'request');

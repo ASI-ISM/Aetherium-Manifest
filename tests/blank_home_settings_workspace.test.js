@@ -114,16 +114,11 @@ describe('compatibility adapter behavior', () => {
     expect(endpoints.wsUrl).toBe('/ws/cognitive-stream');
   });
 
-  it('falls back to legacy intent endpoint when canonical route rejects unsigned request', async () => {
+  it('keeps browser adapter on canonical cognitive routes when request rejects unsigned session', async () => {
     const dom = setupDom();
     const fetchImpl = vi
       .fn()
-      .mockResolvedValueOnce({ ok: false, status: 401 })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({ text: 'compatibility response', intent_vector: {}, visual_manifestation: {} }),
-      });
+      .mockResolvedValueOnce({ ok: false, status: 401 });
 
     const app = createApp(dom.window.document, {
       manifestationFactory: stubManifestation,
@@ -142,6 +137,8 @@ describe('compatibility adapter behavior', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(fetchImpl.mock.calls[0][0]).toBe('/api/v1/cognitive/generate');
-    expect(fetchImpl.mock.calls[1][0]).toBe('/api/intent');
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl.mock.calls.every(([url]) => String(url).startsWith('/api/v1/cognitive/'))).toBe(true);
+    expect(dom.window.document.getElementById('token-state').textContent).toBe('Session ticket required');
   });
 });

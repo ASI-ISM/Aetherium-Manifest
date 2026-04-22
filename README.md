@@ -62,12 +62,14 @@ Core contracts/schemas in this repo include:
 ### Intent-to-light flow (first-use surface)
 1. User enters through a blank awakening surface and opens the Settings Workspace operational sanctum.
 2. Interaction pane activation lazily starts runtime connectivity (WS/voice/manifestation).
-3. User submits text from the Interaction composer.
+3. User submits text from the Interaction composer; browser transport emits through canonical cognitive routes only (`/api/v1/cognitive/*` + `/ws/cognitive-stream`).
 4. Language layer resolves language deterministically:
    - explicit setting → browser locale → char heuristics → optional local detector → session memory
 5. Response orchestrator maps intent class (greeting/question/etc.) to deterministic text+mood.
 6. Manifestation engine renders mood/text into the light scene.
 7. Session audit trail appends event metadata (optional export from Settings).
+
+Auth note: if canonical emit responds `401/403`, the surface marks Security/Connectivity state as **Session ticket required** and does not downgrade to legacy `/api/intent` browser fallback.
 
 ### Gateway/governor integration flow (full stack)
 1. Emit payload is validated against contract.
