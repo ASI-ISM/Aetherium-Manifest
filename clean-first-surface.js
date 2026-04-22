@@ -490,7 +490,7 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
       link.href = url;
       link.download = `aetherium_session_audit_${Date.now()}.json`;
       link.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 100);
     });
 
     elements.clearSessionButton?.addEventListener('click', () => {
