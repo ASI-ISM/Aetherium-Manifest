@@ -534,7 +534,7 @@ def _infer_intent_from_text(text: str) -> tuple[IntentVector, VisualManifestatio
     return intent, visual
 
 def _ensure_api_key(x_api_key: str | None) -> None:
-    configured_keys = EXPECTED_API_KEYS or _load_expected_api_keys()
+    configured_keys = EXPECTED_API_KEYS if EXPECTED_API_KEYS is not None else _load_expected_api_keys()
 
     if not configured_keys:
         logger.error(
