@@ -47,6 +47,12 @@ describe('blank home semantics', () => {
 
     expect(main.querySelectorAll('button')).toHaveLength(1);
     expect(main.querySelector('#settings-toggle')).toBeTruthy();
+    expect(main.querySelector('#composer')).toBeNull();
+    expect(main.querySelector('#readable-fallback')).toBeNull();
+    expect(main.querySelector('#ambient-status')).toBeNull();
+    expect(main.textContent).not.toContain('Hello');
+    expect(main.textContent).not.toContain('Ready');
+    expect(main.textContent).not.toContain('Runtime');
     expect(main.textContent.trim()).toBe('⚙');
   });
 });
@@ -108,6 +114,13 @@ describe('deferred runtime policy', () => {
     expect(wsCtor).not.toHaveBeenCalled();
 
     app.openSettingsWorkspace('connectivity');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(app.getRuntimeSnapshot().started).toBe(false);
+    expect(app.getRuntimeSnapshot().voiceInitialized).toBe(false);
+    expect(wsCtor).not.toHaveBeenCalled();
+
+    app.openSettingsWorkspace('security');
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(app.getRuntimeSnapshot().started).toBe(false);

@@ -87,4 +87,71 @@ describe('workspace pane keyboard controls', () => {
 
     expect(dom.window.document.activeElement.dataset.paneTarget).toBe('connectivity');
   });
+
+  it('moves pane focus with ArrowUp and wraps to previous pane', () => {
+    const html = fs.readFileSync(path.resolve('index.html'), 'utf8');
+    const dom = new JSDOM(html, { url: 'http://localhost:4173' });
+    const workspace = createSettingsWorkspace(dom.window.document, { windowRef: dom.window });
+    workspace.bind();
+    workspace.open('interaction');
+
+    const first = dom.window.document.querySelector('[data-pane-target="interaction"]');
+    first.focus();
+    first.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+
+    expect(dom.window.document.activeElement.dataset.paneTarget).toBe('developer');
+  });
+
+  it('closes on Escape and returns focus to the launcher button', () => {
+    const html = fs.readFileSync(path.resolve('index.html'), 'utf8');
+    const dom = new JSDOM(html, { url: 'http://localhost:4173' });
+    const workspace = createSettingsWorkspace(dom.window.document, { windowRef: dom.window });
+    workspace.bind();
+
+    const launcher = dom.window.document.getElementById('settings-toggle');
+    launcher.focus();
+    workspace.open('interaction');
+
+    const dialog = dom.window.document.getElementById('settings-dialog');
+    dialog.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+
+    expect(dom.window.document.getElementById('settings-workspace').hidden).toBe(true);
+    expect(dom.window.document.activeElement.id).toBe('settings-toggle');
+  });
+});
+
+describe('workspace accessibility behavior', () => {
+  it('loops focus inside modal when tabbing forward/backward', () => {
+    const html = fs.readFileSync(path.resolve('index.html'), 'utf8');
+    const dom = new JSDOM(html, { url: 'http://localhost:4173' });
+    dom.window.HTMLElement.prototype.getClientRects = () => [{ width: 1, height: 1 }];
+    const workspace = createSettingsWorkspace(dom.window.document, { windowRef: dom.window });
+    workspace.bind();
+    workspace.open('interaction');
+
+    const dialog = dom.window.document.getElementById('settings-dialog');
+    const focusable = Array.from(
+      dialog.querySelectorAll(
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+      )
+    ).filter((el) => !el.hasAttribute('hidden') && el.getClientRects().length > 0);
+    const firstFocusable = focusable[0];
+    const lastFocusable = focusable[focusable.length - 1];
+
+    lastFocusable.focus();
+    dialog.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+    expect(dom.window.document.activeElement.id).toBe(firstFocusable.id);
+
+    firstFocusable.focus();
+    dialog.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true }));
+    expect(dom.window.document.activeElement.id).toBe(lastFocusable.id);
+  });
+
+  it('exposes an accessible launcher name for settings workspace trigger', () => {
+    const html = fs.readFileSync(path.resolve('index.html'), 'utf8');
+    const dom = new JSDOM(html, { url: 'http://localhost:4173' });
+    const launcher = dom.window.document.getElementById('settings-toggle');
+
+    expect(launcher.getAttribute('aria-label')).toBe('Open settings workspace');
+  });
 });
