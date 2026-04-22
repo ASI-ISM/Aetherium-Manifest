@@ -21,6 +21,7 @@ For a quick development server, you can use `uvicorn` directly. This mode is con
 
 ```bash
 # An API key is required for protected endpoints
+export AETHERIUM_API_KEY=demo-key
 export OPENAI_API_KEY=demo-key
 # Optional for Google model calls:
 export GEMINI_API_KEY=demo-key
@@ -34,6 +35,15 @@ For an environment that more closely resembles production, use the provided shel
 ```bash
 ./api_gateway/start_cognitive_api.sh
 ```
+
+### API Key Configuration
+
+Protected HTTP endpoints validate `X-API-Key` against runtime configuration:
+
+- `AETHERIUM_API_KEY`: single expected key.
+- `AETHERIUM_API_KEY_ALLOWLIST`: optional comma-separated allowlist for multi-key rollout.
+
+If both are set, keys are merged. If neither is set, the gateway fails closed and rejects protected endpoint requests.
 
 ### Validate Example
 ```bash
@@ -52,6 +62,7 @@ curl -X POST http://localhost:8080/api/v1/cognitive/validate \
 
 ```bash
 # ต้องมี API key สำหรับเรียกใช้งาน endpoint ที่ป้องกันสิทธิ์
+export AETHERIUM_API_KEY=demo-key
 export OPENAI_API_KEY=demo-key
 # หากต้องเรียก Google model ให้ตั้งเพิ่ม
 export GEMINI_API_KEY=demo-key

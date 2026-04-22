@@ -2,11 +2,14 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
+
+os.environ.setdefault("AETHERIUM_API_KEY", "test-key")
 
 from . import main
 from .main import app
@@ -22,6 +25,14 @@ def valid_emit_payload() -> dict:
     return json.loads(payload_path.read_text(encoding="utf-8"))
 
 
+@pytest.fixture
+def api_key_header(monkeypatch: pytest.MonkeyPatch) -> dict[str, str]:
+    key = os.getenv("AETHERIUM_API_KEY", "test-key")
+    monkeypatch.setenv("AETHERIUM_API_KEY", key)
+    main.EXPECTED_API_KEYS = main._load_expected_api_keys()
+    return {"X-API-Key": key}
+
+
 def test_health_check(client: TestClient) -> None:
     response = client.get("/health")
     assert response.status_code == 200
@@ -34,13 +45,22 @@ def test_emit_missing_api_key(client: TestClient, valid_emit_payload: dict) -> N
     assert "missing X-API-Key" in response.text
 
 
-def test_emit_invalid_payload(client: TestClient) -> None:
+def test_emit_invalid_payload(client: TestClient, api_key_header: dict[str, str]) -> None:
     response = client.post(
         "/api/v1/cognitive/emit",
         json={},
-        headers={"X-API-Key": "test-key"},
+        headers=api_key_header,
     )
     assert response.status_code == 422
+
+
+
+
+def test_emit_invalid_api_key_rejected(client: TestClient, valid_emit_payload: dict, api_key_header: dict[str, str]) -> None:
+    invalid_headers = {"X-API-Key": f"{api_key_header['X-API-Key']}-invalid"}
+    response = client.post("/api/v1/cognitive/emit", json=valid_emit_payload, headers=invalid_headers)
+    assert response.status_code == 403
+    assert "invalid X-API-Key" in response.text
 
 
 def test_validate_missing_api_key(client: TestClient, valid_emit_payload: dict) -> None:
@@ -55,18 +75,18 @@ def test_websocket_stream_missing_key(client: TestClient) -> None:
             pass
 
 
-def _issue_ticket(client: TestClient, role: str = "viewer", scope: str = "cognitive:stream") -> str:
+def _issue_ticket(client: TestClient, api_key_header: dict[str, str], role: str = "viewer", scope: str = "cognitive:stream") -> str:
     response = client.post(
         "/api/v1/auth/session",
         json={"session_id": "s1", "role": role, "scope": scope},
-        headers={"X-API-Key": "test-key"},
+        headers=api_key_header,
     )
     assert response.status_code == 200
     return response.json()["ticket"]
 
 
-def test_websocket_stream_with_valid_ticket(client: TestClient) -> None:
-    ticket = _issue_ticket(client)
+def test_websocket_stream_with_valid_ticket(client: TestClient, api_key_header: dict[str, str]) -> None:
+    ticket = _issue_ticket(client, api_key_header)
     with client.websocket_connect(f"/ws/cognitive-stream?ticket={ticket}") as websocket:
         websocket.send_json({"type": "dsl_submission", "payload": "..."})
         response = websocket.receive_json()
@@ -95,15 +115,15 @@ def test_websocket_stream_rejects_expired_ticket(client: TestClient) -> None:
             pass
 
 
-def test_websocket_stream_privileged_action_requires_operator_role(client: TestClient) -> None:
-    viewer_ticket = _issue_ticket(client, role="viewer", scope="cognitive:stream")
+def test_websocket_stream_privileged_action_requires_operator_role(client: TestClient, api_key_header: dict[str, str]) -> None:
+    viewer_ticket = _issue_ticket(client, api_key_header, role="viewer", scope="cognitive:stream")
     with client.websocket_connect(f"/ws/cognitive-stream?ticket={viewer_ticket}") as websocket:
         websocket.send_json({"type": "dsl_submission", "payload": "...", "requires_operator": True, "action": "danger_reset"})
         response = websocket.receive_json()
         assert response["status"] == "error"
         assert "Insufficient role" in response["detail"]
 
-    operator_ticket = _issue_ticket(client, role="operator", scope="cognitive:stream:privileged")
+    operator_ticket = _issue_ticket(client, api_key_header, role="operator", scope="cognitive:stream:privileged")
     with client.websocket_connect(f"/ws/cognitive-stream?ticket={operator_ticket}") as websocket:
         websocket.send_json({"type": "dsl_submission", "payload": "...", "requires_operator": True, "action": "danger_reset"})
         response = websocket.receive_json()
@@ -127,7 +147,7 @@ def test_compatibility_intent_adapter(client: TestClient) -> None:
     assert "visual_manifestation" in payload
 
 
-def test_cognitive_canonical_routes_are_compatible(client: TestClient, monkeypatch: pytest.MonkeyPatch, valid_emit_payload: dict) -> None:
+def test_cognitive_canonical_routes_are_compatible(client: TestClient, monkeypatch: pytest.MonkeyPatch, valid_emit_payload: dict, api_key_header: dict[str, str]) -> None:
     async def _stub_model(**_) -> str:
         return "light-presence-ready"
 
@@ -136,7 +156,7 @@ def test_cognitive_canonical_routes_are_compatible(client: TestClient, monkeypat
     generate_response = client.post(
         "/api/v1/cognitive/generate",
         json={"prompt": "manifest", "model": "gpt-4o", "temperature": 0.4},
-        headers={"X-API-Key": "test-key"},
+        headers=api_key_header,
     )
     assert generate_response.status_code == 200
     assert generate_response.json()["text"] == "light-presence-ready"
@@ -144,17 +164,17 @@ def test_cognitive_canonical_routes_are_compatible(client: TestClient, monkeypat
     validate_response = client.post(
         "/api/v1/cognitive/validate",
         json=valid_emit_payload,
-        headers={"X-API-Key": "test-key"},
+        headers=api_key_header,
     )
     assert validate_response.status_code == 200
     assert validate_response.json()["status"] == "success"
 
 
-def test_ws_ticket_issue_refresh_and_stream_flow(client: TestClient) -> None:
+def test_ws_ticket_issue_refresh_and_stream_flow(client: TestClient, api_key_header: dict[str, str]) -> None:
     issue_response = client.post(
         "/api/v1/auth/session",
         json={"session_id": "compat-session-2", "role": "viewer", "scope": "cognitive:stream"},
-        headers={"X-API-Key": "test-key"},
+        headers=api_key_header,
     )
     assert issue_response.status_code == 200
     issued = issue_response.json()
@@ -164,7 +184,7 @@ def test_ws_ticket_issue_refresh_and_stream_flow(client: TestClient) -> None:
     refresh_response = client.post(
         "/api/v1/auth/session/refresh",
         json={"ticket": issued["ticket"]},
-        headers={"X-API-Key": "test-key"},
+        headers=api_key_header,
     )
     assert refresh_response.status_code == 200
     refreshed = refresh_response.json()
