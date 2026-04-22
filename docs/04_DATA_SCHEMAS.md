@@ -14,7 +14,7 @@
 Canonical contract file: `docs/schemas/ai_particle_control_contract_v1.json`
 
 บล็อกหลักถูกแยกชัดเจนเป็น:
-- `intent_state` — semantic controls ที่ AI/agent ควร author เช่น `state`, `shape`, `particle_density`, `velocity`, `turbulence`, `cohesion`, `flow_direction`, `glow_intensity`, `flicker`, `attractor`, `palette`
+- `intent_state` — semantic controls ที่ AI/agent ควร author เช่น `state`, `shape`, `particle_density`, `velocity`, `turbulence`, `cohesion`, `flow_direction`, `glow_intensity`, `flicker`, `attractor` (object พิกัด normalized `{x, y}` ช่วง 0..1), `palette`
 - `renderer_controls` — renderer/runtime specific fields เช่น `base_shape`, `chromatic_mode`, `particle_count`, `flow_field`, `shader_uniforms`, `runtime_profile`
 
 เหตุผล: ทำให้ authoring surface ซื่อสัตย์ต่อสถานะการคิดจริง ขณะเดียวกันก็ลด drift จากการ normalize คนละแบบระหว่าง backend/frontend ผ่าน adapter กลาง

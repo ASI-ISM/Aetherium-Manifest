@@ -187,6 +187,11 @@ class ParticlePalette(BaseModel):
     accent: Optional[str] = None
 
 
+class Attractor(BaseModel):
+    x: float = Field(ge=0.0, le=1.0)
+    y: float = Field(ge=0.0, le=1.0)
+
+
 class IntentState(BaseModel):
     state: str
     shape: str
@@ -197,7 +202,7 @@ class IntentState(BaseModel):
     flow_direction: str
     glow_intensity: float
     flicker: float
-    attractor: str
+    attractor: Attractor
     palette: ParticlePalette
 
 
