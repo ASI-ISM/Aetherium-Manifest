@@ -117,6 +117,9 @@ def test_particle_control_contract_rejects_out_of_range_attractor() -> None:
 
     with pytest.raises(ValidationError):
         main.ParticleControlContract.model_validate(payload)
+
+
+
 def test_emit_invalid_api_key_rejected(client: TestClient, valid_emit_payload: dict, api_key_header: dict[str, str]) -> None:
     invalid_headers = {"X-API-Key": f"{api_key_header['X-API-Key']}-invalid"}
     response = client.post("/api/v1/cognitive/emit", json=valid_emit_payload, headers=invalid_headers)
