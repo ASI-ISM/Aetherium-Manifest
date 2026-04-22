@@ -65,11 +65,12 @@ describe('settings store safety', () => {
     };
 
     const store = createSettingsStore(storage);
-    store.save({ activePane: 'security', voiceEnabled: false, token: 'raw-secret' });
+    store.save({ activePane: 'security', voiceEnabled: false, token: 'raw-secret', session_ticket: 'signed-blob' });
 
     const persisted = JSON.parse(storage.getItem(store.key));
     expect(persisted.activePane).toBe('security');
     expect(persisted.voiceEnabled).toBe(false);
     expect(persisted.token).toBeUndefined();
+    expect(persisted.session_ticket).toBeUndefined();
   });
 });
