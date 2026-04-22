@@ -554,8 +554,12 @@ def _verify_ticket(ticket: str) -> Dict[str, Any]:
     if not hmac.compare_digest(signature, expected):
         raise HTTPException(status_code=401, detail="Invalid session ticket signature")
 
-    payload = json.loads(payload_raw.decode("utf-8"))
-    expires_at = datetime.fromtimestamp(float(payload.get("exp", 0)), tz=timezone.utc)
+    try:
+        payload = json.loads(payload_raw.decode("utf-8"))
+        expires_at = datetime.fromtimestamp(float(payload.get("exp", 0)), tz=timezone.utc)
+    except Exception as exc:
+        raise HTTPException(status_code=401, detail="Malformed session ticket payload") from exc
+
     if expires_at <= datetime.now(timezone.utc):
         raise HTTPException(status_code=401, detail="Session ticket expired")
 
