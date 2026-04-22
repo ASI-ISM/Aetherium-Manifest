@@ -141,11 +141,9 @@ def test_cognitive_canonical_routes_are_compatible(client: TestClient, monkeypat
     assert generate_response.status_code == 200
     assert generate_response.json()["text"] == "light-presence-ready"
 
-    payload_path = Path(__file__).with_name("sample_emit_payload.json")
-    emit_payload = json.loads(payload_path.read_text(encoding="utf-8"))
     validate_response = client.post(
         "/api/v1/cognitive/validate",
-        json=emit_payload,
+        json=valid_emit_payload,
         headers={"X-API-Key": "test-key"},
     )
     assert validate_response.status_code == 200
