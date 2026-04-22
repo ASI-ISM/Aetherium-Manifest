@@ -34,7 +34,7 @@ export function resolveCompatibilityEndpoints(preferences) {
   return {
     emitUrl: `${apiBase}/generate`,
     validateUrl: `${apiBase}/validate`,
-    legacyIntentUrl: '/api/intent',
+    legacyIntentUrl: `${new URL(apiBase, globalThis.location?.href || 'http://localhost').origin}/api/intent`,
     wsUrl: preferences.wsBase || '/ws/cognitive-stream',
   };
 }
