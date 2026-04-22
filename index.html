@@ -81,7 +81,8 @@
                   <option value="local">Local</option>
                 </select>
               </label>
-              <button id="btn-connect" type="button" class="settings-inline-btn">Reconnect</button>
+              <button id="btn-connect" type="button" class="settings-inline-btn" data-min-role="operator">Arm reconnect</button>
+              <button id="btn-connect-confirm" type="button" class="settings-inline-btn" data-min-role="operator" disabled>Confirm reconnect</button>
               <p id="connection-status" class="pane-status" aria-live="polite">DISCONNECTED</p>
             </section>
 
@@ -127,8 +128,16 @@
 
             <section class="pane" data-pane-body="security" hidden>
               <h3>Security</h3>
+              <label>Session role
+                <select id="session-role">
+                  <option value="viewer" selected>Viewer</option>
+                  <option value="operator">Operator</option>
+                </select>
+              </label>
+              <p id="role-guard-state" class="pane-status" aria-live="polite"></p>
               <p id="token-state" class="pane-status">Session ticket: ephemeral</p>
-              <button id="danger-reset" type="button" class="settings-inline-btn">Dangerous reset</button>
+              <button id="danger-reset" type="button" class="settings-inline-btn" data-min-role="operator">Arm dangerous reset</button>
+              <button id="danger-reset-confirm" type="button" class="settings-inline-btn" data-min-role="operator" disabled>Confirm dangerous reset</button>
             </section>
 
             <section class="pane" data-pane-body="developer" hidden>

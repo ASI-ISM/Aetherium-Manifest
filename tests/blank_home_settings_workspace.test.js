@@ -142,6 +142,80 @@ describe('compatibility adapter behavior', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(fetchImpl.mock.calls[0][0]).toBe('/api/v1/cognitive/generate');
-    expect(fetchImpl.mock.calls[1][0]).toBe('/api/intent');
+    expect(fetchImpl.mock.calls[1][0]).toBe('http://localhost/api/intent');
+  });
+});
+
+describe('runtime audit and role guard', () => {
+  it('creates audit entries for runtime-critical toggles and reconnect action', async () => {
+    const dom = setupDom();
+    const wsCtor = vi.fn(() => ({ close: vi.fn() }));
+    Object.defineProperty(globalThis, 'WebSocket', { value: wsCtor, configurable: true });
+
+    const app = createApp(dom.window.document, {
+      manifestationFactory: stubManifestation,
+      socketFactory: wsCtor,
+      windowRef: dom.window,
+    });
+    app.bootstrap();
+    app.openSettingsWorkspace('security');
+
+    const role = dom.window.document.getElementById('session-role');
+    role.value = 'operator';
+    role.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+
+    const runtimeMode = dom.window.document.getElementById('runtime-mode');
+    runtimeMode.value = 'adaptive';
+    runtimeMode.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+
+    const telemetry = dom.window.document.getElementById('telemetry-toggle');
+    telemetry.checked = false;
+    telemetry.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+
+    const governor = dom.window.document.getElementById('governor-toggle');
+    governor.checked = true;
+    governor.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+
+    const manifestation = dom.window.document.getElementById('manifestation-toggle');
+    manifestation.checked = false;
+    manifestation.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+
+    const envTarget = dom.window.document.getElementById('environment-target');
+    envTarget.value = 'staging';
+    envTarget.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+
+    dom.window.document.getElementById('btn-connect').click();
+    dom.window.document.getElementById('btn-connect-confirm').click();
+
+    const controls = app
+      .getSessionAudit()
+      .filter((entry) => entry.event_type === 'runtime_change')
+      .map((entry) => entry.control);
+
+    expect(controls).toContain('runtimeMode');
+    expect(controls).toContain('telemetryToggle');
+    expect(controls).toContain('governorToggle');
+    expect(controls).toContain('manifestationToggle');
+    expect(controls).toContain('environmentTarget');
+    expect(controls).toContain('reconnectAction');
+  });
+
+  it('blocks viewer role from dangerous actions', () => {
+    const dom = setupDom();
+    const app = createApp(dom.window.document, { manifestationFactory: stubManifestation, windowRef: dom.window });
+    app.bootstrap();
+    app.openSettingsWorkspace('security');
+
+    const armDangerReset = dom.window.document.getElementById('danger-reset');
+    const confirmDangerReset = dom.window.document.getElementById('danger-reset-confirm');
+
+    expect(armDangerReset.disabled).toBe(true);
+    expect(confirmDangerReset.disabled).toBe(true);
+
+    armDangerReset.click();
+    confirmDangerReset.click();
+
+    const resetEvents = app.getSessionAudit().filter((entry) => entry.control === 'dangerousReset');
+    expect(resetEvents).toHaveLength(0);
   });
 });
