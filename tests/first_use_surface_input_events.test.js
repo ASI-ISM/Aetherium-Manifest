@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
+import { JSDOM } from 'jsdom';
 
 import {
   markCompositionEnd,
@@ -7,6 +10,7 @@ import {
   shouldSubmitOnEnter,
 } from '../first_use_surface/input-event-policy.js';
 import { routeLightResponse } from '../first_use_surface/response-orchestrator.js';
+import { createSettingsWorkspace } from '../first_use_surface/settings-workspace.js';
 
 describe('input IME enter policy', () => {
   it('does not submit while composition is active', () => {
@@ -66,5 +70,21 @@ describe('response orchestrator language adaptation', () => {
     const response = routeLightResponse('hello สวัสดี', 'en');
 
     expect(response.status).not.toBe('Adapting to your preferred language');
+  });
+});
+
+describe('workspace pane keyboard controls', () => {
+  it('moves pane focus with ArrowDown', () => {
+    const html = fs.readFileSync(path.resolve('index.html'), 'utf8');
+    const dom = new JSDOM(html, { url: 'http://localhost:4173' });
+    const workspace = createSettingsWorkspace(dom.window.document, { windowRef: dom.window });
+    workspace.bind();
+    workspace.open('interaction');
+
+    const first = dom.window.document.querySelector('[data-pane-target="interaction"]');
+    first.focus();
+    first.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+
+    expect(dom.window.document.activeElement.dataset.paneTarget).toBe('connectivity');
   });
 });

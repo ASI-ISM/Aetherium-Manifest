@@ -4,6 +4,12 @@ Aetherium Manifest is a **light-native cognition runtime**: intent is interprete
 
 ---
 
+## First-view product boundary
+
+- Homepage is a strict blank-entry surface with a single Settings trigger.
+- Greeting/composer/HUD/runtime logs are intentionally removed from first paint.
+- Runtime initialization is deferred until Settings interaction (default: Interaction pane).
+
 ## Architecture
 
 ### Runtime planes
@@ -54,12 +60,14 @@ Core contracts/schemas in this repo include:
 ## Runtime flow
 
 ### Intent-to-light flow (first-use surface)
-1. User opens Settings and submits text from the Interaction composer.
-2. Language layer resolves language deterministically:
+1. User enters through a blank home shell and opens Settings Workspace.
+2. Interaction pane activation lazily starts runtime connectivity (WS/voice/manifestation).
+3. User submits text from the Interaction composer.
+4. Language layer resolves language deterministically:
    - explicit setting → browser locale → char heuristics → optional local detector → session memory
-3. Response orchestrator maps intent class (greeting/question/etc.) to deterministic text+mood.
-4. Manifestation engine renders mood/text into the light scene.
-5. Session audit trail appends event metadata (optional export from Settings).
+5. Response orchestrator maps intent class (greeting/question/etc.) to deterministic text+mood.
+6. Manifestation engine renders mood/text into the light scene.
+7. Session audit trail appends event metadata (optional export from Settings).
 
 ### Gateway/governor integration flow (full stack)
 1. Emit payload is validated against contract.
