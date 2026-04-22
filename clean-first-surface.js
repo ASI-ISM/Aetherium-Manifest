@@ -300,7 +300,7 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
     homeState.voiceReady = true;
 
     const toggleListening = () => {
-      if (!runtime.started || !runtime.recognition) return;
+      if (!runtime.started || !runtime.recognition || !preferences.voiceEnabled) return;
       if (runtime.voiceListening) {
         runtime.recognition.stop();
       } else {
