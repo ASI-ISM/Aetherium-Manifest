@@ -56,9 +56,6 @@ def test_emit_invalid_payload(client: TestClient, api_key_header: dict[str, str]
 
 
 
-
-
-
 def test_particle_control_contract_accepts_object_attractor() -> None:
     payload = {
         "intent_state": {
