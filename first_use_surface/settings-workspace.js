@@ -20,7 +20,7 @@ export function createSettingsWorkspace(documentRef, config = {}) {
       dialog.querySelectorAll(
         'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
       )
-    ).filter((el) => !el.hasAttribute('hidden'));
+    ).filter((el) => !el.hasAttribute('hidden') && el.getClientRects().length > 0);
   };
 
   const applyViewportMode = () => {
