@@ -379,7 +379,7 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
         signal: controller.signal,
       });
 
-      if (response.status === 401 || response.status === 403 || response.status === 422) {
+      if (response.status === 401 || response.status === 403 || response.status === 422 || response.status === 404) {
         response = await fetchImpl(endpoints.legacyIntentUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
