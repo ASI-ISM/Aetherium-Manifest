@@ -125,3 +125,54 @@ def test_compatibility_intent_adapter(client: TestClient) -> None:
     assert payload["text"] == "please focus and breathe"
     assert "intent_vector" in payload
     assert "visual_manifestation" in payload
+
+
+def test_cognitive_canonical_routes_are_compatible(client: TestClient, monkeypatch: pytest.MonkeyPatch, valid_emit_payload: dict) -> None:
+    async def _stub_model(**_) -> str:
+        return "light-presence-ready"
+
+    monkeypatch.setattr(main, "invoke_generative_model", _stub_model)
+
+    generate_response = client.post(
+        "/api/v1/cognitive/generate",
+        json={"prompt": "manifest", "model": "gpt-4o", "temperature": 0.4},
+        headers={"X-API-Key": "test-key"},
+    )
+    assert generate_response.status_code == 200
+    assert generate_response.json()["text"] == "light-presence-ready"
+
+    validate_response = client.post(
+        "/api/v1/cognitive/validate",
+        json=valid_emit_payload,
+        headers={"X-API-Key": "test-key"},
+    )
+    assert validate_response.status_code == 200
+    assert validate_response.json()["status"] == "success"
+
+
+def test_ws_ticket_issue_refresh_and_stream_flow(client: TestClient) -> None:
+    issue_response = client.post(
+        "/api/v1/auth/session",
+        json={"session_id": "compat-session-2", "role": "viewer", "scope": "cognitive:stream"},
+        headers={"X-API-Key": "test-key"},
+    )
+    assert issue_response.status_code == 200
+    issued = issue_response.json()
+    assert issued["state"] == "issued"
+    assert issued["ticket"]
+
+    refresh_response = client.post(
+        "/api/v1/auth/session/refresh",
+        json={"ticket": issued["ticket"]},
+        headers={"X-API-Key": "test-key"},
+    )
+    assert refresh_response.status_code == 200
+    refreshed = refresh_response.json()
+    assert refreshed["state"] == "issued"
+    assert refreshed["ticket"] != issued["ticket"]
+
+    with client.websocket_connect(f"/ws/cognitive-stream?ticket={refreshed['ticket']}") as websocket:
+        websocket.send_json({"type": "dsl_submission", "payload": "compatibility-check"})
+        response = websocket.receive_json()
+        assert response["status"] == "accepted"
+        assert response["echo"]["payload"] == "compatibility-check"
