@@ -7,39 +7,25 @@ import {
   shouldSubmitOnEnter,
 } from './first_use_surface/input-event-policy.js';
 
-const STORAGE_KEY = 'aetherium:first-surface-settings:v1';
+const STORAGE_KEY = 'aetherium:first-surface-settings:v2';
 const DEFAULT_INTENT_TIMEOUT_MS = 10000;
-const CONNECTION_STATES = Object.freeze({
+
+export const CONNECTION_STATES = Object.freeze({
   CONNECTED: 'CONNECTED',
   RECONNECTING: 'RECONNECTING',
   DISCONNECTED: 'DISCONNECTED',
 });
 
-function createSessionId() {
-  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
-  return `session_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-}
-
-const elements = {
-  canvas: document.getElementById('manifestation-canvas'),
-  form: document.getElementById('composer'),
-  input: document.getElementById('intent-input'),
-  sendButton: document.getElementById('send-btn'),
-  voiceButton: document.getElementById('voice-btn'),
-  statusText: document.getElementById('ambient-status'),
-  fallbackText: document.getElementById('readable-fallback'),
-  settingsPanel: document.getElementById('settings-panel'),
-  settingsToggle: document.getElementById('settings-toggle'),
-  closeSettings: document.getElementById('close-settings'),
-  voiceCaptureButton: document.getElementById('voice-capture'),
-  connectionStatus: document.getElementById('connection-status'),
-};
+const DEFAULT_ADAPTER = Object.freeze({
+  apiCompatibilityPath: '/api/intent',
+  websocketPath: '/ws/cognitive-stream',
+});
 
 const defaultSettings = {
   languagePreference: 'auto',
   useLocalDetector: true,
   localModelProfile: 'tiny-rules',
-  reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  reducedMotion: false,
   voiceEnabled: true,
   apiBase: '/api',
   wsBase: '/ws/cognitive-stream',
@@ -49,703 +35,435 @@ const defaultSettings = {
   scholar: false,
   governorDebug: false,
   developerTools: false,
-  sessionLanguageMemory: (navigator.language || 'en').toLowerCase().startsWith('th') ? 'th' : 'en',
+  sessionLanguageMemory: 'en',
 };
 
-const uiText = {
-  th: {
-    ready: 'พร้อมฟัง',
-    listening: 'กำลังฟัง',
-    interpreting: 'กำลังตีความ',
-    voiceUnavailable: 'ไม่รองรับระบบเสียงในเบราว์เซอร์นี้',
-  },
-  en: {
-    ready: 'Ready',
-    listening: 'Listening',
-    interpreting: 'Interpreting',
-    voiceUnavailable: 'Voice is not available in this browser',
-  },
-};
+function createSessionId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `session_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
 
-const inputRuntime = {
-  isComposing: false,
-  lastCompositionEndAt: -Infinity,
-};
+function loadSettings(storage = globalThis.localStorage) {
+  const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  const language = (globalThis.navigator?.language || 'en').toLowerCase().startsWith('th') ? 'th' : 'en';
 
-const voiceRuntime = {
-  isSupported: false,
-  isListening: false,
-  recognition: null,
-};
-
-const connectionRuntime = {
-  socket: null,
-  reconnectTimer: null,
-  reconnectAttempts: 0,
-  shouldReconnect: true,
-  url: '',
-};
-
-const sysState = {
-  state: '',
-  energyLevel: 0,
-  entropyLevel: 0,
-  palette: {
-    primary: '#7FE4FF',
-    secondary: '#EBF9FF',
-  },
-  target: {
-    energyLevel: 0,
-    entropyLevel: 0,
-    turbulence: 0,
-    flow: 0,
-    shape: 0,
-  },
-  future: {
-    turbulence: 0,
-    flow: 0,
-    shape: 0,
-  },
-};
-
-function loadSettings() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...defaultSettings };
-    return { ...defaultSettings, ...JSON.parse(raw) };
+    const raw = storage?.getItem(STORAGE_KEY);
+    if (!raw) {
+      return { ...defaultSettings, reducedMotion, sessionLanguageMemory: language };
+    }
+    return { ...defaultSettings, reducedMotion, sessionLanguageMemory: language, ...JSON.parse(raw) };
   } catch {
-    return { ...defaultSettings };
+    return { ...defaultSettings, reducedMotion, sessionLanguageMemory: language };
   }
 }
 
-function persistSettings() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-}
-
-const settings = loadSettings();
-const sessionId = createSessionId();
-const sessionAudit = [];
-const languageLayer = createLanguageLayer(settings);
-const manifestationEngine = createLightManifestation(elements.canvas, settings.reducedMotion);
-
-function activeLanguage() {
-  return settings.sessionLanguageMemory === 'en' ? 'en' : 'th';
-}
-
-function localizedUI(key) {
-  return uiText[activeLanguage()][key];
-}
-
-function setStatus(statusText) {
-  elements.statusText.textContent = statusText;
-}
-
-function setConnectionStatus(state) {
-  if (!elements.connectionStatus) return;
-  const normalizedState = CONNECTION_STATES[state] ?? CONNECTION_STATES.DISCONNECTED;
-  elements.connectionStatus.textContent = normalizedState;
-  elements.connectionStatus.dataset.connectionState = normalizedState.toLowerCase();
-}
-
-function setReadableFallback(text) {
-  elements.fallbackText.textContent = text;
-}
-
-function applySubmissionState(isBusy) {
-  elements.input.disabled = isBusy;
-  elements.sendButton.disabled = isBusy;
-}
-
-function pushSessionEvent(payload) {
-  sessionAudit.push({
-    ...payload,
-    at: new Date().toISOString(),
-  });
-}
-
-function resolveWsUrl(inputUrl = '') {
-  const source = inputUrl.trim() || settings.wsBase;
-  if (!source) return '';
-
-  if (/^wss?:\/\//i.test(source)) return source;
-  if (/^https?:\/\//i.test(source)) {
-    return source.replace(/^http/i, 'ws');
-  }
-
-  const base = new URL(window.location.href);
-  const wsProtocol = base.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${wsProtocol}//${base.host}${source.startsWith('/') ? source : `/${source}`}`;
-}
-
-function nextReconnectDelayMs(attempt) {
-  return Math.min(8000, 2000 * (2 ** Math.max(0, attempt - 1)));
-}
-
-function clearReconnectTimer() {
-  if (connectionRuntime.reconnectTimer === null) return;
-  window.clearTimeout(connectionRuntime.reconnectTimer);
-  connectionRuntime.reconnectTimer = null;
-}
-
-function parseWsPayload(rawMessage) {
-  if (typeof rawMessage !== 'string') return null;
-  try {
-    return JSON.parse(rawMessage);
-  } catch {
-    console.warn('Dropped non-JSON WS message', { rawMessage });
-    return null;
-  }
-}
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function clampVisualLevel(value) {
-  return clamp(value, 0, 1.5);
-}
-
-function clampFutureLevel(value) {
-  return clamp(value, 0, 1);
-}
-
-function isRecord(value) {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
-
-function sanitizePaletteValue(value, fallback) {
-  if (typeof value !== 'string') return fallback;
-  const normalized = value.trim();
-  return /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(normalized) ? normalized : fallback;
-}
-
-function validateIncomingStateSchema(payload) {
-  if (!isRecord(payload)) {
-    return { ok: false, reason: 'payload must be an object' };
-  }
-
-  const { state, visual } = payload;
-  if (typeof state !== 'string' || !state.trim()) {
-    return { ok: false, reason: 'payload.state must be a non-empty string' };
-  }
-
-  if (!isRecord(visual)) {
-    return { ok: false, reason: 'payload.visual must be an object' };
-  }
-
-  if (typeof visual.energy !== 'number' || !Number.isFinite(visual.energy)) {
-    return { ok: false, reason: 'payload.visual.energy must be a finite number' };
-  }
-
-  if (typeof visual.entropy !== 'number' || !Number.isFinite(visual.entropy)) {
-    return { ok: false, reason: 'payload.visual.entropy must be a finite number' };
-  }
-
-  if (!isRecord(visual.color_palette)) {
-    return { ok: false, reason: 'payload.visual.color_palette must be an object' };
-  }
-
-  if (typeof visual.color_palette.primary !== 'string') {
-    return { ok: false, reason: 'payload.visual.color_palette.primary must be a string' };
-  }
-
-  if (typeof visual.color_palette.secondary !== 'string') {
-    return { ok: false, reason: 'payload.visual.color_palette.secondary must be a string' };
-  }
-
+export function resolveCompatibilityEndpoints(settings) {
+  const apiBase = (settings.apiBase || '/api').replace(/\/$/, '');
   return {
-    ok: true,
-    value: {
-      state: state.trim(),
-      visual: {
-        energy: clampVisualLevel(visual.energy),
-        entropy: clampVisualLevel(visual.entropy),
-        color_palette: {
-          primary: sanitizePaletteValue(visual.color_palette.primary, '#7FE4FF'),
-          secondary: sanitizePaletteValue(visual.color_palette.secondary, '#EBF9FF'),
-        },
-        turbulence: Number.isFinite(visual.turbulence) ? clampFutureLevel(visual.turbulence) : undefined,
-        flow: Number.isFinite(visual.flow) ? clampFutureLevel(visual.flow) : undefined,
-        shape: Number.isFinite(visual.shape) ? clampFutureLevel(visual.shape) : undefined,
+    intentUrl: `${apiBase}/intent`,
+    wsUrl: settings.wsBase || DEFAULT_ADAPTER.websocketPath,
+  };
+}
+
+export function adaptIntentRequest(intent, sessionId) {
+  return {
+    prompt: intent,
+    session_id: sessionId,
+    model: 'gpt-4o',
+    temperature: 0.4,
+  };
+}
+
+export function adaptIntentResponse(payload) {
+  const state = payload?.intent_vector?.category || payload?.state || 'calm';
+  const visual = payload?.visual_manifestation;
+  return {
+    state,
+    text: payload?.text || '',
+    visual: {
+      energy: payload?.intent_vector?.energy_level ?? 0.5,
+      entropy: Math.abs(payload?.intent_vector?.emotional_valence ?? 0),
+      color_palette: {
+        primary: visual?.color_palette?.primary || '#7FE4FF',
+        secondary: visual?.color_palette?.secondary || '#EBF9FF',
       },
+      turbulence: visual?.particle_physics?.turbulence ?? 0,
+      flow: visual?.particle_physics?.flow_direction === 'flow' ? 1 : 0,
+      shape: visual?.base_shape === 'ring' ? 0.5 : 0.7,
     },
   };
 }
 
-function setSystemState(mode) {
-  sysState.state = typeof mode === 'string' ? mode.trim() : '';
-  document.documentElement.dataset.systemState = sysState.state.toLowerCase();
+function resolveWsUrl(inputUrl = '') {
+  const source = inputUrl.trim();
+  if (!source) return '';
+  if (/^wss?:\/\//i.test(source)) return source;
+  if (/^https?:\/\//i.test(source)) return source.replace(/^http/i, 'ws');
+
+  const base = new URL(globalThis.location?.href || 'http://localhost');
+  const wsProtocol = base.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${wsProtocol}//${base.host}${source.startsWith('/') ? source : `/${source}`}`;
 }
 
-function updateVisualIndicators() {
-  const rootStyle = document.documentElement.style;
-  rootStyle.setProperty('--system-energy-level', String(clamp(sysState.energyLevel, 0, 1.5)));
-  rootStyle.setProperty('--system-entropy-level', String(clamp(sysState.entropyLevel, 0, 1.5)));
-  rootStyle.setProperty('--system-palette-primary', sysState.palette.primary);
-  rootStyle.setProperty('--system-palette-secondary', sysState.palette.secondary);
-}
-
-function applyVisualParameters(visual) {
-  const palette = {
-    primary: sanitizePaletteValue(visual.color_palette?.primary, '#7FE4FF'),
-    secondary: sanitizePaletteValue(visual.color_palette?.secondary, '#EBF9FF'),
-  };
-
-  sysState.target.energyLevel = clampVisualLevel(visual.energy);
-  sysState.target.entropyLevel = clampVisualLevel(visual.entropy);
-  sysState.target.turbulence = Number.isFinite(visual.turbulence)
-    ? clampFutureLevel(visual.turbulence)
-    : sysState.target.turbulence;
-  sysState.target.flow = Number.isFinite(visual.flow)
-    ? clampFutureLevel(visual.flow)
-    : sysState.target.flow;
-  sysState.target.shape = Number.isFinite(visual.shape)
-    ? clampFutureLevel(visual.shape)
-    : sysState.target.shape;
-
-  sysState.future = {
-    turbulence: sysState.target.turbulence,
-    flow: sysState.target.flow,
-    shape: sysState.target.shape,
-  };
-
-  sysState.palette = palette;
-  updateVisualIndicators();
-}
-
-function animate() {
-  const lerp = (current, target, factor) => current + ((target - current) * factor);
-
-  sysState.energyLevel = lerp(sysState.energyLevel, sysState.target.energyLevel, 0.08);
-  sysState.entropyLevel = lerp(sysState.entropyLevel, sysState.target.entropyLevel, 0.08);
-  updateVisualIndicators();
-  requestAnimationFrame(animate);
-}
-
-function handleIncomingState(payload) {
-  const validation = validateIncomingStateSchema(payload);
-  if (!validation.ok) {
-    console.warn('Non-fatal stream validation failure', {
-      reason: validation.reason,
-      payload,
-    });
-    return;
+export function createApp(documentRef = globalThis.document, deps = {}) {
+  const documentAvailable = Boolean(documentRef?.getElementById);
+  if (!documentAvailable) {
+    return {
+      bootstrap: () => {},
+      openSettingsPanel: () => {},
+      closeSettingsPanel: () => {},
+      startRuntime: async () => {},
+      getRuntimeSnapshot: () => ({ started: false }),
+    };
   }
 
-  setSystemState(validation.value.state);
-  applyVisualParameters(validation.value.visual);
+  const storage = deps.storage ?? globalThis.localStorage;
+  const settings = loadSettings(storage);
+  const sessionId = createSessionId();
+  const sessionAudit = [];
 
-  const fallbackText = payload?.text
-    ?? payload?.message
-    ?? payload?.intent_state?.state
-    ?? validation.value.state
-    ?? '';
-
-  if (fallbackText) {
-    manifestationEngine.manifestText(String(fallbackText), 'stream');
-    setReadableFallback(String(fallbackText));
-  }
-
-  pushSessionEvent({
-    session_id: sessionId,
-    transport: 'ws_state',
-    payload,
-  });
-}
-
-function scheduleReconnect() {
-  clearReconnectTimer();
-  if (!connectionRuntime.shouldReconnect || !connectionRuntime.url) {
-    setConnectionStatus('DISCONNECTED');
-    return;
-  }
-
-  connectionRuntime.reconnectAttempts += 1;
-  const delayMs = nextReconnectDelayMs(connectionRuntime.reconnectAttempts);
-  setConnectionStatus('RECONNECTING');
-  setStatus(`Reconnecting in ${Math.round(delayMs / 1000)}s`);
-
-  connectionRuntime.reconnectTimer = window.setTimeout(() => {
-    connectWS(connectionRuntime.url);
-  }, delayMs);
-}
-
-function connectWS(url) {
-  const resolvedUrl = resolveWsUrl(url);
-  connectionRuntime.url = resolvedUrl;
-  if (!resolvedUrl) {
-    connectionRuntime.shouldReconnect = false;
-    setConnectionStatus('DISCONNECTED');
-    setStatus('WS url is empty');
-    return;
-  }
-
-  clearReconnectTimer();
-
-  if (connectionRuntime.socket) {
-    connectionRuntime.shouldReconnect = false;
-    connectionRuntime.socket.close();
-    connectionRuntime.socket = null;
-  }
-
-  connectionRuntime.shouldReconnect = true;
-  setConnectionStatus('RECONNECTING');
-
-  const socket = new WebSocket(resolvedUrl);
-  connectionRuntime.socket = socket;
-
-  socket.onopen = () => {
-    connectionRuntime.reconnectAttempts = 0;
-    setConnectionStatus('CONNECTED');
-    setStatus('WS connected');
+  const elements = {
+    canvas: documentRef.getElementById('manifestation-canvas'),
+    form: documentRef.getElementById('composer'),
+    input: documentRef.getElementById('intent-input'),
+    sendButton: documentRef.getElementById('send-btn'),
+    voiceButton: documentRef.getElementById('voice-btn'),
+    statusText: documentRef.getElementById('ambient-status'),
+    fallbackText: documentRef.getElementById('readable-fallback'),
+    settingsPanel: documentRef.getElementById('settings-panel'),
+    settingsToggle: documentRef.getElementById('settings-toggle'),
+    closeSettings: documentRef.getElementById('close-settings'),
+    voiceCaptureButton: documentRef.getElementById('voice-capture'),
+    connectionStatus: documentRef.getElementById('connection-status'),
+    runtimeInitButton: documentRef.getElementById('init-runtime'),
   };
 
-  socket.onmessage = (event) => {
-    const payload = parseWsPayload(event.data);
-    if (payload !== null) {
-      handleIncomingState(payload);
-    }
+  const languageLayerFactory = deps.languageLayerFactory ?? createLanguageLayer;
+  const manifestationFactory = deps.manifestationFactory ?? createLightManifestation;
+  const languageLayer = languageLayerFactory(settings);
+  const manifestationEngine = manifestationFactory(elements.canvas, settings.reducedMotion);
+
+  const runtime = {
+    started: false,
+    animationStarted: false,
+    wsConnected: false,
+    socket: null,
+    voiceInitialized: false,
+    voiceListening: false,
+    voiceSupported: false,
+    recognition: null,
   };
 
-  socket.onclose = () => {
-    if (connectionRuntime.socket === socket) {
-      connectionRuntime.socket = null;
-    }
-    if (!connectionRuntime.shouldReconnect) {
-      setConnectionStatus('DISCONNECTED');
-      return;
-    }
-    scheduleReconnect();
+  const inputRuntime = { isComposing: false, lastCompositionEndAt: -Infinity };
+
+  const persistSettings = () => {
+    storage?.setItem(STORAGE_KEY, JSON.stringify(settings));
   };
 
-  socket.onerror = () => {
-    setConnectionStatus('RECONNECTING');
-    if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
-      socket.close();
-    }
-  };
-}
-
-function exportSessionAudit() {
-  const payload = {
-    exportedAt: new Date().toISOString(),
-    settings,
-    trail: sessionAudit,
+  const setStatus = (text) => {
+    if (elements.statusText) elements.statusText.textContent = text;
   };
 
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `aetherium_session_audit_${Date.now()}.json`;
-  link.click();
-  URL.revokeObjectURL(url);
-}
+  const setFallback = (text) => {
+    if (elements.fallbackText) elements.fallbackText.textContent = text;
+  };
 
-async function emitIntent(intent) {
-  const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), DEFAULT_INTENT_TIMEOUT_MS);
+  const setConnection = (state) => {
+    if (!elements.connectionStatus) return;
+    elements.connectionStatus.textContent = CONNECTION_STATES[state] ?? CONNECTION_STATES.DISCONNECTED;
+  };
 
-  try {
-    const apiBase = settings.apiBase.replace(/\/$/, '');
-    const response = await fetch(`${apiBase}/intent`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        intent,
-        session_id: sessionId,
-      }),
-      signal: controller.signal,
-    });
+  const applySubmissionState = (busy) => {
+    if (elements.input) elements.input.disabled = busy;
+    if (elements.sendButton) elements.sendButton.disabled = busy;
+  };
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+  const pushSessionEvent = (event) => {
+    sessionAudit.push({ ...event, at: new Date().toISOString() });
+  };
+
+  const handleIncomingState = (payload) => {
+    const adapted = adaptIntentResponse(payload);
+    if (adapted.text) {
+      manifestationEngine.manifestText(String(adapted.text), 'stream');
+      setFallback(String(adapted.text));
     }
-  } catch (error) {
-    if (error.name === 'AbortError') {
-      throw new Error(`Timeout after ${DEFAULT_INTENT_TIMEOUT_MS}ms`);
+    pushSessionEvent({ session_id: sessionId, transport: 'ws_state', payload: adapted });
+  };
+
+  const connectWS = (url) => {
+    if (!runtime.started) return;
+    const target = resolveWsUrl(url);
+    if (!target) return;
+
+    if (runtime.socket) {
+      runtime.socket.close();
+      runtime.socket = null;
     }
-    throw error;
-  } finally {
-    window.clearTimeout(timeoutId);
-  }
-}
 
-async function submitIntent(intent) {
-  const text = intent.trim();
-  if (!text) return;
+    setConnection('RECONNECTING');
+    const socketFactory = deps.socketFactory ?? ((wsUrl) => new WebSocket(wsUrl));
+    const socket = socketFactory(target);
+    runtime.socket = socket;
 
-  applySubmissionState(true);
-  setStatus('Intent sent');
+    socket.onopen = () => {
+      runtime.wsConnected = true;
+      setConnection('CONNECTED');
+      setStatus('WS connected');
+    };
 
-  try {
-    await emitIntent(text);
-    console.info('Intent sent', { session_id: sessionId });
-    setStatus('Awaiting stream update');
-    setReadableFallback('Awaiting stream update');
-    console.info('Awaiting stream update', { session_id: sessionId });
+    socket.onclose = () => {
+      runtime.wsConnected = false;
+      runtime.socket = null;
+      setConnection('DISCONNECTED');
+    };
 
-    pushSessionEvent({
-      session_id: sessionId,
-      intent: text,
-      transport: 'intent_posted',
-    });
+    socket.onerror = () => {
+      setConnection('DISCONNECTED');
+    };
 
-    elements.input.value = '';
-    persistSettings();
-  } catch (error) {
-    const transportError = `Transport error: ${error.message}`;
-    console.error(transportError);
-    setStatus(transportError);
-    setReadableFallback(transportError);
-    pushSessionEvent({
-      session_id: sessionId,
-      intent: text,
-      transport: 'intent_failed',
-      error: error.message,
-    });
-  } finally {
-    applySubmissionState(false);
-  }
-}
+    socket.onmessage = (event) => {
+      if (typeof event.data !== 'string') return;
+      try {
+        handleIncomingState(JSON.parse(event.data));
+      } catch {
+        // best-effort stream parser
+      }
+    };
+  };
 
-function bindInputEvents() {
-  elements.form.addEventListener('submit', (event) => {
-    event.preventDefault();
-    submitIntent(elements.input.value);
-  });
+  const initVoice = () => {
+    if (runtime.voiceInitialized) return;
+    runtime.voiceInitialized = true;
 
-  elements.input.addEventListener('compositionstart', () => {
-    markCompositionStart(inputRuntime);
-  });
+    const SpeechRecognition = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition;
+    runtime.voiceSupported = Boolean(SpeechRecognition);
 
-  elements.input.addEventListener('compositionend', (event) => {
-    markCompositionEnd(inputRuntime, event.timeStamp);
-  });
+    const isDisabled = !settings.voiceEnabled || !runtime.voiceSupported;
+    if (elements.voiceButton) elements.voiceButton.disabled = isDisabled;
+    if (elements.voiceCaptureButton) elements.voiceCaptureButton.disabled = isDisabled;
 
-
-  elements.input.addEventListener('beforeinput', (event) => {
-    if (event.inputType === 'insertCompositionText' || event.inputType === 'deleteCompositionText') {
-      markCompositionStart(inputRuntime);
-    }
-  });
-
-  elements.input.addEventListener('input', (event) => {
-    if (event.isComposing) {
-      markCompositionStart(inputRuntime);
+    if (!runtime.voiceSupported) {
+      if (elements.voiceCaptureButton) {
+        elements.voiceCaptureButton.textContent = 'Voice unavailable';
+      }
       return;
     }
 
-    if (event.inputType !== 'insertCompositionText' && event.inputType !== 'deleteCompositionText') {
-      markInputCommitted(inputRuntime);
+    const recognition = new SpeechRecognition();
+    runtime.recognition = recognition;
+
+    const toggleListening = () => {
+      if (!runtime.started || !settings.voiceEnabled || !runtime.recognition) return;
+      if (runtime.voiceListening) {
+        runtime.recognition.stop();
+      } else {
+        runtime.recognition.lang = settings.sessionLanguageMemory === 'th' ? 'th-TH' : 'en-US';
+        runtime.recognition.start();
+      }
+    };
+
+    recognition.onstart = () => {
+      runtime.voiceListening = true;
+      setStatus('Listening');
+    };
+
+    recognition.onend = () => {
+      runtime.voiceListening = false;
+      setStatus('Ready');
+    };
+
+    recognition.onresult = (event) => {
+      const transcript = event.results?.[0]?.[0]?.transcript?.trim();
+      if (!transcript) return;
+      if (elements.input) elements.input.value = transcript;
+      submitIntent(transcript);
+    };
+
+    elements.voiceButton?.addEventListener('click', toggleListening);
+    elements.voiceCaptureButton?.addEventListener('click', toggleListening);
+  };
+
+  const emitIntent = async (intent) => {
+    const controller = new AbortController();
+    const timeoutId = globalThis.setTimeout(() => controller.abort(), DEFAULT_INTENT_TIMEOUT_MS);
+
+    try {
+      const endpoints = resolveCompatibilityEndpoints(settings);
+      const fetchImpl = deps.fetchImpl ?? fetch;
+      const response = await fetchImpl(endpoints.intentUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(adaptIntentRequest(intent, sessionId)),
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const payload = await response.json();
+      const adapted = adaptIntentResponse(payload);
+      manifestationEngine.manifestText(adapted.text || intent, 'request');
+      setFallback(adapted.text || intent);
+      return adapted;
+    } finally {
+      globalThis.clearTimeout(timeoutId);
     }
-  });
+  };
 
-  elements.input.addEventListener('keydown', (event) => {
-    if (!shouldSubmitOnEnter(event, inputRuntime)) return;
+  const submitIntent = async (intent) => {
+    const text = intent.trim();
+    if (!text) return;
+    applySubmissionState(true);
 
-    event.preventDefault();
-    elements.form.requestSubmit();
-  });
-}
+    try {
+      await startRuntime();
+      await emitIntent(text);
+      pushSessionEvent({ session_id: sessionId, intent: text, transport: 'intent_posted' });
+      if (elements.input) elements.input.value = '';
+    } catch (error) {
+      const message = `Transport error: ${error.message}`;
+      setStatus(message);
+      setFallback(message);
+      pushSessionEvent({ session_id: sessionId, intent: text, transport: 'intent_failed', error: error.message });
+    } finally {
+      applySubmissionState(false);
+    }
+  };
 
-function bindSettings() {
-  const byId = (id) => document.getElementById(id);
+  const bindInputEvents = () => {
+    elements.form?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      submitIntent(elements.input?.value || '');
+    });
 
-  const bindingMap = [
-    ['language-preference', 'change', (event) => { settings.languagePreference = event.target.value; }],
-    ['local-detector-toggle', 'change', (event) => { settings.useLocalDetector = event.target.checked; }],
-    ['local-model-profile', 'change', (event) => { settings.localModelProfile = event.target.value; }],
-    ['reduced-motion-toggle', 'change', (event) => {
-      settings.reducedMotion = event.target.checked;
-      manifestationEngine.setReducedMotion(settings.reducedMotion);
-    }],
-    ['voice-enabled-toggle', 'change', (event) => {
+    elements.input?.addEventListener('compositionstart', () => markCompositionStart(inputRuntime));
+    elements.input?.addEventListener('compositionend', (event) => markCompositionEnd(inputRuntime, event.timeStamp));
+
+    elements.input?.addEventListener('input', (event) => {
+      if (event.isComposing) {
+        markCompositionStart(inputRuntime);
+      } else {
+        markInputCommitted(inputRuntime);
+      }
+    });
+
+    elements.input?.addEventListener('keydown', (event) => {
+      if (!shouldSubmitOnEnter(event, inputRuntime)) return;
+      event.preventDefault();
+      elements.form?.requestSubmit();
+    });
+  };
+
+  const openSettingsPanel = () => {
+    if (!elements.settingsPanel) return;
+    elements.settingsPanel.hidden = false;
+    elements.settingsToggle?.setAttribute('aria-expanded', 'true');
+    (elements.runtimeInitButton || elements.input || elements.closeSettings)?.focus();
+  };
+
+  const closeSettingsPanel = () => {
+    if (!elements.settingsPanel) return;
+    elements.settingsPanel.hidden = true;
+    elements.settingsToggle?.setAttribute('aria-expanded', 'false');
+    elements.settingsToggle?.focus();
+  };
+
+  const bindSettingsPanel = () => {
+    elements.settingsToggle?.addEventListener('click', () => {
+      if (elements.settingsPanel?.hidden) {
+        openSettingsPanel();
+      } else {
+        closeSettingsPanel();
+      }
+    });
+
+    elements.closeSettings?.addEventListener('click', closeSettingsPanel);
+    documentRef.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !elements.settingsPanel?.hidden) closeSettingsPanel();
+    });
+  };
+
+  const bindSettings = () => {
+    const byId = (id) => documentRef.getElementById(id);
+
+    byId('api-base')?.addEventListener('change', (event) => {
+      settings.apiBase = event.target.value.trim() || '/api';
+      persistSettings();
+    });
+    byId('ws-base')?.addEventListener('change', (event) => {
+      settings.wsBase = event.target.value.trim() || DEFAULT_ADAPTER.websocketPath;
+      persistSettings();
+    });
+    byId('voice-enabled-toggle')?.addEventListener('change', (event) => {
       settings.voiceEnabled = event.target.checked;
-      const isDisabled = !settings.voiceEnabled || !voiceRuntime.isSupported;
-      elements.voiceButton.disabled = isDisabled;
-      elements.voiceCaptureButton.disabled = isDisabled;
-      if (isDisabled) {
-        elements.voiceButton.setAttribute('aria-pressed', 'false');
-      }
-    }],
-    ['api-base', 'change', (event) => { settings.apiBase = event.target.value.trim(); }],
-    ['ws-base', 'change', (event) => {
-      settings.wsBase = event.target.value.trim();
-      const cfgWs = byId('cfg-ws');
-      if (cfgWs && !cfgWs.value.trim()) {
-        cfgWs.value = settings.wsBase;
-      }
-    }],
-    ['cfg-ws', 'change', (event) => { settings.wsBase = event.target.value.trim(); }],
-    ['runtime-mode', 'change', (event) => { settings.runtimeMode = event.target.value; }],
-    ['telemetry-toggle', 'change', (event) => { settings.telemetry = event.target.checked; }],
-    ['lineage-toggle', 'change', (event) => { settings.lineage = event.target.checked; }],
-    ['scholar-toggle', 'change', (event) => { settings.scholar = event.target.checked; }],
-    ['governor-toggle', 'change', (event) => { settings.governorDebug = event.target.checked; }],
-    ['devtools-toggle', 'change', (event) => { settings.developerTools = event.target.checked; }],
-  ];
-
-  bindingMap.forEach(([id, type, handler]) => {
-    const el = byId(id);
-    if (!el) return;
-
-    el.addEventListener(type, (event) => {
-      handler(event);
       persistSettings();
     });
-  });
 
-  byId('export-session').addEventListener('click', exportSessionAudit);
-
-  byId('language-preference').value = settings.languagePreference;
-  byId('local-detector-toggle').checked = settings.useLocalDetector;
-  byId('local-model-profile').value = settings.localModelProfile;
-  byId('reduced-motion-toggle').checked = settings.reducedMotion;
-  byId('voice-enabled-toggle').checked = settings.voiceEnabled;
-  byId('api-base').value = settings.apiBase;
-  byId('ws-base').value = settings.wsBase;
-  byId('runtime-mode').value = settings.runtimeMode;
-  if (byId('cfg-ws')) {
-    byId('cfg-ws').value = settings.wsBase;
-  }
-  byId('telemetry-toggle').checked = settings.telemetry;
-  byId('lineage-toggle').checked = settings.lineage;
-  byId('scholar-toggle').checked = settings.scholar;
-  byId('governor-toggle').checked = settings.governorDebug;
-  byId('devtools-toggle').checked = settings.developerTools;
-  if (byId('btn-connect')) {
-    byId('btn-connect').addEventListener('click', () => {
-      const manualUrl = byId('cfg-ws')?.value?.trim() ?? settings.wsBase;
-      settings.wsBase = manualUrl || settings.wsBase;
-      persistSettings();
-      connectWS(manualUrl);
+    byId('btn-connect')?.addEventListener('click', async () => {
+      await startRuntime();
+      connectWS(settings.wsBase);
     });
-  }
-}
 
-function setVoiceUiState(isListening) {
-  voiceRuntime.isListening = isListening;
-  elements.voiceButton.setAttribute('aria-pressed', isListening ? 'true' : 'false');
-  elements.voiceCaptureButton.textContent = isListening ? 'Stop voice capture' : 'Start voice capture';
-  setStatus(isListening ? localizedUI('listening') : localizedUI('ready'));
-}
+    byId('export-session')?.addEventListener('click', () => {
+      const payload = { exportedAt: new Date().toISOString(), settings, trail: sessionAudit };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = documentRef.createElement('a');
+      link.href = url;
+      link.download = `aetherium_session_audit_${Date.now()}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+    });
 
-function initVoice() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  voiceRuntime.isSupported = Boolean(SpeechRecognition);
+    elements.runtimeInitButton?.addEventListener('click', () => {
+      startRuntime();
+    });
+  };
 
-  const disabledByPolicy = !settings.voiceEnabled;
-  elements.voiceButton.disabled = disabledByPolicy || !voiceRuntime.isSupported;
-  elements.voiceCaptureButton.disabled = disabledByPolicy || !voiceRuntime.isSupported;
+  const startRuntime = async () => {
+    if (runtime.started) return;
+    runtime.started = true;
+    documentRef.documentElement.classList.add('runtime-active');
+    setStatus('Runtime initialized');
 
-  if (!voiceRuntime.isSupported) {
-    elements.voiceCaptureButton.textContent = 'Voice unavailable';
-    elements.voiceCaptureButton.title = 'Speech API unavailable';
-    return;
-  }
+    initVoice();
+    connectWS(settings.wsBase);
 
-  const recognition = new SpeechRecognition();
-  recognition.continuous = false;
-  recognition.interimResults = false;
-  voiceRuntime.recognition = recognition;
+    if (!runtime.animationStarted) {
+      manifestationEngine.resize();
+      const raf = deps.raf ?? globalThis.requestAnimationFrame;
+      raf?.(manifestationEngine.render);
+      runtime.animationStarted = true;
+    }
+  };
 
-  const toggleListening = () => {
-    if (!settings.voiceEnabled || !voiceRuntime.recognition) return;
+  const bootstrap = () => {
+    bindInputEvents();
+    bindSettings();
+    bindSettingsPanel();
 
-    if (voiceRuntime.isListening) {
-      voiceRuntime.recognition.stop();
-      return;
+    setStatus('Surface ready');
+    setConnection('DISCONNECTED');
+    setFallback('');
+    persistSettings();
+
+    if (typeof globalThis.addEventListener === 'function') {
+      globalThis.addEventListener('resize', manifestationEngine.resize);
     }
 
-    const language = languageLayer.resolveLanguage(elements.input.value || '');
-    voiceRuntime.recognition.lang = language === 'th' ? 'th-TH' : 'en-US';
-    voiceRuntime.recognition.start();
+    const bootLanguage = languageLayer.resolveLanguage('');
+    settings.sessionLanguageMemory = bootLanguage;
   };
 
-  elements.voiceCaptureButton.addEventListener('click', toggleListening);
-  elements.voiceButton.addEventListener('click', toggleListening);
-
-  recognition.onstart = () => {
-    setVoiceUiState(true);
-  };
-
-  recognition.onresult = (event) => {
-    const transcript = event.results?.[0]?.[0]?.transcript?.trim();
-    if (!transcript) return;
-    elements.input.value = transcript;
-    submitIntent(transcript);
-  };
-
-  recognition.onerror = () => {
-    setStatus(localizedUI('voiceUnavailable'));
-  };
-
-  recognition.onend = () => {
-    setVoiceUiState(false);
+  return {
+    bootstrap,
+    openSettingsPanel,
+    closeSettingsPanel,
+    startRuntime,
+    getRuntimeSnapshot: () => ({ ...runtime }),
   };
 }
 
-function openSettingsPanel() {
-  elements.settingsPanel.hidden = false;
-  elements.settingsToggle.setAttribute('aria-expanded', 'true');
-  document.getElementById('intent-input').focus();
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  const app = createApp(document);
+  app.bootstrap();
 }
-
-function closeSettingsPanel() {
-  elements.settingsPanel.hidden = true;
-  elements.settingsToggle.setAttribute('aria-expanded', 'false');
-  elements.settingsToggle.focus();
-}
-
-function bindSettingsPanel() {
-  elements.settingsToggle.addEventListener('click', () => {
-    if (elements.settingsPanel.hidden) {
-      openSettingsPanel();
-      return;
-    }
-    closeSettingsPanel();
-  });
-
-  elements.closeSettings.addEventListener('click', closeSettingsPanel);
-
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !elements.settingsPanel.hidden) {
-      closeSettingsPanel();
-    }
-  });
-
-  document.addEventListener('click', (event) => {
-    if (elements.settingsPanel.hidden) return;
-    const target = event.target;
-    const clickedInsidePanel = elements.settingsPanel.contains(target);
-    const clickedToggle = elements.settingsToggle.contains(target);
-    if (!clickedInsidePanel && !clickedToggle) {
-      closeSettingsPanel();
-    }
-  });
-}
-
-function bootstrap() {
-  bindInputEvents();
-  bindSettings();
-  bindSettingsPanel();
-  initVoice();
-
-  window.addEventListener('resize', manifestationEngine.resize);
-
-  manifestationEngine.resize();
-  const bootLanguage = languageLayer.resolveLanguage('');
-  settings.sessionLanguageMemory = bootLanguage;
-  setStatus(localizedUI('ready'));
-  setConnectionStatus('DISCONNECTED');
-  manifestationEngine.manifestText(bootLanguage === 'th' ? 'สวัสดี' : 'Hello', 'greeting');
-  setReadableFallback(bootLanguage === 'th' ? 'สวัสดี' : 'Hello');
-  animate();
-  requestAnimationFrame(manifestationEngine.render);
-  connectWS(settings.wsBase);
-}
-
-bootstrap();

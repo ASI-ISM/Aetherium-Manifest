@@ -97,6 +97,12 @@ class GenerateRequest(BaseModel):
     model: str = Field(default="gemini-1.5-pro")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
 
+class LegacyIntentRequest(BaseModel):
+    prompt: str
+    session_id: Optional[str] = None
+    model: str = Field(default="gpt-4o")
+    temperature: float = Field(default=0.4, ge=0.0, le=2.0)
+
 class GenerateResponse(BaseModel):
     text: str
     model: str
@@ -587,6 +593,22 @@ def _run_light_cognition_pipeline(
     )
 
 # --- API Endpoints ---
+
+@app.post("/api/intent")
+async def compatibility_intent_endpoint(request: LegacyIntentRequest) -> GenerateResponse:
+    prompt = request.prompt.strip()
+    if not prompt:
+        raise HTTPException(status_code=422, detail="prompt must be non-empty")
+
+    intent_vec, visual_manifest = _infer_intent_from_text(prompt)
+    return GenerateResponse(
+        text=prompt,
+        model=request.model,
+        trace_id=str(uuid.uuid4()),
+        provider="compatibility-adapter",
+        intent_vector=intent_vec,
+        visual_manifestation=visual_manifest,
+    )
 
 @app.post("/api/v1/cognitive/generate")
 async def generate_text(

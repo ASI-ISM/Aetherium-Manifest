@@ -66,3 +66,20 @@ def test_websocket_stream_with_header_key(client: TestClient) -> None:
         websocket.send_json({"type": "dsl_submission", "payload": "..."})
         response = websocket.receive_json()
         assert response["status"] == "accepted"
+
+
+def test_compatibility_intent_adapter(client: TestClient) -> None:
+    response = client.post(
+        "/api/intent",
+        json={
+            "prompt": "please focus and breathe",
+            "session_id": "compat-session-1",
+            "model": "gpt-4o",
+            "temperature": 0.4,
+        },
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["text"] == "please focus and breathe"
+    assert "intent_vector" in payload
+    assert "visual_manifestation" in payload
