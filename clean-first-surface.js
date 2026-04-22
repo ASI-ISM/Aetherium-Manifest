@@ -6,8 +6,9 @@ import {
   markInputCommitted,
   shouldSubmitOnEnter,
 } from './first_use_surface/input-event-policy.js';
+import { createSettingsStore } from './first_use_surface/settings-store.js';
+import { createSettingsWorkspace } from './first_use_surface/settings-workspace.js';
 
-const STORAGE_KEY = 'aetherium:first-surface-settings:v2';
 const DEFAULT_INTENT_TIMEOUT_MS = 10000;
 
 export const CONNECTION_STATES = Object.freeze({
@@ -16,53 +17,24 @@ export const CONNECTION_STATES = Object.freeze({
   DISCONNECTED: 'DISCONNECTED',
 });
 
-const DEFAULT_ADAPTER = Object.freeze({
-  apiCompatibilityPath: '/api/intent',
-  websocketPath: '/ws/cognitive-stream',
-});
-
-const defaultSettings = {
-  languagePreference: 'auto',
-  useLocalDetector: true,
-  localModelProfile: 'tiny-rules',
-  reducedMotion: false,
-  voiceEnabled: true,
-  apiBase: '/api',
-  wsBase: '/ws/cognitive-stream',
-  runtimeMode: 'calm',
-  telemetry: true,
-  lineage: false,
-  scholar: false,
-  governorDebug: false,
-  developerTools: false,
-  sessionLanguageMemory: 'en',
-};
-
-function createSessionId() {
-  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
-  return `session_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-}
-
-function loadSettings(storage = globalThis.localStorage) {
-  const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-  const language = (globalThis.navigator?.language || 'en').toLowerCase().startsWith('th') ? 'th' : 'en';
-
-  try {
-    const raw = storage?.getItem(STORAGE_KEY);
-    if (!raw) {
-      return { ...defaultSettings, reducedMotion, sessionLanguageMemory: language };
-    }
-    return { ...defaultSettings, reducedMotion, sessionLanguageMemory: language, ...JSON.parse(raw) };
-  } catch {
-    return { ...defaultSettings, reducedMotion, sessionLanguageMemory: language };
-  }
-}
-
-export function resolveCompatibilityEndpoints(settings) {
-  const apiBase = (settings.apiBase || '/api').replace(/\/$/, '');
+export function createDefaultHomeShellState(activePane = 'interaction', reducedMotion = false) {
   return {
-    intentUrl: `${apiBase}/intent`,
-    wsUrl: settings.wsBase || DEFAULT_ADAPTER.websocketPath,
+    settingsOpen: false,
+    activePane,
+    runtimeHydrated: false,
+    gatewayConnected: false,
+    voiceReady: false,
+    manifestationReady: false,
+    reducedMotion,
+  };
+}
+
+export function resolveCompatibilityEndpoints(preferences) {
+  const apiBase = (preferences.apiBase || '/api/v1/cognitive').replace(/\/$/, '');
+  return {
+    emitUrl: `${apiBase}/emit`,
+    validateUrl: `${apiBase}/validate`,
+    wsUrl: preferences.wsBase || '/ws/cognitive-stream',
   };
 }
 
@@ -106,22 +78,31 @@ function resolveWsUrl(inputUrl = '') {
   return `${wsProtocol}//${base.host}${source.startsWith('/') ? source : `/${source}`}`;
 }
 
+function createSessionId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `session_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
 export function createApp(documentRef = globalThis.document, deps = {}) {
   const documentAvailable = Boolean(documentRef?.getElementById);
   if (!documentAvailable) {
     return {
       bootstrap: () => {},
-      openSettingsPanel: () => {},
-      closeSettingsPanel: () => {},
+      openSettingsWorkspace: () => {},
+      closeSettingsWorkspace: () => {},
       startRuntime: async () => {},
       getRuntimeSnapshot: () => ({ started: false }),
+      getHomeState: () => createDefaultHomeShellState(),
     };
   }
 
   const storage = deps.storage ?? globalThis.localStorage;
-  const settings = loadSettings(storage);
+  const store = createSettingsStore(storage);
+  let preferences = store.load();
+
   const sessionId = createSessionId();
   const sessionAudit = [];
+  const inputRuntime = { isComposing: false, lastCompositionEndAt: -Infinity };
 
   const elements = {
     canvas: documentRef.getElementById('manifestation-canvas'),
@@ -131,18 +112,33 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
     voiceButton: documentRef.getElementById('voice-btn'),
     statusText: documentRef.getElementById('ambient-status'),
     fallbackText: documentRef.getElementById('readable-fallback'),
-    settingsPanel: documentRef.getElementById('settings-panel'),
-    settingsToggle: documentRef.getElementById('settings-toggle'),
-    closeSettings: documentRef.getElementById('close-settings'),
-    voiceCaptureButton: documentRef.getElementById('voice-capture'),
     connectionStatus: documentRef.getElementById('connection-status'),
-    runtimeInitButton: documentRef.getElementById('init-runtime'),
+    apiBase: documentRef.getElementById('api-base'),
+    wsBase: documentRef.getElementById('ws-base'),
+    languagePreference: documentRef.getElementById('language-preference'),
+    fontScale: documentRef.getElementById('font-scale'),
+    runtimeMode: documentRef.getElementById('runtime-mode'),
+    reducedMotionToggle: documentRef.getElementById('reduced-motion-toggle'),
+    voiceEnabledToggle: documentRef.getElementById('voice-enabled-toggle'),
+    telemetryToggle: documentRef.getElementById('telemetry-toggle'),
+    governorToggle: documentRef.getElementById('governor-toggle'),
+    manifestationToggle: documentRef.getElementById('manifestation-toggle'),
+    developerToolsToggle: documentRef.getElementById('developer-tools-toggle'),
+    environmentTarget: documentRef.getElementById('environment-target'),
+    closeSettings: documentRef.getElementById('close-settings'),
+    connectButton: documentRef.getElementById('btn-connect'),
+    exportButton: documentRef.getElementById('export-session'),
+    clearSessionButton: documentRef.getElementById('clear-session'),
+    voiceCaptureButton: documentRef.getElementById('voice-capture'),
+    dangerResetButton: documentRef.getElementById('danger-reset'),
+    diagnostics: documentRef.getElementById('dev-diagnostics'),
   };
 
   const languageLayerFactory = deps.languageLayerFactory ?? createLanguageLayer;
   const manifestationFactory = deps.manifestationFactory ?? createLightManifestation;
-  const languageLayer = languageLayerFactory(settings);
-  const manifestationEngine = manifestationFactory(elements.canvas, settings.reducedMotion);
+
+  let languageLayer = null;
+  let manifestationEngine = null;
 
   const runtime = {
     started: false,
@@ -155,17 +151,17 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
     recognition: null,
   };
 
-  const inputRuntime = { isComposing: false, lastCompositionEndAt: -Infinity };
+  const homeState = createDefaultHomeShellState(preferences.activePane, preferences.reducedMotion);
 
-  const persistSettings = () => {
-    storage?.setItem(STORAGE_KEY, JSON.stringify(settings));
+  const pushSessionEvent = (event) => {
+    sessionAudit.push({ ...event, at: new Date().toISOString() });
   };
 
-  const setStatus = (text) => {
+  const setStatus = (text = '') => {
     if (elements.statusText) elements.statusText.textContent = text;
   };
 
-  const setFallback = (text) => {
+  const setFallback = (text = '') => {
     if (elements.fallbackText) elements.fallbackText.textContent = text;
   };
 
@@ -174,19 +170,63 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
     elements.connectionStatus.textContent = CONNECTION_STATES[state] ?? CONNECTION_STATES.DISCONNECTED;
   };
 
+  const writeDiagnostics = () => {
+    if (!elements.diagnostics) return;
+    const payload = {
+      pane: homeState.activePane,
+      runtimeHydrated: homeState.runtimeHydrated,
+      gatewayConnected: homeState.gatewayConnected,
+      voiceReady: homeState.voiceReady,
+      manifestationReady: homeState.manifestationReady,
+      reducedMotion: homeState.reducedMotion,
+    };
+    elements.diagnostics.textContent = JSON.stringify(payload, null, 2);
+  };
+
+  const persistPreferences = (patch) => {
+    preferences = store.merge({ ...preferences, ...patch });
+    homeState.activePane = preferences.activePane;
+    homeState.reducedMotion = Boolean(preferences.reducedMotion);
+    writeDiagnostics();
+  };
+
+  const hydrateControls = () => {
+    if (elements.apiBase) elements.apiBase.value = preferences.apiBase;
+    if (elements.wsBase) elements.wsBase.value = preferences.wsBase;
+    if (elements.languagePreference) elements.languagePreference.value = preferences.language;
+    if (elements.fontScale) elements.fontScale.value = preferences.fontScale;
+    if (elements.runtimeMode) elements.runtimeMode.value = preferences.runtimeMode;
+    if (elements.reducedMotionToggle) elements.reducedMotionToggle.checked = preferences.reducedMotion;
+    if (elements.voiceEnabledToggle) elements.voiceEnabledToggle.checked = preferences.voiceEnabled;
+    if (elements.telemetryToggle) elements.telemetryToggle.checked = preferences.telemetryVisible;
+    if (elements.governorToggle) elements.governorToggle.checked = preferences.governorVisible;
+    if (elements.manifestationToggle) elements.manifestationToggle.checked = preferences.manifestationEnabled;
+    if (elements.developerToolsToggle) elements.developerToolsToggle.checked = preferences.developerEnabled;
+    if (elements.environmentTarget) elements.environmentTarget.value = preferences.environmentTarget;
+  };
+
+  const ensureManifestation = () => {
+    if (manifestationEngine) return manifestationEngine;
+    manifestationEngine = manifestationFactory(elements.canvas, preferences.reducedMotion);
+    homeState.manifestationReady = true;
+    return manifestationEngine;
+  };
+
+  const ensureLanguageLayer = () => {
+    if (languageLayer) return languageLayer;
+    languageLayer = languageLayerFactory(preferences);
+    return languageLayer;
+  };
+
   const applySubmissionState = (busy) => {
     if (elements.input) elements.input.disabled = busy;
     if (elements.sendButton) elements.sendButton.disabled = busy;
   };
 
-  const pushSessionEvent = (event) => {
-    sessionAudit.push({ ...event, at: new Date().toISOString() });
-  };
-
   const handleIncomingState = (payload) => {
     const adapted = adaptIntentResponse(payload);
     if (adapted.text) {
-      manifestationEngine.manifestText(String(adapted.text), 'stream');
+      ensureManifestation().manifestText(String(adapted.text), 'stream');
       setFallback(String(adapted.text));
     }
     pushSessionEvent({ session_id: sessionId, transport: 'ws_state', payload: adapted });
@@ -194,6 +234,7 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
 
   const connectWS = (url) => {
     if (!runtime.started) return;
+
     const target = resolveWsUrl(url);
     if (!target) return;
 
@@ -209,18 +250,25 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
 
     socket.onopen = () => {
       runtime.wsConnected = true;
+      homeState.gatewayConnected = true;
       setConnection('CONNECTED');
-      setStatus('WS connected');
+      setStatus('Connected');
+      writeDiagnostics();
     };
 
     socket.onclose = () => {
       runtime.wsConnected = false;
+      homeState.gatewayConnected = false;
       runtime.socket = null;
       setConnection('DISCONNECTED');
+      writeDiagnostics();
     };
 
     socket.onerror = () => {
+      runtime.wsConnected = false;
+      homeState.gatewayConnected = false;
       setConnection('DISCONNECTED');
+      writeDiagnostics();
     };
 
     socket.onmessage = (event) => {
@@ -235,46 +283,43 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
 
   const initVoice = () => {
     if (runtime.voiceInitialized) return;
-    runtime.voiceInitialized = true;
 
     const SpeechRecognition = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition;
     runtime.voiceSupported = Boolean(SpeechRecognition);
+    runtime.voiceInitialized = true;
 
-    const isDisabled = !settings.voiceEnabled || !runtime.voiceSupported;
-    if (elements.voiceButton) elements.voiceButton.disabled = isDisabled;
-    if (elements.voiceCaptureButton) elements.voiceCaptureButton.disabled = isDisabled;
-
-    if (!runtime.voiceSupported) {
-      if (elements.voiceCaptureButton) {
-        elements.voiceCaptureButton.textContent = 'Voice unavailable';
-      }
+    if (!preferences.voiceEnabled || !runtime.voiceSupported) {
+      elements.voiceButton?.setAttribute('disabled', 'true');
+      elements.voiceCaptureButton?.setAttribute('disabled', 'true');
+      homeState.voiceReady = false;
+      writeDiagnostics();
       return;
     }
 
-    const recognition = new SpeechRecognition();
-    runtime.recognition = recognition;
+    runtime.recognition = new SpeechRecognition();
+    homeState.voiceReady = true;
 
     const toggleListening = () => {
-      if (!runtime.started || !settings.voiceEnabled || !runtime.recognition) return;
+      if (!runtime.started || !runtime.recognition || !preferences.voiceEnabled) return;
       if (runtime.voiceListening) {
         runtime.recognition.stop();
       } else {
-        runtime.recognition.lang = settings.sessionLanguageMemory === 'th' ? 'th-TH' : 'en-US';
+        runtime.recognition.lang = preferences.language === 'th' ? 'th-TH' : 'en-US';
         runtime.recognition.start();
       }
     };
 
-    recognition.onstart = () => {
+    runtime.recognition.onstart = () => {
       runtime.voiceListening = true;
       setStatus('Listening');
     };
 
-    recognition.onend = () => {
+    runtime.recognition.onend = () => {
       runtime.voiceListening = false;
       setStatus('Ready');
     };
 
-    recognition.onresult = (event) => {
+    runtime.recognition.onresult = (event) => {
       const transcript = event.results?.[0]?.[0]?.transcript?.trim();
       if (!transcript) return;
       if (elements.input) elements.input.value = transcript;
@@ -283,6 +328,32 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
 
     elements.voiceButton?.addEventListener('click', toggleListening);
     elements.voiceCaptureButton?.addEventListener('click', toggleListening);
+    writeDiagnostics();
+  };
+
+  const startRuntime = async () => {
+    if (runtime.started) return;
+
+    runtime.started = true;
+    homeState.runtimeHydrated = true;
+    documentRef.documentElement.classList.add('runtime-active');
+
+    ensureManifestation();
+    ensureLanguageLayer();
+
+    setStatus('Runtime initialized');
+    connectWS(preferences.wsBase);
+
+    initVoice();
+
+    if (!runtime.animationStarted) {
+      manifestationEngine.resize();
+      const raf = deps.raf ?? globalThis.requestAnimationFrame;
+      raf?.(manifestationEngine.render);
+      runtime.animationStarted = true;
+    }
+
+    writeDiagnostics();
   };
 
   const emitIntent = async (intent) => {
@@ -290,18 +361,19 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
     const timeoutId = globalThis.setTimeout(() => controller.abort(), DEFAULT_INTENT_TIMEOUT_MS);
 
     try {
-      const endpoints = resolveCompatibilityEndpoints(settings);
+      const endpoints = resolveCompatibilityEndpoints(preferences);
       const fetchImpl = deps.fetchImpl ?? fetch;
-      const response = await fetchImpl(endpoints.intentUrl, {
+      const response = await fetchImpl(endpoints.emitUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(adaptIntentRequest(intent, sessionId)),
         signal: controller.signal,
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
       const payload = await response.json();
       const adapted = adaptIntentResponse(payload);
-      manifestationEngine.manifestText(adapted.text || intent, 'request');
+      ensureManifestation().manifestText(adapted.text || intent, 'request');
       setFallback(adapted.text || intent);
       return adapted;
     } finally {
@@ -309,13 +381,17 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
     }
   };
 
+  const ensureInteractionRuntime = async () => {
+    await startRuntime();
+  };
+
   const submitIntent = async (intent) => {
     const text = intent.trim();
     if (!text) return;
-    applySubmissionState(true);
 
+    applySubmissionState(true);
     try {
-      await startRuntime();
+      await ensureInteractionRuntime();
       await emitIntent(text);
       pushSessionEvent({ session_id: sessionId, intent: text, transport: 'intent_posted' });
       if (elements.input) elements.input.value = '';
@@ -329,6 +405,28 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
     }
   };
 
+  const onPaneActivated = async (pane) => {
+    persistPreferences({ activePane: pane });
+    if (pane === 'interaction') {
+      await ensureInteractionRuntime();
+    }
+  };
+
+  const workspace = createSettingsWorkspace(documentRef, {
+    windowRef: deps.windowRef ?? globalThis,
+    getLastPane: () => preferences.activePane,
+    onPaneActivated,
+    onOpened: () => {
+      homeState.settingsOpen = true;
+      hydrateControls();
+      writeDiagnostics();
+    },
+    onClosed: () => {
+      homeState.settingsOpen = false;
+      writeDiagnostics();
+    },
+  });
+
   const bindInputEvents = () => {
     elements.form?.addEventListener('submit', (event) => {
       event.preventDefault();
@@ -337,7 +435,6 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
 
     elements.input?.addEventListener('compositionstart', () => markCompositionStart(inputRuntime));
     elements.input?.addEventListener('compositionend', (event) => markCompositionEnd(inputRuntime, event.timeStamp));
-
     elements.input?.addEventListener('input', (event) => {
       if (event.isComposing) {
         markCompositionStart(inputRuntime);
@@ -353,113 +450,87 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
     });
   };
 
-  const openSettingsPanel = () => {
-    if (!elements.settingsPanel) return;
-    elements.settingsPanel.hidden = false;
-    elements.settingsToggle?.setAttribute('aria-expanded', 'true');
-    (elements.runtimeInitButton || elements.input || elements.closeSettings)?.focus();
-  };
+  const bindControlEvents = () => {
+    elements.apiBase?.addEventListener('change', (event) => persistPreferences({ apiBase: event.target.value.trim() || '/api/v1/cognitive' }));
+    elements.wsBase?.addEventListener('change', (event) => persistPreferences({ wsBase: event.target.value.trim() || '/ws/cognitive-stream' }));
+    elements.languagePreference?.addEventListener('change', (event) => persistPreferences({ language: event.target.value }));
+    elements.fontScale?.addEventListener('change', (event) => persistPreferences({ fontScale: event.target.value }));
+    elements.runtimeMode?.addEventListener('change', (event) => persistPreferences({ runtimeMode: event.target.value }));
+    elements.environmentTarget?.addEventListener('change', (event) => persistPreferences({ environmentTarget: event.target.value }));
 
-  const closeSettingsPanel = () => {
-    if (!elements.settingsPanel) return;
-    elements.settingsPanel.hidden = true;
-    elements.settingsToggle?.setAttribute('aria-expanded', 'false');
-    elements.settingsToggle?.focus();
-  };
+    elements.reducedMotionToggle?.addEventListener('change', (event) => {
+      const reducedMotion = event.target.checked;
+      persistPreferences({ reducedMotion });
+      if (manifestationEngine?.setReducedMotion) manifestationEngine.setReducedMotion(reducedMotion);
+    });
 
-  const bindSettingsPanel = () => {
-    elements.settingsToggle?.addEventListener('click', () => {
-      if (elements.settingsPanel?.hidden) {
-        openSettingsPanel();
-      } else {
-        closeSettingsPanel();
+    elements.voiceEnabledToggle?.addEventListener('change', (event) => {
+      persistPreferences({ voiceEnabled: event.target.checked });
+      if (runtime.voiceInitialized) {
+        runtime.voiceInitialized = false;
+        initVoice();
       }
     });
 
-    elements.closeSettings?.addEventListener('click', closeSettingsPanel);
-    documentRef.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && !elements.settingsPanel?.hidden) closeSettingsPanel();
-    });
-  };
+    elements.telemetryToggle?.addEventListener('change', (event) => persistPreferences({ telemetryVisible: event.target.checked }));
+    elements.governorToggle?.addEventListener('change', (event) => persistPreferences({ governorVisible: event.target.checked }));
+    elements.manifestationToggle?.addEventListener('change', (event) => persistPreferences({ manifestationEnabled: event.target.checked }));
+    elements.developerToolsToggle?.addEventListener('change', (event) => persistPreferences({ developerEnabled: event.target.checked }));
 
-  const bindSettings = () => {
-    const byId = (id) => documentRef.getElementById(id);
-
-    byId('api-base')?.addEventListener('change', (event) => {
-      settings.apiBase = event.target.value.trim() || '/api';
-      persistSettings();
-    });
-    byId('ws-base')?.addEventListener('change', (event) => {
-      settings.wsBase = event.target.value.trim() || DEFAULT_ADAPTER.websocketPath;
-      persistSettings();
-    });
-    byId('voice-enabled-toggle')?.addEventListener('change', (event) => {
-      settings.voiceEnabled = event.target.checked;
-      persistSettings();
+    elements.connectButton?.addEventListener('click', async () => {
+      await ensureInteractionRuntime();
+      connectWS(preferences.wsBase);
     });
 
-    byId('btn-connect')?.addEventListener('click', async () => {
-      await startRuntime();
-      connectWS(settings.wsBase);
-    });
-
-    byId('export-session')?.addEventListener('click', () => {
-      const payload = { exportedAt: new Date().toISOString(), settings, trail: sessionAudit };
+    elements.exportButton?.addEventListener('click', () => {
+      const payload = { exportedAt: new Date().toISOString(), sessionId, preferences, trail: sessionAudit };
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = documentRef.createElement('a');
       link.href = url;
       link.download = `aetherium_session_audit_${Date.now()}.json`;
       link.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 100);
     });
 
-    elements.runtimeInitButton?.addEventListener('click', () => {
-      startRuntime();
+    elements.clearSessionButton?.addEventListener('click', () => {
+      sessionAudit.length = 0;
+      setFallback('');
+      setStatus('Session cleared');
     });
-  };
 
-  const startRuntime = async () => {
-    if (runtime.started) return;
-    runtime.started = true;
-    documentRef.documentElement.classList.add('runtime-active');
-    setStatus('Runtime initialized');
-
-    initVoice();
-    connectWS(settings.wsBase);
-
-    if (!runtime.animationStarted) {
-      manifestationEngine.resize();
-      const raf = deps.raf ?? globalThis.requestAnimationFrame;
-      raf?.(manifestationEngine.render);
-      runtime.animationStarted = true;
-    }
+    elements.dangerResetButton?.addEventListener('click', () => {
+      const confirmed = globalThis.confirm?.('Confirm dangerous reset?') ?? false;
+      if (!confirmed) return;
+      pushSessionEvent({ session_id: sessionId, transport: 'dangerous_reset_confirmed' });
+      setStatus('Runtime reset queued');
+    });
   };
 
   const bootstrap = () => {
+    workspace.bind();
     bindInputEvents();
-    bindSettings();
-    bindSettingsPanel();
+    bindControlEvents();
 
-    setStatus('Surface ready');
-    setConnection('DISCONNECTED');
+    setStatus('');
     setFallback('');
-    persistSettings();
+    setConnection('DISCONNECTED');
+    hydrateControls();
+    writeDiagnostics();
 
     if (typeof globalThis.addEventListener === 'function') {
-      globalThis.addEventListener('resize', manifestationEngine.resize);
+      globalThis.addEventListener('resize', () => manifestationEngine?.resize?.());
     }
-
-    const bootLanguage = languageLayer.resolveLanguage('');
-    settings.sessionLanguageMemory = bootLanguage;
   };
 
   return {
     bootstrap,
-    openSettingsPanel,
-    closeSettingsPanel,
+    openSettingsWorkspace: (pane) => workspace.open(pane),
+    closeSettingsWorkspace: () => workspace.close(),
     startRuntime,
     getRuntimeSnapshot: () => ({ ...runtime }),
+    getHomeState: () => ({ ...homeState }),
+    getWorkspaceLayoutMode: workspace.getLayoutMode,
   };
 }
 

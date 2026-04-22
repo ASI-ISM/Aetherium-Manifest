@@ -16,9 +16,15 @@ No dashboard, HUD, debug panel, scholar panel, lineage panel, runtime console, c
 - `clean-first-surface.js`
   - App bootstrap and orchestration.
   - Settings Workspace wiring, persistence, and session audit export.
-  - Compatibility adapter mapping (`/api/intent` + `/ws/cognitive-stream`).
-  - Deferred runtime bootstrap; WebSocket, voice, and manifestation rendering remain inactive until Settings initializes runtime.
-  - Settings drawer keyboard/mouse dismissal behavior.
+  - Compatibility adapter mapping (`/api/v1/cognitive/emit`, `/api/v1/cognitive/validate`, `/ws/cognitive-stream`).
+  - Deferred runtime bootstrap; WebSocket, voice, and manifestation rendering remain inactive until Settings opens the Interaction pane (or user action).
+  - Settings workspace orchestration and audit export wiring.
+- `first_use_surface/settings-store.js`
+  - Session-safe persistence for workspace preferences and active pane migration.
+  - Whitelisted persistence only (no raw token/key fields).
+- `first_use_surface/settings-workspace.js`
+  - Dialog open/close lifecycle, focus trap, Escape support, and pane navigation.
+  - Responsive layout mode (`sheet` on desktop, `fullscreen` on mobile).
 - `first_use_surface/light-manifestation.js`
   - Luminous text renderer with glyph-sampling particle halo.
   - Calm ambient particle field.
@@ -30,7 +36,7 @@ No dashboard, HUD, debug panel, scholar panel, lineage panel, runtime console, c
   - Optional local rule-based detector layer (pluggable).
 - `clean-first-surface.js` intent transport
   - `adaptIntentRequest(intent, sessionId)` maps to compatibility payload `{ prompt, session_id, model, temperature }`.
-  - `emitIntent(intent)` sends to `${apiBase}/intent`.
+  - `emitIntent(intent)` sends to `${apiBase}/emit` where `apiBase` defaults to `/api/v1/cognitive`.
   - `adaptIntentResponse(payload)` normalizes backend response into the existing frontend stream shape.
 
 ## Language detection strategy
@@ -43,9 +49,18 @@ Resolution order:
 4. Deterministic language choice with confidence-based rules.
 5. Session language memory update.
 
-## Settings as a single advanced-control surface
+## Settings workspace information architecture
 
-All advanced controls are kept inside Settings Workspace:
+All runtime controls are kept inside a seven-pane Settings Workspace:
+
+- Interaction
+- Connectivity
+- Accessibility
+- Runtime
+- Output/Audit
+- Security
+- Developer
+
 
 - API/WS base paths.
 - Runtime mode and telemetry options.
