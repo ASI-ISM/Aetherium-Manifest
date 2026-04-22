@@ -924,8 +924,8 @@ async def cognitive_stream(websocket: WebSocket) -> None:
     try:
         while True:
             payload = await websocket.receive_json()
-            if payload.get("type") != "dsl_submission":
-                await websocket.send_json({"status": "error", "detail": "Invalid message type"})
+            if not isinstance(payload, dict) or payload.get("type") != "dsl_submission":
+                await websocket.send_json({"status": "error", "detail": "Invalid message format or type"})
                 continue
 
             requires_operator = bool(payload.get("requires_operator"))
