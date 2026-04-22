@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
+from pydantic import ValidationError
 
 os.environ.setdefault("AETHERIUM_API_KEY", "test-key")
 
@@ -56,6 +57,66 @@ def test_emit_invalid_payload(client: TestClient, api_key_header: dict[str, str]
 
 
 
+
+
+def test_particle_control_contract_accepts_object_attractor() -> None:
+    payload = {
+        "intent_state": {
+            "state": "RESPONDING",
+            "shape": "helix",
+            "particle_density": 0.6,
+            "velocity": 0.3,
+            "turbulence": 0.2,
+            "cohesion": 0.8,
+            "flow_direction": "outward",
+            "glow_intensity": 0.7,
+            "flicker": 0.1,
+            "attractor": {"x": 0.5, "y": 0.4},
+            "palette": {"mode": "adaptive", "primary": "#4169E1", "secondary": "#B0C4DE"},
+        },
+        "renderer_controls": {
+            "base_shape": "helix",
+            "chromatic_mode": "adaptive",
+            "particle_count": 8000,
+            "flow_field": "outward",
+            "shader_uniforms": {"glow_intensity": 0.7},
+            "runtime_profile": "cinematic",
+        },
+    }
+
+    contract = main.ParticleControlContract.model_validate(payload)
+
+    assert contract.intent_state.attractor.x == 0.5
+    assert contract.intent_state.attractor.y == 0.4
+
+
+def test_particle_control_contract_rejects_out_of_range_attractor() -> None:
+    payload = {
+        "intent_state": {
+            "state": "RESPONDING",
+            "shape": "helix",
+            "particle_density": 0.6,
+            "velocity": 0.3,
+            "turbulence": 0.2,
+            "cohesion": 0.8,
+            "flow_direction": "outward",
+            "glow_intensity": 0.7,
+            "flicker": 0.1,
+            "attractor": {"x": 1.2, "y": 0.4},
+            "palette": {"mode": "adaptive", "primary": "#4169E1", "secondary": "#B0C4DE"},
+        },
+        "renderer_controls": {
+            "base_shape": "helix",
+            "chromatic_mode": "adaptive",
+            "particle_count": 8000,
+            "flow_field": "outward",
+            "shader_uniforms": {"glow_intensity": 0.7},
+            "runtime_profile": "cinematic",
+        },
+    }
+
+    with pytest.raises(ValidationError):
+        main.ParticleControlContract.model_validate(payload)
 def test_emit_invalid_api_key_rejected(client: TestClient, valid_emit_payload: dict, api_key_header: dict[str, str]) -> None:
     invalid_headers = {"X-API-Key": f"{api_key_header['X-API-Key']}-invalid"}
     response = client.post("/api/v1/cognitive/emit", json=valid_emit_payload, headers=invalid_headers)
