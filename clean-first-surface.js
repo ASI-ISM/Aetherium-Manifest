@@ -628,7 +628,6 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
     setConnection('DISCONNECTED');
     hydrateControls();
     workspace.applyRoleGuards(sessionRole);
-    setRoleGuardState('Viewer role active: critical controls locked.');
     writeDiagnostics();
 
     if (typeof globalThis.addEventListener === 'function') {
