@@ -10,7 +10,11 @@ import re
 import socket
 import uuid
 import hashlib
-from datetime import datetime, timezone
+import hmac
+import base64
+import json
+import secrets
+from datetime import datetime, timezone, timedelta
 from statistics import mean
 from typing import Any, Dict, List, Literal, Optional, Union
 from urllib.parse import urlparse
@@ -102,6 +106,27 @@ class LegacyIntentRequest(BaseModel):
     session_id: Optional[str] = None
     model: str = Field(default="gpt-4o")
     temperature: float = Field(default=0.4, ge=0.0, le=2.0)
+
+
+class SessionTicketIssueRequest(BaseModel):
+    session_id: str = Field(..., min_length=1)
+    role: Literal["viewer", "operator"] = "viewer"
+    scope: Literal["cognitive:stream", "cognitive:stream:privileged"] = "cognitive:stream"
+
+
+class SessionTicketRefreshRequest(BaseModel):
+    ticket: str = Field(..., min_length=1)
+
+
+class SessionTicketResponse(BaseModel):
+    ticket: str
+    ticket_id: str
+    session_id: str
+    role: str
+    scope: str
+    state: Literal["issued", "renew_required"]
+    expires_at: str
+    ttl_seconds: int
 
 class GenerateResponse(BaseModel):
     text: str
@@ -313,6 +338,11 @@ REQUIRED_PIPELINE_ORDER = [
     "telemetry_log",
 ]
 
+TICKET_SECRET = os.getenv("SESSION_TICKET_SECRET", "aetherium-dev-ticket-secret").encode("utf-8")
+SESSION_TICKET_TTL_SECONDS = int(os.getenv("SESSION_TICKET_TTL_SECONDS", "60"))
+ALLOWED_WS_SCOPES = {"cognitive:stream", "cognitive:stream:privileged"}
+TICKET_AUDIT_TRAIL: deque[Dict[str, Any]] = deque(maxlen=2000)
+
 
 # --- In-memory State and Concurrency ---
 
@@ -487,6 +517,82 @@ def _ensure_api_key(x_api_key: str | None) -> None:
 
 def _extract_ws_api_key(websocket: WebSocket) -> str | None:
     return websocket.headers.get("x-api-key") or websocket.query_params.get("api_key")
+
+
+def _b64url_encode(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).decode("utf-8").rstrip("=")
+
+
+def _b64url_decode(raw: str) -> bytes:
+    padding = "=" * (-len(raw) % 4)
+    return base64.urlsafe_b64decode(raw + padding)
+
+
+def _audit_ticket_event(event: str, metadata: Dict[str, Any]) -> None:
+    TICKET_AUDIT_TRAIL.append({
+        "event": event,
+        "ts": datetime.now(timezone.utc).isoformat(),
+        **metadata,
+    })
+
+
+def _sign_ticket(payload: Dict[str, Any]) -> str:
+    serialized = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    signature = hmac.new(TICKET_SECRET, serialized, hashlib.sha256).digest()
+    return f"{_b64url_encode(serialized)}.{_b64url_encode(signature)}"
+
+
+def _verify_ticket(ticket: str) -> Dict[str, Any]:
+    try:
+        encoded_payload, encoded_sig = ticket.split(".", maxsplit=1)
+        payload_raw = _b64url_decode(encoded_payload)
+        signature = _b64url_decode(encoded_sig)
+    except Exception as exc:
+        raise HTTPException(status_code=401, detail="Malformed session ticket") from exc
+
+    expected = hmac.new(TICKET_SECRET, payload_raw, hashlib.sha256).digest()
+    if not hmac.compare_digest(signature, expected):
+        raise HTTPException(status_code=401, detail="Invalid session ticket signature")
+
+    try:
+        payload = json.loads(payload_raw.decode("utf-8"))
+        expires_at = datetime.fromtimestamp(float(payload.get("exp", 0)), tz=timezone.utc)
+    except Exception as exc:
+        raise HTTPException(status_code=401, detail="Malformed session ticket payload") from exc
+
+    if expires_at <= datetime.now(timezone.utc):
+        raise HTTPException(status_code=401, detail="Session ticket expired")
+
+    scope = payload.get("scope")
+    if scope not in ALLOWED_WS_SCOPES:
+        raise HTTPException(status_code=403, detail="Session ticket scope is not allowed")
+    return payload
+
+
+def _issue_ticket(session_id: str, role: str, scope: str) -> SessionTicketResponse:
+    now = datetime.now(timezone.utc)
+    expires = now + timedelta(seconds=SESSION_TICKET_TTL_SECONDS)
+    ticket_id = secrets.token_hex(8)
+    payload = {
+        "tid": ticket_id,
+        "sid": session_id,
+        "role": role,
+        "scope": scope,
+        "iat": now.timestamp(),
+        "exp": expires.timestamp(),
+    }
+    ticket = _sign_ticket(payload)
+    _audit_ticket_event("ticket_issued", {"ticket_id": ticket_id, "session_id": session_id, "role": role, "scope": scope})
+    return SessionTicketResponse(
+        ticket=ticket,
+        ticket_id=ticket_id,
+        session_id=session_id,
+        role=role,
+        scope=scope,
+        state="issued",
+        expires_at=expires.isoformat(),
+        ttl_seconds=SESSION_TICKET_TTL_SECONDS,
+    )
 
 async def _metrics_snapshot() -> dict[str, Any]:
     async with METRICS_LOCK:
@@ -772,21 +878,75 @@ def resolve_voice_model(language: str = "en-US", region: str = "us") -> dict[str
     model = _resolve_voice_model(language, region)
     return {"language": language, "region": region, "model": model}
 
+@app.post("/api/v1/auth/session", response_model=SessionTicketResponse)
+async def issue_session_ticket(
+    request: SessionTicketIssueRequest,
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+) -> SessionTicketResponse:
+    _ensure_api_key(x_api_key)
+    return _issue_ticket(request.session_id, request.role, request.scope)
+
+
+@app.post("/api/v1/auth/session/refresh", response_model=SessionTicketResponse)
+async def refresh_session_ticket(
+    request: SessionTicketRefreshRequest,
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+) -> SessionTicketResponse:
+    _ensure_api_key(x_api_key)
+    payload = _verify_ticket(request.ticket)
+    return _issue_ticket(payload["sid"], payload["role"], payload["scope"])
+
+
+@app.get("/api/v1/auth/session/audit")
+async def session_ticket_audit_log(
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+) -> dict[str, Any]:
+    _ensure_api_key(x_api_key)
+    return {"count": len(TICKET_AUDIT_TRAIL), "events": list(TICKET_AUDIT_TRAIL)}
+
+
 # --- WebSocket Endpoints ---
 
 @app.websocket("/ws/cognitive-stream")
 async def cognitive_stream(websocket: WebSocket) -> None:
-    api_key = _extract_ws_api_key(websocket)
-    if not api_key:
-        await websocket.close(code=1008, reason="Missing API Key")
+    ticket = websocket.query_params.get("ticket")
+    if not ticket:
+        await websocket.close(code=1008, reason="Missing session ticket")
         return
-    await websocket.accept()
+
+    try:
+        ticket_payload = _verify_ticket(ticket)
+    except HTTPException as exc:
+        await websocket.close(code=1008, reason=str(exc.detail))
+        return
+
+    await websocket.accept(subprotocol="aetherium-ticket-v1")
     try:
         while True:
             payload = await websocket.receive_json()
-            if payload.get("type") != "dsl_submission":
-                await websocket.send_json({"status": "error", "detail": "Invalid message type"})
+            if not isinstance(payload, dict) or payload.get("type") != "dsl_submission":
+                await websocket.send_json({"status": "error", "detail": "Invalid message format or type"})
                 continue
+
+            requires_operator = bool(payload.get("requires_operator"))
+            role = ticket_payload.get("role", "viewer")
+            scope = ticket_payload.get("scope", "")
+            if requires_operator and (role != "operator" or scope != "cognitive:stream:privileged"):
+                _audit_ticket_event("privileged_ws_action_rejected", {
+                    "ticket_id": ticket_payload.get("tid"),
+                    "session_id": ticket_payload.get("sid"),
+                    "required_role": "operator",
+                    "actual_role": role,
+                })
+                await websocket.send_json({"status": "error", "detail": "Insufficient role for privileged action"})
+                continue
+
+            if requires_operator:
+                _audit_ticket_event("privileged_ws_action_accepted", {
+                    "ticket_id": ticket_payload.get("tid"),
+                    "session_id": ticket_payload.get("sid"),
+                    "action": payload.get("action", "unspecified"),
+                })
             await websocket.send_json({"status": "accepted", "echo": payload})
     except WebSocketDisconnect:
         pass

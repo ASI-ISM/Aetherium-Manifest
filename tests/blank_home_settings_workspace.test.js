@@ -25,6 +25,17 @@ function setupDom({ width = 1280 } = {}) {
     configurable: true,
   });
   Object.defineProperty(globalThis, 'requestAnimationFrame', { value: vi.fn(), configurable: true });
+  Object.defineProperty(globalThis, 'fetch', {
+    value: vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ticket: 'signed-ticket',
+        expires_at: new Date(Date.now() + 60_000).toISOString(),
+        state: 'issued',
+      }),
+    }),
+    configurable: true,
+  });
 
   return dom;
 }
@@ -74,11 +85,20 @@ describe('deferred runtime policy', () => {
   it('keeps websocket and voice initialization deferred before workspace interaction', async () => {
     const dom = setupDom();
     const wsCtor = vi.fn(() => ({ close: vi.fn() }));
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ticket: 'signed-ticket',
+        expires_at: new Date(Date.now() + 60_000).toISOString(),
+        state: 'issued',
+      }),
+    });
     Object.defineProperty(globalThis, 'WebSocket', { value: wsCtor, configurable: true });
 
     const app = createApp(dom.window.document, {
       manifestationFactory: stubManifestation,
       socketFactory: wsCtor,
+      fetchImpl,
       windowRef: dom.window,
     });
     app.bootstrap();
@@ -101,6 +121,31 @@ describe('deferred runtime policy', () => {
     expect(app.getRuntimeSnapshot().voiceInitialized).toBe(true);
     expect(wsCtor).toHaveBeenCalledTimes(1);
   });
+
+  it('shows live ticket state in the security pane', async () => {
+    const dom = setupDom();
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ticket: 'signed-ticket',
+        expires_at: new Date(Date.now() + 45_000).toISOString(),
+        state: 'issued',
+      }),
+    });
+    const wsCtor = vi.fn(() => ({ close: vi.fn() }));
+
+    const app = createApp(dom.window.document, {
+      manifestationFactory: stubManifestation,
+      socketFactory: wsCtor,
+      fetchImpl,
+      windowRef: dom.window,
+    });
+    app.bootstrap();
+    app.openSettingsWorkspace('interaction');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(dom.window.document.getElementById('token-state').textContent).toContain('issued');
+  });
 });
 
 describe('compatibility adapter behavior', () => {
@@ -118,6 +163,14 @@ describe('compatibility adapter behavior', () => {
     const dom = setupDom();
     const fetchImpl = vi
       .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          ticket: 'signed-ticket',
+          expires_at: new Date(Date.now() + 60_000).toISOString(),
+          state: 'issued',
+        }),
+      })
       .mockResolvedValueOnce({ ok: false, status: 401 });
 
     const app = createApp(dom.window.document, {
@@ -136,8 +189,8 @@ describe('compatibility adapter behavior', () => {
     form.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(fetchImpl.mock.calls[0][0]).toBe('/api/v1/cognitive/generate');
-    expect(fetchImpl.mock.calls[1][0]).toBe('http://localhost/api/intent');
+    expect(fetchImpl.mock.calls[0][0]).toBe('/api/v1/auth/session');
+    expect(fetchImpl.mock.calls[1][0]).toBe('/api/v1/cognitive/generate');
   });
 });
 
@@ -145,11 +198,20 @@ describe('runtime audit and role guard', () => {
   it('creates audit entries for runtime-critical toggles and reconnect action', async () => {
     const dom = setupDom();
     const wsCtor = vi.fn(() => ({ close: vi.fn() }));
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ticket: 'signed-ticket',
+        expires_at: new Date(Date.now() + 60_000).toISOString(),
+        state: 'issued',
+      }),
+    });
     Object.defineProperty(globalThis, 'WebSocket', { value: wsCtor, configurable: true });
 
     const app = createApp(dom.window.document, {
       manifestationFactory: stubManifestation,
       socketFactory: wsCtor,
+      fetchImpl,
       windowRef: dom.window,
     });
     app.bootstrap();

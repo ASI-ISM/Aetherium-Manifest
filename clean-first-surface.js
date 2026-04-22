@@ -35,6 +35,8 @@ export function resolveCompatibilityEndpoints(preferences) {
     emitUrl: `${apiBase}/generate`,
     validateUrl: `${apiBase}/validate`,
     wsUrl: preferences.wsBase || '/ws/cognitive-stream',
+    authSessionUrl: '/api/v1/auth/session',
+    authSessionRefreshUrl: '/api/v1/auth/session/refresh',
   };
 }
 
@@ -164,6 +166,11 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
     voiceSupported: false,
     recognition: null,
   };
+  const sessionTicket = {
+    value: '',
+    expiresAtMs: 0,
+    state: 'renew required',
+  };
 
   const homeState = createDefaultHomeShellState(preferences.activePane, preferences.reducedMotion);
 
@@ -203,9 +210,57 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
     elements.connectionStatus.textContent = CONNECTION_STATES[state] ?? CONNECTION_STATES.DISCONNECTED;
   };
 
-  const setSessionTicketState = (text = 'Session ticket: ephemeral') => {
+  const setSessionTicketState = (text = 'Session ticket: renew required') => {
     if (!elements.tokenState) return;
     elements.tokenState.textContent = text;
+  };
+
+  const isSessionTicketValid = () => {
+    return Boolean(sessionTicket.value) && sessionTicket.expiresAtMs > Date.now();
+  };
+
+  const syncTicketPaneState = () => {
+    if (!sessionTicket.value) {
+      setSessionTicketState('Session ticket: renew required');
+      return;
+    }
+    if (!isSessionTicketValid()) {
+      sessionTicket.state = 'renew required';
+      setSessionTicketState('Session ticket: renew required');
+      return;
+    }
+    const secondsLeft = Math.max(0, Math.floor((sessionTicket.expiresAtMs - Date.now()) / 1000));
+    sessionTicket.state = 'issued';
+    setSessionTicketState(`Session ticket: issued (${secondsLeft}s left)`);
+  };
+
+  const issueSessionTicket = async ({ refresh = false } = {}) => {
+    const endpoints = resolveCompatibilityEndpoints(preferences);
+    const fetchImpl = deps.fetchImpl ?? fetch;
+    const url = refresh ? endpoints.authSessionRefreshUrl : endpoints.authSessionUrl;
+    const body = refresh
+      ? { ticket: sessionTicket.value }
+      : { session_id: sessionId, role: sessionRole, scope: sessionRole === 'operator' ? 'cognitive:stream:privileged' : 'cognitive:stream' };
+
+    const response = await fetchImpl(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(deps.apiKey ? { 'X-API-Key': deps.apiKey } : {}) },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      sessionTicket.value = '';
+      sessionTicket.expiresAtMs = 0;
+      sessionTicket.state = 'renew required';
+      syncTicketPaneState();
+      throw new Error(`ticket bootstrap failed (${response.status})`);
+    }
+
+    const payload = await response.json();
+    sessionTicket.value = payload.ticket || '';
+    sessionTicket.expiresAtMs = payload.expires_at ? Date.parse(payload.expires_at) : 0;
+    sessionTicket.state = payload.state || 'issued';
+    syncTicketPaneState();
   };
 
   const writeDiagnostics = () => {
@@ -275,11 +330,14 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
     pushSessionEvent({ session_id: sessionId, transport: 'ws_state', payload: adapted });
   };
 
-  const connectWS = (url) => {
+  const connectWS = async (url) => {
     if (!runtime.started) return;
 
     const target = resolveWsUrl(url);
     if (!target) return;
+    if (!isSessionTicketValid()) {
+      await issueSessionTicket({ refresh: Boolean(sessionTicket.value) });
+    }
 
     if (runtime.socket) {
       runtime.socket.close();
@@ -288,7 +346,9 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
 
     setConnection('RECONNECTING');
     const socketFactory = deps.socketFactory ?? ((wsUrl) => new WebSocket(wsUrl));
-    const socket = socketFactory(target);
+    const wsTarget = new URL(target);
+    wsTarget.searchParams.set('ticket', sessionTicket.value);
+    const socket = socketFactory(wsTarget.toString(), ['aetherium-ticket-v1']);
     runtime.socket = socket;
 
     socket.onopen = () => {
@@ -304,6 +364,7 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
       homeState.gatewayConnected = false;
       runtime.socket = null;
       setConnection('DISCONNECTED');
+      syncTicketPaneState();
       writeDiagnostics();
     };
 
@@ -311,6 +372,7 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
       runtime.wsConnected = false;
       homeState.gatewayConnected = false;
       setConnection('DISCONNECTED');
+      syncTicketPaneState();
       writeDiagnostics();
     };
 
@@ -385,7 +447,7 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
     ensureLanguageLayer();
 
     setStatus('Runtime initialized');
-    connectWS(preferences.wsBase);
+    await connectWS(preferences.wsBase);
 
     initVoice();
 
@@ -413,13 +475,16 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
         signal: controller.signal,
       });
       if (response.status === 401 || response.status === 403) {
-        setSessionTicketState('Session ticket required');
+        sessionTicket.value = '';
+        sessionTicket.expiresAtMs = 0;
+        sessionTicket.state = 'renew required';
+        syncTicketPaneState();
         setConnection('DISCONNECTED');
         throw new Error('Session ticket required');
       }
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-      setSessionTicketState('Session ticket: active');
+      syncTicketPaneState();
       const payload = await response.json();
       const adapted = adaptIntentResponse(payload);
       ensureManifestation().manifestText(adapted.text || intent, 'request');
@@ -565,7 +630,7 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
       elements.reconnectConfirmButton.disabled = true;
       auditRuntimeChange('reconnectAction', 'armed', 'confirmed');
       await ensureInteractionRuntime();
-      connectWS(preferences.wsBase);
+      await connectWS(preferences.wsBase);
     });
 
     elements.exportButton?.addEventListener('click', () => {
@@ -626,6 +691,7 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
     setStatus('');
     setFallback('');
     setConnection('DISCONNECTED');
+    syncTicketPaneState();
     hydrateControls();
     workspace.applyRoleGuards(sessionRole);
     writeDiagnostics();

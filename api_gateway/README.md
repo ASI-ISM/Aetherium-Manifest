@@ -6,9 +6,12 @@
 
 - `POST /api/v1/cognitive/emit`
 - `POST /api/v1/cognitive/validate`
+- `POST /api/v1/auth/session` (issue short-lived signed WS ticket)
+- `POST /api/v1/auth/session/refresh` (refresh short-lived signed WS ticket)
+- `GET /api/v1/auth/session/audit` (ticket issuance + privileged WS action audit)
 - `POST /api/v1/cognitive/variations/generate` (generate 4–8 variation branches with lineage metadata)
 - `GET /health`
-- `WS /ws/cognitive-stream` *(served by `ws_gateway`, not by this FastAPI process)*
+- `WS /ws/cognitive-stream` (requires valid `ticket` query parameter)
 
 ### Required Headers
 - `X-API-Key`
