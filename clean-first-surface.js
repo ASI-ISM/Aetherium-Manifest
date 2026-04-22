@@ -109,6 +109,7 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
   let preferences = store.load();
 
   const sessionId = createSessionId();
+  let sessionRole = 'viewer';
   const sessionAudit = [];
   const inputRuntime = { isComposing: false, lastCompositionEndAt: -Infinity };
 
@@ -140,6 +141,10 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
     clearSessionButton: documentRef.getElementById('clear-session'),
     voiceCaptureButton: documentRef.getElementById('voice-capture'),
     dangerResetButton: documentRef.getElementById('danger-reset'),
+    dangerResetConfirmButton: documentRef.getElementById('danger-reset-confirm'),
+    reconnectConfirmButton: documentRef.getElementById('btn-connect-confirm'),
+    sessionRole: documentRef.getElementById('session-role'),
+    roleGuardState: documentRef.getElementById('role-guard-state'),
     diagnostics: documentRef.getElementById('dev-diagnostics'),
   };
 
@@ -163,7 +168,26 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
   const homeState = createDefaultHomeShellState(preferences.activePane, preferences.reducedMotion);
 
   const pushSessionEvent = (event) => {
-    sessionAudit.push({ ...event, at: new Date().toISOString() });
+    sessionAudit.push({
+      event_type: event.event_type || 'session_event',
+      actor: event.actor || sessionRole,
+      session_id: event.session_id || sessionId,
+      control: event.control || event.transport || 'session',
+      old_value: event.old_value ?? null,
+      new_value: event.new_value ?? null,
+      timestamp: event.timestamp || new Date().toISOString(),
+      metadata: event.metadata || {},
+    });
+  };
+
+  const auditRuntimeChange = (control, before, after, metadata = {}) => {
+    pushSessionEvent({
+      event_type: 'runtime_change',
+      control,
+      old_value: before,
+      new_value: after,
+      metadata,
+    });
   };
 
   const setStatus = (text = '') => {
@@ -193,6 +217,7 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
       voiceReady: homeState.voiceReady,
       manifestationReady: homeState.manifestationReady,
       reducedMotion: homeState.reducedMotion,
+      role: sessionRole,
     };
     elements.diagnostics.textContent = JSON.stringify(payload, null, 2);
   };
@@ -202,6 +227,10 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
     homeState.activePane = preferences.activePane;
     homeState.reducedMotion = Boolean(preferences.reducedMotion);
     writeDiagnostics();
+  };
+
+  const setRoleGuardState = (text) => {
+    if (elements.roleGuardState) elements.roleGuardState.textContent = text;
   };
 
   const hydrateControls = () => {
@@ -434,6 +463,10 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
 
   const workspace = createSettingsWorkspace(documentRef, {
     windowRef: deps.windowRef ?? globalThis,
+    getRole: () => sessionRole,
+    onRoleGuardApplied: (role) => {
+      setRoleGuardState(role === 'operator' ? 'Operator role active: critical controls unlocked.' : 'Viewer role active: critical controls locked.');
+    },
     getLastPane: () => preferences.activePane,
     onPaneActivated,
     onOpened: () => {
@@ -475,8 +508,16 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
     elements.wsBase?.addEventListener('change', (event) => persistPreferences({ wsBase: event.target.value.trim() || '/ws/cognitive-stream' }));
     elements.languagePreference?.addEventListener('change', (event) => persistPreferences({ language: event.target.value }));
     elements.fontScale?.addEventListener('change', (event) => persistPreferences({ fontScale: event.target.value }));
-    elements.runtimeMode?.addEventListener('change', (event) => persistPreferences({ runtimeMode: event.target.value }));
-    elements.environmentTarget?.addEventListener('change', (event) => persistPreferences({ environmentTarget: event.target.value }));
+    elements.runtimeMode?.addEventListener('change', (event) => {
+      const nextValue = event.target.value;
+      auditRuntimeChange('runtimeMode', preferences.runtimeMode, nextValue);
+      persistPreferences({ runtimeMode: nextValue });
+    });
+    elements.environmentTarget?.addEventListener('change', (event) => {
+      const nextValue = event.target.value;
+      auditRuntimeChange('environmentTarget', preferences.environmentTarget, nextValue);
+      persistPreferences({ environmentTarget: nextValue });
+    });
 
     elements.reducedMotionToggle?.addEventListener('change', (event) => {
       const reducedMotion = event.target.checked;
@@ -492,12 +533,37 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
       }
     });
 
-    elements.telemetryToggle?.addEventListener('change', (event) => persistPreferences({ telemetryVisible: event.target.checked }));
-    elements.governorToggle?.addEventListener('change', (event) => persistPreferences({ governorVisible: event.target.checked }));
-    elements.manifestationToggle?.addEventListener('change', (event) => persistPreferences({ manifestationEnabled: event.target.checked }));
+    elements.telemetryToggle?.addEventListener('change', (event) => {
+      const nextValue = event.target.checked;
+      auditRuntimeChange('telemetryToggle', preferences.telemetryVisible, nextValue);
+      persistPreferences({ telemetryVisible: nextValue });
+    });
+    elements.governorToggle?.addEventListener('change', (event) => {
+      const nextValue = event.target.checked;
+      auditRuntimeChange('governorToggle', preferences.governorVisible, nextValue);
+      persistPreferences({ governorVisible: nextValue });
+    });
+    elements.manifestationToggle?.addEventListener('change', (event) => {
+      const nextValue = event.target.checked;
+      auditRuntimeChange('manifestationToggle', preferences.manifestationEnabled, nextValue);
+      persistPreferences({ manifestationEnabled: nextValue });
+    });
     elements.developerToolsToggle?.addEventListener('change', (event) => persistPreferences({ developerEnabled: event.target.checked }));
 
-    elements.connectButton?.addEventListener('click', async () => {
+    let reconnectArmed = false;
+    let dangerResetArmed = false;
+
+    elements.connectButton?.addEventListener('click', () => {
+      reconnectArmed = true;
+      if (elements.reconnectConfirmButton) elements.reconnectConfirmButton.disabled = false;
+      setStatus('Reconnect armed. Confirm to continue.');
+    });
+
+    elements.reconnectConfirmButton?.addEventListener('click', async () => {
+      if (!reconnectArmed) return;
+      reconnectArmed = false;
+      elements.reconnectConfirmButton.disabled = true;
+      auditRuntimeChange('reconnectAction', 'armed', 'confirmed');
       await ensureInteractionRuntime();
       connectWS(preferences.wsBase);
     });
@@ -520,10 +586,35 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
     });
 
     elements.dangerResetButton?.addEventListener('click', () => {
-      const confirmed = globalThis.confirm?.('Confirm dangerous reset?') ?? false;
-      if (!confirmed) return;
-      pushSessionEvent({ session_id: sessionId, transport: 'dangerous_reset_confirmed' });
+      dangerResetArmed = true;
+      if (elements.dangerResetConfirmButton) elements.dangerResetConfirmButton.disabled = false;
+      setStatus('Dangerous reset armed. Confirm to continue.');
+    });
+
+    elements.dangerResetConfirmButton?.addEventListener('click', () => {
+      if (!dangerResetArmed) return;
+      dangerResetArmed = false;
+      elements.dangerResetConfirmButton.disabled = true;
+      auditRuntimeChange('dangerousReset', 'armed', 'confirmed');
       setStatus('Runtime reset queued');
+    });
+
+    elements.sessionRole?.addEventListener('change', (event) => {
+      const previousRole = sessionRole;
+      sessionRole = event.target.value === 'operator' ? 'operator' : 'viewer';
+      workspace.applyRoleGuards(sessionRole);
+      if (sessionRole !== 'operator') {
+        reconnectArmed = false;
+        dangerResetArmed = false;
+        if (elements.reconnectConfirmButton) elements.reconnectConfirmButton.disabled = true;
+        if (elements.dangerResetConfirmButton) elements.dangerResetConfirmButton.disabled = true;
+      }
+      pushSessionEvent({
+        event_type: 'role_change',
+        control: 'sessionRole',
+        old_value: previousRole,
+        new_value: sessionRole,
+      });
     });
   };
 
@@ -536,6 +627,7 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
     setFallback('');
     setConnection('DISCONNECTED');
     hydrateControls();
+    workspace.applyRoleGuards(sessionRole);
     writeDiagnostics();
 
     if (typeof globalThis.addEventListener === 'function') {
@@ -551,6 +643,7 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
     getRuntimeSnapshot: () => ({ ...runtime }),
     getHomeState: () => ({ ...homeState }),
     getWorkspaceLayoutMode: workspace.getLayoutMode,
+    getSessionAudit: () => sessionAudit.map((entry) => ({ ...entry })),
   };
 }
 

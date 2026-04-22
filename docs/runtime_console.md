@@ -103,3 +103,22 @@ State sync now uses `room_event.v1` envelopes (`ws_gateway/room-events.schema.js
 - `conflict_resolution` audit events for stale `base_stream_id` during concurrent edits
 
 Conflict policy is deterministic and replayable: optimistic concurrency with **last write wins** and explicit conflict event emission before accepting the stale write.
+
+## Runtime safety controls (settings workspace)
+
+- Runtime-critical controls (`runtime mode`, `telemetry`, `governor`, `manifestation`, `environment target`, and `reconnect`) emit structured `sessionAudit` events through `auditRuntimeChange(control, before, after)`.
+- `sessionAudit` events use a stable shape:
+  - `event_type`
+  - `actor`
+  - `session_id`
+  - `control`
+  - `old_value`
+  - `new_value`
+  - `timestamp`
+  - `metadata`
+- Security pane exposes session role guard (`viewer`, `operator`).
+  - `viewer`: destructive controls locked.
+  - `operator`: destructive controls unlocked.
+- Dangerous actions require two explicit steps:
+  - arm action
+  - confirm action

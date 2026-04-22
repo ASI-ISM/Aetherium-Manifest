@@ -4,6 +4,15 @@ function isDesktopViewport(win = globalThis) {
   return (win.innerWidth || 0) >= 800;
 }
 
+const ROLE_WEIGHT = Object.freeze({
+  viewer: 0,
+  operator: 1,
+});
+
+function hasRequiredRole(role, minimumRole) {
+  return (ROLE_WEIGHT[role] ?? 0) >= (ROLE_WEIGHT[minimumRole] ?? 0);
+}
+
 export function createSettingsWorkspace(documentRef, config = {}) {
   const shell = documentRef.getElementById('settings-workspace');
   const dialog = documentRef.getElementById('settings-dialog');
@@ -13,6 +22,7 @@ export function createSettingsWorkspace(documentRef, config = {}) {
   const paneBodies = Array.from(documentRef.querySelectorAll('[data-pane-body]'));
 
   let lastFocused = null;
+  let activeRole = config.getRole?.() || 'viewer';
 
   const getFocusable = () => {
     if (!dialog) return [];
@@ -26,6 +36,23 @@ export function createSettingsWorkspace(documentRef, config = {}) {
   const applyViewportMode = () => {
     if (!dialog) return;
     dialog.dataset.layout = isDesktopViewport(config.windowRef) ? 'sheet' : 'fullscreen';
+  };
+
+  const applyRoleGuards = (role = activeRole) => {
+    activeRole = role;
+    const restricted = Array.from(documentRef.querySelectorAll('[data-min-role]'));
+    restricted.forEach((element) => {
+      const minimumRole = element.dataset.minRole || 'viewer';
+      const allowed = hasRequiredRole(role, minimumRole);
+      element.disabled = !allowed;
+      element.setAttribute('aria-disabled', String(!allowed));
+      if (!allowed) {
+        element.dataset.locked = 'true';
+      } else {
+        delete element.dataset.locked;
+      }
+    });
+    config.onRoleGuardApplied?.(role);
   };
 
   const activatePane = (paneId, { focus = false } = {}) => {
@@ -124,6 +151,8 @@ export function createSettingsWorkspace(documentRef, config = {}) {
     if (typeof win.addEventListener === 'function') {
       win.addEventListener('resize', applyViewportMode);
     }
+
+    applyRoleGuards(activeRole);
   };
 
   return {
@@ -133,5 +162,6 @@ export function createSettingsWorkspace(documentRef, config = {}) {
     activatePane,
     isOpen: () => Boolean(shell && !shell.hidden),
     getLayoutMode: () => dialog?.dataset.layout || 'sheet',
+    applyRoleGuards,
   };
 }

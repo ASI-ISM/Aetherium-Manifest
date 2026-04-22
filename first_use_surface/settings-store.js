@@ -26,6 +26,22 @@ const DEFAULT_PREFERENCES = Object.freeze({
   developerEnabled: false,
 });
 
+const SAFE_PREFERENCE_KEYS = Object.freeze([
+  'activePane',
+  'language',
+  'fontScale',
+  'reducedMotion',
+  'apiBase',
+  'wsBase',
+  'environmentTarget',
+  'runtimeMode',
+  'telemetryVisible',
+  'governorVisible',
+  'manifestationEnabled',
+  'voiceEnabled',
+  'developerEnabled',
+]);
+
 function safeJsonParse(raw) {
   try {
     return JSON.parse(raw);
@@ -56,6 +72,15 @@ function normalizePreferences(input = {}) {
   };
 }
 
+function pickSafePreferences(input = {}) {
+  return SAFE_PREFERENCE_KEYS.reduce((acc, key) => {
+    if (Object.prototype.hasOwnProperty.call(input, key)) {
+      acc[key] = input[key];
+    }
+    return acc;
+  }, {});
+}
+
 export function createSettingsStore(storage = globalThis.localStorage) {
   const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   const seed = normalizePreferences({ reducedMotion });
@@ -65,11 +90,11 @@ export function createSettingsStore(storage = globalThis.localStorage) {
     if (!raw) return seed;
     const parsed = safeJsonParse(raw);
     if (!parsed) return seed;
-    return normalizePreferences({ ...seed, ...parsed });
+    return normalizePreferences({ ...seed, ...pickSafePreferences(parsed) });
   };
 
   const write = (next) => {
-    const normalized = normalizePreferences(next);
+    const normalized = normalizePreferences(pickSafePreferences(next));
     storage?.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(normalized));
     return normalized;
   };

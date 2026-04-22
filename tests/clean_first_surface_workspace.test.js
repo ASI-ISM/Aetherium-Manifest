@@ -15,7 +15,7 @@ describe('compatibility adapter', () => {
     expect(request.session_id).toBe('s1');
 
     const endpoints = resolveCompatibilityEndpoints({ apiBase: '/api/v1/cognitive', wsBase: '/ws/cognitive-stream' });
-    expect(endpoints.emitUrl).toBe('/api/v1/cognitive/emit');
+    expect(endpoints.emitUrl).toBe('/api/v1/cognitive/generate');
     expect(endpoints.validateUrl).toBe('/api/v1/cognitive/validate');
     expect(endpoints.wsUrl).toBe('/ws/cognitive-stream');
   });
