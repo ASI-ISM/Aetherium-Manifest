@@ -6,19 +6,18 @@ This document describes the refactored homepage runtime for Aetherium Manifest.
 
 The homepage intentionally renders only:
 
-- Full-screen manifestation canvas (light field).
-- Minimal bottom composer.
+- A blank surface.
 - One Settings button.
-- Subtle human-readable status text and a lightweight readable fallback line.
 
-No dashboard, HUD, debug panel, scholar panel, lineage panel, or runtime console is shown on first view.
+No dashboard, HUD, debug panel, scholar panel, lineage panel, runtime console, composer, or voice controls are shown on first view.
 
 ## Module split
 
 - `clean-first-surface.js`
   - App bootstrap and orchestration.
-  - Settings wiring, persistence, and session audit export.
-  - Voice progressive-enhancement integration.
+  - Settings Workspace wiring, persistence, and session audit export.
+  - Compatibility adapter mapping (`/api/intent` + `/ws/cognitive-stream`).
+  - Deferred runtime bootstrap; WebSocket, voice, and manifestation rendering remain inactive until Settings initializes runtime.
   - Settings drawer keyboard/mouse dismissal behavior.
 - `first_use_surface/light-manifestation.js`
   - Luminous text renderer with glyph-sampling particle halo.
@@ -30,8 +29,9 @@ No dashboard, HUD, debug panel, scholar panel, lineage panel, or runtime console
   - Browser-locale + character-range baseline detection.
   - Optional local rule-based detector layer (pluggable).
 - `clean-first-surface.js` intent transport
-  - `emitIntent(intent)` sends `{ intent, session_id }` to `${apiBase}/intent`.
-  - Frontend treats backend response as transport-only success/failure and waits for validated state via stream update.
+  - `adaptIntentRequest(intent, sessionId)` maps to compatibility payload `{ prompt, session_id, model, temperature }`.
+  - `emitIntent(intent)` sends to `${apiBase}/intent`.
+  - `adaptIntentResponse(payload)` normalizes backend response into the existing frontend stream shape.
 
 ## Language detection strategy
 
@@ -45,13 +45,14 @@ Resolution order:
 
 ## Settings as a single advanced-control surface
 
-All advanced controls are kept inside Settings:
+All advanced controls are kept inside Settings Workspace:
 
 - API/WS base paths.
 - Runtime mode and telemetry options.
 - Lineage/replay/scholar/governor/developer toggles.
 - Reduced-motion and language/voice/local-detector options.
 - Optional voice capture trigger and session-audit export.
+- Runtime initialization trigger (deferred startup gate).
 
 ## Fallback behavior
 
