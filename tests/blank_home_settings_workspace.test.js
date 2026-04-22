@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { JSDOM } from 'jsdom';
 
-import { createApp } from '../clean-first-surface.js';
+import { createApp, resolveCompatibilityEndpoints } from '../clean-first-surface.js';
 
 const html = fs.readFileSync(path.resolve('index.html'), 'utf8');
 const stubManifestation = () => ({
@@ -84,18 +84,64 @@ describe('deferred runtime policy', () => {
     app.bootstrap();
 
     expect(app.getRuntimeSnapshot().started).toBe(false);
+    expect(app.getRuntimeSnapshot().voiceInitialized).toBe(false);
     expect(wsCtor).not.toHaveBeenCalled();
 
     app.openSettingsWorkspace('connectivity');
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(app.getRuntimeSnapshot().started).toBe(false);
+    expect(app.getRuntimeSnapshot().voiceInitialized).toBe(false);
     expect(wsCtor).not.toHaveBeenCalled();
 
     app.openSettingsWorkspace('interaction');
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(app.getRuntimeSnapshot().started).toBe(true);
+    expect(app.getRuntimeSnapshot().voiceInitialized).toBe(true);
     expect(wsCtor).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('compatibility adapter behavior', () => {
+  it('maps to canonical cognitive routes and ws endpoint', () => {
+    const endpoints = resolveCompatibilityEndpoints({
+      apiBase: '/api/v1/cognitive/',
+      wsBase: '/ws/cognitive-stream',
+    });
+    expect(endpoints.emitUrl).toBe('/api/v1/cognitive/generate');
+    expect(endpoints.validateUrl).toBe('/api/v1/cognitive/validate');
+    expect(endpoints.wsUrl).toBe('/ws/cognitive-stream');
+  });
+
+  it('falls back to legacy intent endpoint when canonical route rejects unsigned request', async () => {
+    const dom = setupDom();
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 401 })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ text: 'compatibility response', intent_vector: {}, visual_manifestation: {} }),
+      });
+
+    const app = createApp(dom.window.document, {
+      manifestationFactory: stubManifestation,
+      fetchImpl,
+      socketFactory: () => ({ close: vi.fn() }),
+      windowRef: dom.window,
+    });
+    app.bootstrap();
+    app.openSettingsWorkspace('interaction');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const input = dom.window.document.getElementById('intent-input');
+    const form = dom.window.document.getElementById('composer');
+    input.value = 'hello adapter';
+    form.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(fetchImpl.mock.calls[0][0]).toBe('/api/v1/cognitive/generate');
+    expect(fetchImpl.mock.calls[1][0]).toBe('/api/intent');
   });
 });

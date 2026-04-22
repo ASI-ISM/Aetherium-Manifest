@@ -4,19 +4,19 @@ This document describes the refactored homepage runtime for Aetherium Manifest.
 
 ## First-view contract
 
-The homepage intentionally renders only:
+The awakening surface intentionally renders only:
 
 - A blank surface.
 - One Settings button.
 
-No dashboard, HUD, debug panel, scholar panel, lineage panel, runtime console, composer, or voice controls are shown on first view.
+No dashboard, HUD, debug panel, scholar panel, lineage panel, runtime console, composer, or voice controls are shown in the first view.
 
 ## Module split
 
 - `clean-first-surface.js`
   - App bootstrap and orchestration.
   - Settings Workspace wiring, persistence, and session audit export.
-  - Compatibility adapter mapping (`/api/v1/cognitive/emit`, `/api/v1/cognitive/validate`, `/ws/cognitive-stream`).
+  - Compatibility adapter mapping (`/api/v1/cognitive/generate`, `/api/v1/cognitive/validate`, `/ws/cognitive-stream`) with fallback to `/api/intent`.
   - Deferred runtime bootstrap; WebSocket, voice, and manifestation rendering remain inactive until Settings opens the Interaction pane (or user action).
   - Settings workspace orchestration and audit export wiring.
 - `first_use_surface/settings-store.js`
@@ -36,7 +36,7 @@ No dashboard, HUD, debug panel, scholar panel, lineage panel, runtime console, c
   - Optional local rule-based detector layer (pluggable).
 - `clean-first-surface.js` intent transport
   - `adaptIntentRequest(intent, sessionId)` maps to compatibility payload `{ prompt, session_id, model, temperature }`.
-  - `emitIntent(intent)` sends to `${apiBase}/emit` where `apiBase` defaults to `/api/v1/cognitive`.
+  - `emitIntent(intent)` sends to `${apiBase}/generate` where `apiBase` defaults to `/api/v1/cognitive`.
   - `adaptIntentResponse(payload)` normalizes backend response into the existing frontend stream shape.
 
 ## Language detection strategy
@@ -49,9 +49,9 @@ Resolution order:
 4. Deterministic language choice with confidence-based rules.
 5. Session language memory update.
 
-## Settings workspace information architecture
+## Operational sanctum information architecture
 
-All runtime controls are kept inside a seven-pane Settings Workspace:
+All runtime controls are kept inside a seven-pane Settings Workspace (operational sanctum):
 
 - Interaction
 - Connectivity
