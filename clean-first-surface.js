@@ -32,8 +32,9 @@ export function createDefaultHomeShellState(activePane = 'interaction', reducedM
 export function resolveCompatibilityEndpoints(preferences) {
   const apiBase = (preferences.apiBase || '/api/v1/cognitive').replace(/\/$/, '');
   return {
-    emitUrl: `${apiBase}/emit`,
+    emitUrl: `${apiBase}/generate`,
     validateUrl: `${apiBase}/validate`,
+    legacyIntentUrl: '/api/intent',
     wsUrl: preferences.wsBase || '/ws/cognitive-stream',
   };
 }
@@ -42,6 +43,14 @@ export function adaptIntentRequest(intent, sessionId) {
   return {
     prompt: intent,
     session_id: sessionId,
+    model: 'gpt-4o',
+    temperature: 0.4,
+  };
+}
+
+function adaptGenerateRequest(intent) {
+  return {
+    prompt: intent,
     model: 'gpt-4o',
     temperature: 0.4,
   };
@@ -363,12 +372,22 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
     try {
       const endpoints = resolveCompatibilityEndpoints(preferences);
       const fetchImpl = deps.fetchImpl ?? fetch;
-      const response = await fetchImpl(endpoints.emitUrl, {
+      let response = await fetchImpl(endpoints.emitUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(adaptIntentRequest(intent, sessionId)),
+        body: JSON.stringify(adaptGenerateRequest(intent)),
         signal: controller.signal,
       });
+
+      if (response.status === 401 || response.status === 403 || response.status === 422) {
+        response = await fetchImpl(endpoints.legacyIntentUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(adaptIntentRequest(intent, sessionId)),
+          signal: controller.signal,
+        });
+      }
+
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
       const payload = await response.json();

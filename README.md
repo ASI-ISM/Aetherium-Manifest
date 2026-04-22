@@ -6,7 +6,7 @@ Aetherium Manifest is a **light-native cognition runtime**: intent is interprete
 
 ## First-view product boundary
 
-- Homepage is a strict blank-entry surface with a single Settings trigger.
+- Homepage is a strict blank-entry awakening surface with a single Settings trigger.
 - Greeting/composer/HUD/runtime logs are intentionally removed from first paint.
 - Runtime initialization is deferred until Settings interaction (default: Interaction pane).
 
@@ -60,7 +60,7 @@ Core contracts/schemas in this repo include:
 ## Runtime flow
 
 ### Intent-to-light flow (first-use surface)
-1. User enters through a blank home shell and opens Settings Workspace.
+1. User enters through a blank awakening surface and opens the Settings Workspace operational sanctum.
 2. Interaction pane activation lazily starts runtime connectivity (WS/voice/manifestation).
 3. User submits text from the Interaction composer.
 4. Language layer resolves language deterministically:
