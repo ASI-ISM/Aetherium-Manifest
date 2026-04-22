@@ -127,7 +127,7 @@ def test_compatibility_intent_adapter(client: TestClient) -> None:
     assert "visual_manifestation" in payload
 
 
-def test_cognitive_canonical_routes_are_compatible(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_cognitive_canonical_routes_are_compatible(client: TestClient, monkeypatch: pytest.MonkeyPatch, valid_emit_payload: dict) -> None:
     async def _stub_model(**_: str) -> str:
         return "light-presence-ready"
 
