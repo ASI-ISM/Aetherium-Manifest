@@ -56,6 +56,7 @@
               <form id="composer" class="composer" aria-label="Intent composer">
                 <label class="sr-only" for="intent-input">Intent</label>
                 <input id="intent-input" name="intent" autocomplete="off" placeholder="Type an intent" enterkeyhint="send" data-autofocus />
+                <input id="intent-image-input" name="intent-image" type="file" accept="image/*" class="sr-only" />
                 <button
                   id="voice-btn"
                   class="icon-btn"
@@ -65,8 +66,11 @@
                 >
                   🎙
                 </button>
+                <button id="attach-image-btn" class="icon-btn" type="button" aria-label="Attach image for analysis">🖼</button>
                 <button id="send-btn" type="submit" class="send-btn">Send</button>
               </form>
+              <p id="image-attachment-status" class="pane-status" aria-live="polite"></p>
+              <button id="clear-image-btn" type="button" class="settings-inline-btn" hidden>Remove attached image</button>
               <button id="clear-session" type="button" class="settings-inline-btn">Clear session</button>
             </section>
 

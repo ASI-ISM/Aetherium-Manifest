@@ -62,7 +62,7 @@ Core contracts/schemas in this repo include:
 ### Intent-to-light flow (first-use surface)
 1. User enters through a blank awakening surface and opens the Settings Workspace operational sanctum.
 2. Interaction pane activation lazily starts runtime connectivity (WS/voice/manifestation).
-3. User submits text from the Interaction composer; browser transport emits through canonical cognitive routes only (`/api/v1/cognitive/*` + `/ws/cognitive-stream`).
+3. User submits text (and optionally an attached image for multimodal analysis) from the Interaction composer; browser transport emits through canonical cognitive routes only (`/api/v1/cognitive/*` + `/ws/cognitive-stream`).
 4. Language layer resolves language deterministically:
    - explicit setting → browser locale → char heuristics → optional local detector → session memory
 5. Response orchestrator maps intent class (greeting/question/etc.) to deterministic text+mood.

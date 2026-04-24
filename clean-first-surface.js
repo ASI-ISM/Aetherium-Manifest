@@ -57,6 +57,15 @@ function adaptGenerateRequest(intent) {
   };
 }
 
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+    reader.onerror = () => reject(new Error('Unable to read attached image'));
+    reader.readAsDataURL(file);
+  });
+}
+
 export function adaptIntentResponse(payload) {
   const state = payload?.intent_vector?.category || payload?.state || 'calm';
   const visual = payload?.visual_manifestation;
@@ -114,11 +123,16 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
   let sessionRole = 'viewer';
   const sessionAudit = [];
   const inputRuntime = { isComposing: false, lastCompositionEndAt: -Infinity };
+  const imageRuntime = { file: null, dataUrl: '' };
 
   const elements = {
     canvas: documentRef.getElementById('manifestation-canvas'),
     form: documentRef.getElementById('composer'),
     input: documentRef.getElementById('intent-input'),
+    imageInput: documentRef.getElementById('intent-image-input'),
+    attachImageButton: documentRef.getElementById('attach-image-btn'),
+    clearImageButton: documentRef.getElementById('clear-image-btn'),
+    imageAttachmentStatus: documentRef.getElementById('image-attachment-status'),
     sendButton: documentRef.getElementById('send-btn'),
     voiceButton: documentRef.getElementById('voice-btn'),
     statusText: documentRef.getElementById('ambient-status'),
@@ -319,6 +333,35 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
   const applySubmissionState = (busy) => {
     if (elements.input) elements.input.disabled = busy;
     if (elements.sendButton) elements.sendButton.disabled = busy;
+    if (elements.attachImageButton) elements.attachImageButton.disabled = busy;
+    if (elements.clearImageButton) elements.clearImageButton.disabled = busy;
+  };
+
+  const setImageAttachmentStatus = (text = '') => {
+    if (elements.imageAttachmentStatus) elements.imageAttachmentStatus.textContent = text;
+  };
+
+  const clearImageAttachment = () => {
+    imageRuntime.file = null;
+    imageRuntime.dataUrl = '';
+    if (elements.imageInput) elements.imageInput.value = '';
+    if (elements.clearImageButton) elements.clearImageButton.hidden = true;
+    setImageAttachmentStatus('');
+  };
+
+  const setImageAttachment = async (file) => {
+    if (!file) {
+      clearImageAttachment();
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      clearImageAttachment();
+      throw new Error('Unsupported attachment. Please choose an image file.');
+    }
+    imageRuntime.file = file;
+    imageRuntime.dataUrl = await readFileAsDataUrl(file);
+    if (elements.clearImageButton) elements.clearImageButton.hidden = false;
+    setImageAttachmentStatus(`Attached image: ${file.name}`);
   };
 
   const handleIncomingState = (payload) => {
@@ -461,7 +504,7 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
     writeDiagnostics();
   };
 
-  const emitIntent = async (intent) => {
+  const emitIntent = async (intent, imagePayload = null) => {
     const controller = new AbortController();
     const timeoutId = globalThis.setTimeout(() => controller.abort(), DEFAULT_INTENT_TIMEOUT_MS);
 
@@ -471,7 +514,10 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
       const response = await fetchImpl(endpoints.emitUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(adaptGenerateRequest(intent)),
+        body: JSON.stringify({
+          ...adaptGenerateRequest(intent),
+          image: imagePayload,
+        }),
         signal: controller.signal,
       });
       if (response.status === 401 || response.status === 403) {
@@ -501,14 +547,27 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
 
   const submitIntent = async (intent) => {
     const text = intent.trim();
-    if (!text) return;
+    const imagePayload = imageRuntime.dataUrl
+      ? {
+          data_url: imageRuntime.dataUrl,
+          mime_type: imageRuntime.file?.type || 'image/*',
+          filename: imageRuntime.file?.name || 'upload',
+        }
+      : null;
+    if (!text && !imagePayload) return;
 
     applySubmissionState(true);
     try {
       await ensureInteractionRuntime();
-      await emitIntent(text);
-      pushSessionEvent({ session_id: sessionId, intent: text, transport: 'intent_posted' });
+      await emitIntent(text, imagePayload);
+      pushSessionEvent({
+        session_id: sessionId,
+        intent: text,
+        transport: 'intent_posted',
+        metadata: { image_attached: Boolean(imagePayload), image_name: imagePayload?.filename || null },
+      });
       if (elements.input) elements.input.value = '';
+      clearImageAttachment();
     } catch (error) {
       const message = `Transport error: ${error.message}`;
       setStatus(message);
@@ -565,6 +624,23 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
       if (!shouldSubmitOnEnter(event, inputRuntime)) return;
       event.preventDefault();
       elements.form?.requestSubmit();
+    });
+
+    elements.attachImageButton?.addEventListener('click', () => {
+      elements.imageInput?.click();
+    });
+
+    elements.imageInput?.addEventListener('change', async (event) => {
+      const file = event.target.files?.[0];
+      try {
+        await setImageAttachment(file || null);
+      } catch (error) {
+        setStatus(error.message || 'Attachment failed');
+      }
+    });
+
+    elements.clearImageButton?.addEventListener('click', () => {
+      clearImageAttachment();
     });
   };
 
