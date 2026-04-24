@@ -68,6 +68,23 @@ MODEL_PROVIDER_MAP = {
     "claude-3-opus": "anthropic",
 }
 
+AETHERIUM_API_KEY_ENV = "AETHERIUM_API_KEY"
+AETHERIUM_API_KEY_ALLOWLIST_ENV = "AETHERIUM_API_KEY_ALLOWLIST"
+EXPECTED_API_KEYS: Optional[frozenset[str]] = None
+
+
+def _parse_api_key_allowlist(raw: str) -> set[str]:
+    return {key.strip() for key in raw.split(",") if key.strip()}
+
+
+def _load_expected_api_keys() -> frozenset[str]:
+    primary_key = os.getenv(AETHERIUM_API_KEY_ENV, "").strip()
+    allowlist_raw = os.getenv(AETHERIUM_API_KEY_ALLOWLIST_ENV, "")
+    keys = _parse_api_key_allowlist(allowlist_raw)
+    if primary_key:
+        keys.add(primary_key)
+    return frozenset(keys)
+
 
 # --- Pydantic Models ---
 
@@ -177,6 +194,11 @@ class ParticlePalette(BaseModel):
     accent: Optional[str] = None
 
 
+class Attractor(BaseModel):
+    x: float = Field(ge=0.0, le=1.0)
+    y: float = Field(ge=0.0, le=1.0)
+
+
 class IntentState(BaseModel):
     state: str
     shape: str
@@ -187,7 +209,7 @@ class IntentState(BaseModel):
     flow_direction: str
     glow_intensity: float
     flicker: float
-    attractor: str
+    attractor: Attractor
     palette: ParticlePalette
 
 
@@ -284,9 +306,14 @@ logger = logging.getLogger("api-gateway")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global r, nc
-    if not os.getenv("AETHERIUM_API_KEY"):
-        logger.error("AETHERIUM_API_KEY is not configured; protected endpoints will fail closed")
+    global r, nc, EXPECTED_API_KEYS
+    EXPECTED_API_KEYS = _load_expected_api_keys()
+    if not EXPECTED_API_KEYS:
+        logger.error(
+            "No API key configured via %s or %s; protected endpoints will fail closed",
+            AETHERIUM_API_KEY_ENV,
+            AETHERIUM_API_KEY_ALLOWLIST_ENV,
+        )
     try:
         r = redis.from_url(REDIS_URL, decode_responses=True)
         nc = await nats.connect(NATS_URL)
@@ -545,8 +572,21 @@ def _infer_intent_from_text(text: str) -> tuple[IntentVector, VisualManifestatio
     return intent, visual
 
 def _ensure_api_key(x_api_key: str | None) -> None:
+    configured_keys = EXPECTED_API_KEYS if EXPECTED_API_KEYS is not None else _load_expected_api_keys()
+
+    if not configured_keys:
+        logger.error(
+            "Rejecting request: no configured API keys in %s/%s",
+            AETHERIUM_API_KEY_ENV,
+            AETHERIUM_API_KEY_ALLOWLIST_ENV,
+        )
+        raise HTTPException(status_code=503, detail="API key validation is not configured")
+
     if not x_api_key:
         raise HTTPException(status_code=401, detail="missing X-API-Key")
+
+    if x_api_key not in configured_keys:
+        raise HTTPException(status_code=403, detail="invalid X-API-Key")
 
 def _extract_ws_api_key(websocket: WebSocket) -> str | None:
     return websocket.headers.get("x-api-key") or websocket.query_params.get("api_key")

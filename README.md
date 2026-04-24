@@ -129,6 +129,15 @@ optics.color_mode := monochrome | palette | source_radiance
 
 ---
 
+## API key setup
+
+Protected gateway endpoints require `X-API-Key` and validate it against environment configuration in the API process:
+
+- `AETHERIUM_API_KEY` for a single key deployment.
+- `AETHERIUM_API_KEY_ALLOWLIST` for comma-separated multi-key allowlist support (for staged rotation/migration).
+
+When both are present, the effective allowlist is the union of both values. If neither is configured, the gateway rejects protected endpoint requests (fail closed).
+
 ## Local development & checks
 
 ### Recommended minimum before PR
