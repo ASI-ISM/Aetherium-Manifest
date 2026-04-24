@@ -117,6 +117,13 @@ class GenerateRequest(BaseModel):
     prompt: str
     model: str = Field(default="gemini-1.5-pro")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
+    image: Optional["ImageAttachment"] = None
+
+
+class ImageAttachment(BaseModel):
+    data_url: str = Field(..., min_length=16)
+    mime_type: str = Field(default="image/jpeg")
+    filename: Optional[str] = None
 
 class LegacyIntentRequest(BaseModel):
     prompt: str
@@ -444,17 +451,39 @@ def _is_blocked_proxy_target(hostname: str) -> bool:
 
 # --- Generative Model Invocation ---
 
-async def invoke_generative_model(prompt: str, model: str, temperature: float) -> str:
+def _extract_image_payload(image: ImageAttachment | None) -> tuple[bytes | None, str | None]:
+    if not image:
+        return None, None
+    if not image.data_url.startswith("data:"):
+        raise HTTPException(status_code=422, detail="image.data_url must be a valid data URL")
+    try:
+        header, encoded = image.data_url.split(",", 1)
+        if ";base64" not in header:
+            raise ValueError("missing base64 marker")
+        mime = header[5:].split(";", 1)[0] or image.mime_type
+        binary = base64.b64decode(encoded, validate=True)
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"invalid image attachment: {exc}") from exc
+    if len(binary) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="image attachment exceeds 5MB limit")
+    return binary, mime
+
+
+async def invoke_generative_model(prompt: str, model: str, temperature: float, image: ImageAttachment | None = None) -> str:
     provider = MODEL_PROVIDER_MAP.get(model)
     if not provider:
         raise HTTPException(status_code=400, detail=f"Unsupported model: {model}")
+    image_bytes, image_mime = _extract_image_payload(image)
 
     if provider == "google":
         api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
         if not api_key:
             raise HTTPException(status_code=500, detail="Google API key (GEMINI_API_KEY or GOOGLE_API_KEY) is not set")
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-        payload = {"contents": [{"parts": [{"text": prompt}]}]}
+        parts: list[dict[str, Any]] = [{"text": prompt or "Analyze this image and provide key observations."}]
+        if image_bytes and image_mime:
+            parts.append({"inline_data": {"mime_type": image_mime, "data": base64.b64encode(image_bytes).decode("utf-8")}})
+        payload = {"contents": [{"parts": parts}]}
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(url, json=payload)
             response.raise_for_status()
@@ -466,9 +495,13 @@ async def invoke_generative_model(prompt: str, model: str, temperature: float) -
             raise HTTPException(status_code=500, detail="OPENAI_API_KEY is not set")
         url = "https://api.openai.com/v1/chat/completions"
         headers = {"Authorization": f"Bearer {api_key}"}
+        content: list[dict[str, Any]] = [{"type": "text", "text": prompt or "Analyze this image and summarize it."}]
+        if image_bytes and image_mime:
+            image_data_url = f"data:{image_mime};base64,{base64.b64encode(image_bytes).decode('utf-8')}"
+            content.append({"type": "image_url", "image_url": {"url": image_data_url}})
         payload = {
             "model": model,
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": [{"role": "user", "content": content}],
             "temperature": temperature,
         }
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -768,7 +801,8 @@ async def generate_text(
         generated_text = await invoke_generative_model(
             prompt=request.prompt,
             model=request.model,
-            temperature=request.temperature
+            temperature=request.temperature,
+            image=request.image,
         )
         
         intent_vec, visual_manifest = _infer_intent_from_text(generated_text)

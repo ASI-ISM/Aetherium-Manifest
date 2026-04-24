@@ -231,7 +231,35 @@ def test_cognitive_canonical_routes_are_compatible(client: TestClient, monkeypat
     assert validate_response.json()["status"] == "success"
 
 
-def test_ws_ticket_issue_refresh_and_stream_flow(client: TestClient, api_key_header: dict[str, str]) -> None:
+def test_cognitive_generate_supports_image_attachment(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    async def _stub_model(**kwargs) -> str:
+        captured.update(kwargs)
+        return "image-aware-response"
+
+    monkeypatch.setattr(main, "invoke_generative_model", _stub_model)
+
+    response = client.post(
+        "/api/v1/cognitive/generate",
+        json={
+            "prompt": "analyze this",
+            "model": "gpt-4o",
+            "temperature": 0.4,
+            "image": {
+                "data_url": "data:image/png;base64,aGVsbG8=",
+                "mime_type": "image/png",
+                "filename": "sample.png",
+            },
+        },
+        headers={"X-API-Key": "test-key"},
+    )
+    assert response.status_code == 200
+    assert response.json()["text"] == "image-aware-response"
+    assert captured["image"].mime_type == "image/png"
+
+
+def test_ws_ticket_issue_refresh_and_stream_flow(client: TestClient) -> None:
     issue_response = client.post(
         "/api/v1/auth/session",
         json={"session_id": "compat-session-2", "role": "viewer", "scope": "cognitive:stream"},
