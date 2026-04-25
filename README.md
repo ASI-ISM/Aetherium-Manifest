@@ -114,7 +114,7 @@ The gateway data layer is intentionally **ephemeral-first** for deterministic pr
 
 6. **Nonce cache (`NONCE_CACHE`)**
    - Type: `Dict[str, bool]`
-   - Role: temporary replay/nonce tracking in-process.
+   - Role: placeholder for temporary replay/nonce tracking in-process.
 
 ### External data systems (not authoritative primary DB)
 
