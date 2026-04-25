@@ -25,7 +25,7 @@ Core runtime paths remain unchanged:
 
 You can continue to run and validate the project without those repository automations:
 
-- Manual local run (Frontend: python3 -m http.server 4173, API: uvicorn api_gateway.main:app --port 8080)
+- Manual local run (Frontend: python3 -m http.server 4173, API: uvicorn api_gateway.main:app --port 8000)
 - Existing Docker Compose or manual service startup paths already documented in-repo
 - Contract and runtime checks can still be run directly from local commands
 
