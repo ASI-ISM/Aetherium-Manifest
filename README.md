@@ -95,7 +95,7 @@ The gateway data layer is intentionally **ephemeral-first** for deterministic pr
 
 3. **Export audit ledger (`EXPORT_AUDIT_TRAIL`)**
    - Type: `deque[Dict[str, Any]]` with `maxlen=1000`.
-   - Function: bounded append-only audit trail for export operations; queryable by `session_id`, `lineage_id`, and `selected_variation_id`.
+   - Function: bounded append-only audit trail for export operations (currently unpopulated in prototype); queryable by session_id, lineage_id, and selected_variation_id.
    - Characteristic: fixed memory ceiling; oldest records are evicted automatically.
 
 4. **Session ticket audit ledger (`TICKET_AUDIT_TRAIL`)**
