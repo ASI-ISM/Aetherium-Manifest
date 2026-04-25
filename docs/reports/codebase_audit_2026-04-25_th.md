@@ -8,7 +8,7 @@
 
 - เหตุผล: ข้อความตัวอย่างปัจจุบันอาจทำให้ผู้ใช้สับสนว่า header auth (`X-API-Key`) ผูกกับ provider key ของโมเดล ทั้งที่โค้ดบังคับใช้ `AETHERIUM_API_KEY` สำหรับ authorization.
 - หลักฐานอ้างอิง:
-  - ตัวอย่าง README ใช้ `OPENAI_API_KEY`【F:api_gateway/README.md†L33】
+  - ตัวอย่าง README ใช้ OPENAI_API_KEY (api_gateway/README.md บรรทัดที่ 33)
   - โค้ดตรวจ `X-API-Key` เทียบกับ `AETHERIUM_API_KEY`【F:api_gateway/main.py†L157-L163】
 - Definition of Done:
   - ตัวอย่างใน README สอดคล้องกับ behavior จริงของระบบ auth
