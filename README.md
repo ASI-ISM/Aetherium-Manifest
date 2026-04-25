@@ -47,7 +47,7 @@ This path is the source of truth for safe runtime mutation.
 ```mermaid
 flowchart TD
     U[Frontend Runtime<br/>:4173 static host] -->|HTTPS / WS| G[FastAPI Gateway<br/>api_gateway/main.py]
-    G --> GOV[Runtime Governor<br/>validate→...→telemetry_log]
+    G -. placeholder .-> GOV[Runtime Governor<br/>validate→...→telemetry_log]
 
     subgraph MEM[In-memory data stores (process-local)]
         M1[(METRICS<br/>counters)]
