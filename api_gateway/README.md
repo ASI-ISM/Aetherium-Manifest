@@ -26,7 +26,7 @@ export OPENAI_API_KEY=demo-key
 # Optional for Google model calls:
 export GEMINI_API_KEY=demo-key
 
-uvicorn api_gateway.main:app --host 0.0.0.0 --port 8080 --reload
+uvicorn api_gateway.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ### Run (Production-like)
@@ -47,7 +47,7 @@ If both are set, keys are merged. If neither is set, the gateway fails closed an
 
 ### Validate Example
 ```bash
-curl -X POST http://localhost:8080/api/v1/cognitive/validate \
+curl -X POST http://localhost:8000/api/v1/cognitive/validate \
   -H "Content-Type: application/json" \
   -H "X-API-Key: demo-key" \
   -d @api_gateway/sample_emit_payload.json
@@ -67,7 +67,7 @@ export OPENAI_API_KEY=demo-key
 # หากต้องเรียก Google model ให้ตั้งเพิ่ม
 export GEMINI_API_KEY=demo-key
 
-uvicorn api_gateway.main:app --host 0.0.0.0 --port 8080 --reload
+uvicorn api_gateway.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ### การรัน (สำหรับ Production)
@@ -79,7 +79,7 @@ uvicorn api_gateway.main:app --host 0.0.0.0 --port 8080 --reload
 
 ### ทดสอบ validate
 ```bash
-curl -X POST http://localhost:8080/api/v1/cognitive/validate \
+curl -X POST http://localhost:8000/api/v1/cognitive/validate \
   -H "Content-Type: application/json" \
   -H "X-API-Key: demo-key" \
   -d @api_gateway/sample_emit_payload.json
