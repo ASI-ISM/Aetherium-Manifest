@@ -39,6 +39,97 @@ System behavior should preserve this sequence:
 
 This path is the source of truth for safe runtime mutation.
 
+### System architecture diagram (runtime data stores)
+
+> Reality check: the current prototype does **not** use a durable SQL/NoSQL primary database.  
+> The gateway keeps critical runtime state in memory, with optional Redis/NATS clients for distributed coordination.
+
+```mermaid
+flowchart TD
+    U[Frontend Runtime<br/>:4173 static host] -->|HTTPS / WS| G[FastAPI Gateway<br/>api_gateway/main.py]
+    G -. placeholder .-> GOV[Runtime Governor<br/>validate→...→telemetry_log]
+
+    subgraph MEM[In-memory data stores (process-local)]
+        M1[(METRICS<br/>counters)]
+        M2[(TELEMETRY_TS_DB<br/>metric -> points[])]
+        M3[(EXPORT_AUDIT_TRAIL<br/>deque maxlen=1000)]
+        M4[(TICKET_AUDIT_TRAIL<br/>deque maxlen=2000)]
+        M5[(STATE_SYNC_ROOMS<br/>room_id -> StateSyncRoom)]
+        M6[(NONCE_CACHE<br/>nonce -> bool)]
+    end
+
+    G --> M1
+    G --> M2
+    G --> M3
+    G --> M4
+    G --> M5
+    G --> M6
+
+    G -. optional .-> R[(Redis<br/>REDIS_URL)]
+    G -. optional .-> N[(NATS<br/>NATS_URL)]
+```
+
+### Deep database/storage structure (truthful current state)
+
+The gateway data layer is intentionally **ephemeral-first** for deterministic prototyping and replay-style testing. Instead of a persistent RDBMS schema, the system models several bounded in-memory stores:
+
+1. **Telemetry time-series store (`TELEMETRY_TS_DB`)**
+   - Type: `Dict[str, List[Dict[str, Any]]]`
+   - Logical key: `metric` (for example, latency/coherence series names)
+   - Value shape (from `TelemetryPoint`):  
+     `metric: str`, `value: float`, `ts: datetime(UTC)`, `tags: Dict[str, str]`
+   - Retention policy: each metric series is truncated to the latest **2500 points** during ingest.
+   - Query model (`/api/v1/telemetry/query`):
+     - windowed filter by `window_seconds`
+     - computes `count`, `mean`, `p95`, and `latest`
+   - Operational implication: restarts clear all telemetry history unless externalized.
+
+2. **Metrics aggregate store (`METRICS`)**
+   - Type: Pydantic model with counters:
+     - `total_dsl_submissions`
+     - `successful_renders`
+     - `validation_failures`
+     - `generative_requests`
+   - Concurrency control: protected with `METRICS_LOCK` (`asyncio.Lock`).
+   - Role: lightweight OLTP-style counters for health/compliance snapshots, not event history.
+
+3. **Export audit ledger (`EXPORT_AUDIT_TRAIL`)**
+   - Type: `deque[Dict[str, Any]]` with `maxlen=1000`.
+   - Function: bounded append-only audit trail for export operations (currently unpopulated in prototype); queryable by session_id, lineage_id, and selected_variation_id.
+   - Characteristic: fixed memory ceiling; oldest records are evicted automatically.
+
+4. **Session ticket audit ledger (`TICKET_AUDIT_TRAIL`)**
+   - Type: `deque[Dict[str, Any]]` with `maxlen=2000`.
+   - Function: tracks ticket issuance/refresh events (`ticket_id`, `session_id`, role/scope metadata, timestamp).
+   - Security note: ticket signatures are HMAC-based, and scope is constrained to approved websocket scopes.
+
+5. **Realtime state rooms (`STATE_SYNC_ROOMS`)**
+   - Type: `dict[str, StateSyncRoom]`
+   - `StateSyncRoom` internal structure:
+     - `shared_state: dict[str, Any]`
+     - `user_state: dict[str, Any]`
+     - `clients: list[Any]`
+     - `lock: asyncio.Lock`
+   - Role: collaborative state synchronization for websocket clients.
+
+6. **Nonce cache (`NONCE_CACHE`)**
+   - Type: `Dict[str, bool]`
+   - Role: placeholder for temporary replay/nonce tracking in-process.
+
+### External data systems (not authoritative primary DB)
+
+- **Redis client** (`redis.asyncio`) and **NATS client** are initialized in application lifespan and are configurable via `REDIS_URL` and `NATS_URL`.
+- In current code, the authoritative runtime state discussed above still lives in memory inside the gateway process.
+- This means horizontal scaling and durability depend on moving these stores to persistent/shared backends in production architecture.
+
+### Production-grade evolution path (recommended)
+
+If you need durable, queryable, multi-node consistency, the practical migration is:
+- TSDB or relational table for telemetry points (partitioned by `metric`, `ts`).
+- Durable audit/event table for export and ticket logs.
+- Shared session/state backend (Redis or durable event stream) for state rooms/nonce checks.
+- Schema/version governance tied to contract-first release gates.
+
 ---
 
 ## Contracts
