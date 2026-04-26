@@ -1,0 +1,51 @@
+meta {
+  id: "warning_safe_mode";
+  version: "0.1.0";
+  profile: "nominal";
+  rule_mode: "first_match";
+}
+
+context {
+  event: "alert";
+  model_confidence: 0.3200;
+  risk_score: 0.8100;
+  tick: 0;
+}
+
+presence8d {
+  spatial_coherence: 0.5800;
+  temporal_stability: 0.4200;
+  intent_confidence: 0.3300;
+  energy_budget: 0.7900;
+  interaction_readiness: 0.5100;
+  novelty_pressure: 0.6600;
+  safety_margin: 0.2800;
+  counterfactual_depth: 0.1400;
+}
+
+rules {
+  rule risk_downgrade: context.risk_score > 0.7000 and presence8d.safety_margin < 0.4000 => set profile = "safe_mode";
+  rule low_confidence_halt: context.model_confidence < 0.3500 => set transition = "safe_mode";
+}
+
+transitions {
+  state nominal {
+    when context.event == "alert" -> safe_mode else halt;
+  }
+
+  state safe_mode {
+    when context.tick < 60 -> safe_mode;
+    when context.tick >= 60 -> halt;
+  }
+}
+
+outputs {
+  tick_ms: 16;
+  channel warning {
+    mode: pulse;
+    intensity: 0.2200;
+    particle_count: 900;
+    period_ticks: 24;
+    phase_deg: 0;
+  }
+}

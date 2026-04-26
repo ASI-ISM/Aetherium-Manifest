@@ -1,0 +1,56 @@
+meta {
+  id: "thinking_vortex";
+  version: "0.1.0";
+  profile: "nominal";
+  rule_mode: "first_match";
+}
+
+context {
+  event: "observe";
+  model_confidence: 0.8600;
+  risk_score: 0.1800;
+  tick: 0;
+}
+
+presence8d {
+  spatial_coherence: 0.8200;
+  temporal_stability: 0.7600;
+  intent_confidence: 0.9100;
+  energy_budget: 0.4300;
+  interaction_readiness: 0.6800;
+  novelty_pressure: 0.2200;
+  safety_margin: 0.8700;
+  counterfactual_depth: 0.3400;
+}
+
+rules {
+  rule risk_downgrade: context.risk_score > 0.7000 => set profile = "safe_mode";
+  rule low_confidence_halt: context.model_confidence < 0.3500 => set transition = "halt";
+}
+
+transitions {
+  state nominal {
+    when context.event == "observe" and context.model_confidence >= 0.6000 -> focus;
+    when context.event == "alert" -> safe_mode else halt;
+  }
+
+  state focus {
+    when context.tick < 120 -> focus;
+    when context.tick >= 120 -> settle;
+  }
+
+  state settle {
+    when context.tick >= 180 -> halt;
+  }
+}
+
+outputs {
+  tick_ms: 16;
+  channel primary {
+    mode: vortex;
+    intensity: 0.5400;
+    particle_count: 2800;
+    period_ticks: 48;
+    phase_deg: 90;
+  }
+}
