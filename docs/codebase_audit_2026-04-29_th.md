@@ -19,10 +19,10 @@
 - ลดความกำกวมของเอกสารสำหรับผู้เริ่มต้นติดตั้งระบบ
 
 ## 2) งานแก้บั๊ก (Bug Fix)
-**ปัญหา:** เอกสารระบุว่า `node --test` ใช้ไม่ได้เพราะ extensionless import ใน `governor.ts` แต่โค้ดที่ยังใช้ extensionless import จริงอยู่ใน `ajv_validator.ts` (`from "./governor"`) ซึ่งเป็นจุดเสี่ยงให้เกิด ESM resolution failure ในบาง runtime/tooling
+**ปัญหา:** เอกสารระบุว่า node --test ใช้ไม่ได้เพราะ extensionless import ใน governor.ts และ ajv_validator.ts ซึ่งเป็นจุดเสี่ยงให้เกิด ESM resolution failure ในบาง runtime/tooling
 
 **ข้อเสนอแก้ไข:**
-- เปลี่ยน import ใน `ajv_validator.ts` ให้ระบุ `.ts` (หรือใช้ build step ที่ normalize import specifier อย่างชัดเจน)
+- เปลี่ยน import ใน ajv_validator.ts และ governor.ts ให้ระบุส่วนขยายไฟล์ให้ชัดเจน (เช่น .ts หรือ .js)
 - เพิ่ม smoke test ที่รันด้วย Node ESM mode เพื่อจับ regression นี้โดยตรง
 
 **ผลลัพธ์ที่คาดหวัง:**
