@@ -559,7 +559,9 @@ export function createApp(documentRef = globalThis.document, deps = {}) {
     applySubmissionState(true);
     try {
       await ensureInteractionRuntime();
+      setStatus('Generating manifestation...');
       await emitIntent(text, imagePayload);
+      setStatus('Response manifested');
       pushSessionEvent({
         session_id: sessionId,
         intent: text,
