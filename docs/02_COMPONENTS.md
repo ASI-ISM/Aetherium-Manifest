@@ -42,7 +42,7 @@
 **Responsibility**
 - แยก simulation execution backend ออกจาก `AetheriumKernel`
 - รับ IR/LCL เดิมผ่าน adapter แล้ว map เป็น GPU uniforms
-- dispatch pass chain แบบ deterministic: `Reset → Count → PrefixSum → Scatter → Integrate → Render → Swap`
+- dispatch pass chain แบบ deterministic: `Reset → Count → PrefixSum → InitCursor → Scatter → Integrate → Render → Swap`
 
 **Fallback Policy**
 - ถ้า `navigator.gpu` พร้อมใช้งาน: kernel ใช้ `GpuSimulationEngine`

@@ -29,10 +29,11 @@ Pass graph สำหรับ backend ใหม่ (`runtime/gpu-sim/`):
 1. **Reset** — clear transient counters/buffers ของ frame
 2. **Count** — นับ occupancy/target bins จาก IR ปัจจุบัน
 3. **PrefixSum** — scan counts เพื่อสร้าง deterministic offsets
-4. **Scatter** — กระจาย photon/target data ลงตำแหน่งที่ scan กำหนด
-5. **Integrate** — อัปเดต velocity/position/color ด้วย uniform controls
-6. **Render** — เขียนผลลัพธ์ frame buffers สำหรับ draw stage
-7. **Swap** — สลับ read/write buffers สำหรับ frame ถัดไป
+4. **InitCursor** — คัดลอก `cellOffsetsStart[0:cellCount]` ไป `cellOffsetsCursor` สำหรับเฟรมปัจจุบัน
+5. **Scatter** — กระจาย photon/target data ลงตำแหน่งที่ scan กำหนด
+6. **Integrate** — อัปเดต velocity/position/color ด้วย uniform controls
+7. **Render** — เขียนผลลัพธ์ frame buffers สำหรับ draw stage
+8. **Swap** — สลับ read/write buffers สำหรับ frame ถัดไป
 
 ### Fallback & Compatibility
 - Backend selection อยู่ใน `AetheriumKernel`:
