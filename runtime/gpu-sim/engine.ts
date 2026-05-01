@@ -33,7 +33,36 @@ export interface ScanTelemetry {
 
 export interface GpuTelemetryFrame {
   scan: ScanTelemetry;
+  rejected_frames_by_budget: number;
+  nan_resets: number;
+  clamped_particles: number;
 }
+
+export interface GpuGovernorPolicy {
+  maxParticles: number;
+  maxGridCells: number;
+  maxEstimatedVramBytes: number;
+  bytesPerParticle: number;
+  bytesPerGridCell: number;
+}
+
+interface GpuBudgetSnapshot {
+  numParticles: number;
+  gridCols: number;
+  gridRows: number;
+  gridCells: number;
+  estimatedVramBytes: number;
+}
+
+const DEFAULT_GPU_POLICY: GpuGovernorPolicy = {
+  maxParticles: 200_000,
+  maxGridCells: 262_144,
+  maxEstimatedVramBytes: 256 * 1024 * 1024,
+  bytesPerParticle: 32,
+  bytesPerGridCell: 8,
+};
+
+const MAX_FRAME_DT_SECONDS = 0.0166667;
 
 export function mapIRToGpuUniforms(input: GpuUniformAdapterInput): GpuUniforms {
   return {
@@ -59,22 +88,41 @@ export class GpuSimulationEngine {
     'Swap',
   ];
 
+  private readonly policy: GpuGovernorPolicy;
+
   private telemetry: GpuTelemetryFrame = {
     scan: {
       throughputCellsPerSecond: 0,
       maxLatencyMs: 0,
     },
+    rejected_frames_by_budget: 0,
+    nan_resets: 0,
+    clamped_particles: 0,
   };
+
+  constructor(policy: Partial<GpuGovernorPolicy> = {}) {
+    this.policy = {
+      ...DEFAULT_GPU_POLICY,
+      ...policy,
+    };
+  }
 
   static isSupported(): boolean {
     return typeof navigator !== 'undefined' && 'gpu' in navigator;
   }
 
   async dispatch(ir: GpuSimulationIR): Promise<void> {
+    const budget = this.inspectBudget(ir);
+    const budgetViolations = this.checkBudgetViolations(budget);
+    if (budgetViolations.length > 0) {
+      this.telemetry.rejected_frames_by_budget += 1;
+      return;
+    }
+
     const uniforms = mapIRToGpuUniforms({
       lcl: ir.lcl,
       field: ir.field,
-      deltaTime: ir.deltaTime,
+      deltaTime: this.clampDt(ir.deltaTime),
     });
 
     let scanLatencyMs = 0;
@@ -97,6 +145,38 @@ export class GpuSimulationEngine {
 
   getTelemetry(): GpuTelemetryFrame {
     return this.telemetry;
+  }
+
+  private inspectBudget(ir: GpuSimulationIR): GpuBudgetSnapshot {
+    const numParticles = ir.field?.points.length ?? 0;
+    const gridCols = Math.max(1, Math.ceil(Math.sqrt(Math.max(numParticles, 1))));
+    const gridRows = Math.max(1, Math.ceil(numParticles / gridCols));
+    const gridCells = gridCols * gridRows;
+    const estimatedVramBytes = (numParticles * this.policy.bytesPerParticle) + (gridCells * this.policy.bytesPerGridCell);
+    return { numParticles, gridCols, gridRows, gridCells, estimatedVramBytes };
+  }
+
+  private checkBudgetViolations(snapshot: GpuBudgetSnapshot): string[] {
+    const violations: string[] = [];
+    if (snapshot.numParticles > this.policy.maxParticles) {
+      violations.push('numParticles exceeds maxParticles');
+      this.telemetry.clamped_particles += snapshot.numParticles - this.policy.maxParticles;
+    }
+    if (snapshot.gridCells > this.policy.maxGridCells) {
+      violations.push('gridCols*gridRows exceeds maxGridCells');
+    }
+    if (snapshot.estimatedVramBytes > this.policy.maxEstimatedVramBytes) {
+      violations.push('estimated VRAM exceeds maxEstimatedVramBytes');
+    }
+    return violations;
+  }
+
+  private clampDt(deltaTime: number): number {
+    if (!Number.isFinite(deltaTime)) {
+      this.telemetry.nan_resets += 1;
+      return MAX_FRAME_DT_SECONDS;
+    }
+    return Math.max(0, Math.min(deltaTime, MAX_FRAME_DT_SECONDS));
   }
 
   private dispatchPass(pass: GpuPassName, uniforms: GpuUniforms): void {
