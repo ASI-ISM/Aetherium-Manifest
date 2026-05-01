@@ -1,7 +1,7 @@
 import type { LightControlLanguage } from '../../light-control-language.ts';
 import type { CompiledField } from '../../shape-compiler.ts';
 
-export type GpuPassName = 'Reset' | 'Count' | 'PrefixSum' | 'Scatter' | 'Integrate' | 'Render' | 'Swap';
+export type GpuPassName = 'Reset' | 'Count' | 'PrefixSum' | 'InitCursor' | 'Scatter' | 'Integrate' | 'Render' | 'Swap';
 
 export interface GpuSimulationIR {
   lcl: LightControlLanguage;
@@ -43,6 +43,7 @@ export class GpuSimulationEngine {
     'Reset',
     'Count',
     'PrefixSum',
+    'InitCursor',
     'Scatter',
     'Integrate',
     'Render',
