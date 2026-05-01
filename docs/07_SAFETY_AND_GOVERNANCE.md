@@ -24,3 +24,18 @@
 ## Privacy
 - intent vectors/embeddings เป็น sensitive metadata
 - ต้องรองรับ data minimization และ designed forgetting
+
+## Governor Boundary for GPU Simulation
+
+เพื่อคงหลักการว่า Governor เป็น canonical control boundary การจำลองฝั่ง GPU ต้องผ่าน policy checks ก่อน allocate/dispatch เสมอ:
+
+- ตรวจ `numParticles`, `gridCols*gridRows`, และ `estimated VRAM bytes` เทียบกับ budget policy.
+- หากเกิน budget ให้ reject frame (deny-by-default) หรือ clamp ตาม policy ที่กำหนด.
+- integrate path ต้องจำกัด `dt <= 0.0166667`, ใช้ damping (`vel *= damping`), และ clamp magnitude ด้วย `vmax`.
+- ต้องมี NaN/Inf guard; หาก state ผิดปกติให้ reset particle/state ทันที.
+
+Telemetry runtime counters ที่ต้องบันทึก:
+
+- `rejected_frames_by_budget`
+- `nan_resets`
+- `clamped_particles`
