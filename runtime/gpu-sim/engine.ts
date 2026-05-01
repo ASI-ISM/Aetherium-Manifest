@@ -172,11 +172,11 @@ export class GpuSimulationEngine {
   }
 
   private clampDt(deltaTime: number): number {
-    if (!Number.isFinite(deltaTime) || deltaTime <= 0) {
+    if (!Number.isFinite(deltaTime)) {
       this.telemetry.nan_resets += 1;
       return MAX_FRAME_DT_SECONDS;
     }
-    return Math.min(deltaTime, MAX_FRAME_DT_SECONDS);
+    return Math.max(0, Math.min(deltaTime, MAX_FRAME_DT_SECONDS));
   }
 
   private dispatchPass(pass: GpuPassName, uniforms: GpuUniforms): void {
