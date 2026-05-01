@@ -20,6 +20,7 @@ import {
 } from './perceptual-feedback.ts';
 import type { PerceptualEvaluator } from './perceptual-feedback.ts';
 import { RendererWebGL } from './renderer-webgl.ts';
+import { GpuSimulationEngine } from './runtime/gpu-sim/engine.ts';
 import type { RendererFrameSnapshot, RendererPhotonSnapshot } from './renderer-webgl.ts';
 
 export interface KernelConfig {
@@ -195,6 +196,7 @@ export class AetheriumKernel {
   private readonly config: Required<KernelConfig>;
   private readonly evaluator: PerceptualEvaluator;
   private readonly renderer: RendererWebGL;
+  private readonly gpuEngine: GpuSimulationEngine | null;
   private readonly gl: WebGL2RenderingContext;
   private readonly telemetry: RuntimeTelemetry = {
     fps: 0,
@@ -237,7 +239,9 @@ export class AetheriumKernel {
       ? new BioVisionRemoteEvaluator(this.config.apiBaseUrl)
       : new EdgeAwareLocalEvaluator();
 
-    this.formationBundlePromise = loadFormationBundle(this.config.formationBaseUrl);
+
+    this.gpuEngine = GpuSimulationEngine.isSupported() ? new GpuSimulationEngine() : null;
+        this.formationBundlePromise = loadFormationBundle(this.config.formationBaseUrl);
     this.initParticles();
     this.initRenderer();
   }
@@ -560,7 +564,16 @@ export class AetheriumKernel {
     const tickPolicy = this.buildTickPolicy(deltaTime);
     this.frameCounter += 1;
     this.updateFrameTelemetry(deltaTime);
-    this.updatePhotons(deltaTime, tickPolicy);
+    if (this.gpuEngine && this.lcl) {
+      await this.gpuEngine.dispatch({
+        lcl: this.lcl,
+        field: this.compiledField,
+        deltaTime,
+        frameTime: this.time,
+      });
+    } else {
+      this.updatePhotons(deltaTime, tickPolicy);
+    }
     this.renderer.render(this.buildRendererFrameSnapshot());
 
     if (this.frameCounter % tickPolicy.feedbackCadenceFrames === 0 || (timestamp - this.lastFeedbackTimestamp) >= tickPolicy.feedbackCadenceMs) {
