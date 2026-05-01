@@ -26,6 +26,15 @@ export interface GpuUniformAdapterInput {
   deltaTime: number;
 }
 
+export interface ScanTelemetry {
+  throughputCellsPerSecond: number;
+  maxLatencyMs: number;
+}
+
+export interface GpuTelemetryFrame {
+  scan: ScanTelemetry;
+}
+
 export function mapIRToGpuUniforms(input: GpuUniformAdapterInput): GpuUniforms {
   return {
     deltaTime: input.deltaTime,
@@ -50,6 +59,13 @@ export class GpuSimulationEngine {
     'Swap',
   ];
 
+  private telemetry: GpuTelemetryFrame = {
+    scan: {
+      throughputCellsPerSecond: 0,
+      maxLatencyMs: 0,
+    },
+  };
+
   static isSupported(): boolean {
     return typeof navigator !== 'undefined' && 'gpu' in navigator;
   }
@@ -61,9 +77,26 @@ export class GpuSimulationEngine {
       deltaTime: ir.deltaTime,
     });
 
+    let scanLatencyMs = 0;
     for (const pass of GpuSimulationEngine.PASS_ORDER) {
+      if (pass === 'PrefixSum') {
+        const scanStart = performance.now();
+        this.dispatchPass(pass, uniforms);
+        scanLatencyMs = performance.now() - scanStart;
+        continue;
+      }
       this.dispatchPass(pass, uniforms);
     }
+
+    if (scanLatencyMs > 0) {
+      const throughput = uniforms.targetCount > 0 ? (uniforms.targetCount / scanLatencyMs) * 1000 : 0;
+      this.telemetry.scan.throughputCellsPerSecond = throughput;
+      this.telemetry.scan.maxLatencyMs = Math.max(this.telemetry.scan.maxLatencyMs, scanLatencyMs);
+    }
+  }
+
+  getTelemetry(): GpuTelemetryFrame {
+    return this.telemetry;
   }
 
   private dispatchPass(pass: GpuPassName, uniforms: GpuUniforms): void {
