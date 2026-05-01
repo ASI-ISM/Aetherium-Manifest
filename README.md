@@ -6,9 +6,9 @@ Aetherium Manifest is a **light-native cognition runtime**: intent is interprete
 
 ## First-view product boundary
 
-- Homepage is a strict blank-entry awakening surface with a single Settings trigger.
-- Greeting/composer/HUD/runtime logs are intentionally removed from first paint.
-- Runtime initialization is deferred until Settings interaction (default: Interaction pane).
+- Homepage is a strict clean-entry surface with only a user chat input and send button.
+- No runtime diagnostics, status banners, or system notification panels are rendered on first view.
+- User interaction returns manifestation feedback through light particles only.
 
 ## Architecture
 
