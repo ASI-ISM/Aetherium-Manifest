@@ -176,7 +176,7 @@ Aetherium Manifest คือ runtime สำหรับแปลง “intent/st
 ---
 
 ## 10) Checklist สำหรับผู้พัฒนาที่จะเริ่มลงมือ
-- [ ] รันชุดตรวจสอบขั้นต่ำ: pytest + contract checker/fuzzer
+- [ ] รันชุดตรวจสอบขั้นต่ำ: pytest (ในโฟลเดอร์ api_gateway) + contract checker/fuzzer
 - [ ] เข้าใจ schema ที่แตะต้องก่อนแก้ logic
 - [ ] ประเมินผลกระทบต่อ governor pipeline ทุกครั้ง
 - [ ] อัปเดตเอกสารใน `docs/` หาก behavior เปลี่ยน
