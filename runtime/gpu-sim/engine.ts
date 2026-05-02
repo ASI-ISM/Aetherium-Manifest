@@ -1,5 +1,6 @@
 import type { LightControlLanguage } from '../../light-control-language.ts';
 import type { CompiledField } from '../../shape-compiler.ts';
+import { mapIRToGpuParams } from './ir-to-gpu-params.ts';
 
 export type GpuPassName = 'Reset' | 'Count' | 'PrefixSum' | 'InitCursor' | 'Scatter' | 'Integrate' | 'Render' | 'Swap';
 
@@ -138,7 +139,14 @@ export class GpuSimulationEngine {
   }
 
   async dispatch(ir: GpuSimulationIR): Promise<void> {
-    const budget = this.inspectBudget(ir);
+    const frameIndex = Math.max(0, Math.floor(ir.frameTime * 60));
+    const runtimeConfig = mapIRToGpuParams(ir, {
+      fps: ir.deltaTime > 0 ? 1 / ir.deltaTime : 60,
+      memoryPressure: 0,
+      frameIndex,
+    });
+
+    const budget = this.inspectBudget(runtimeConfig.numParticles);
     const budgetViolations = this.checkBudgetViolations(budget);
     if (budgetViolations.length > 0) {
       this.telemetry.rejected_frames_by_budget += 1;
@@ -152,9 +160,15 @@ export class GpuSimulationEngine {
     });
 
     const passTimings = this.createPassTimingBuffer();
+    const activeChunks = runtimeConfig.chunks
+      .filter((chunk) => chunk.visible || (frameIndex % chunk.updateEveryNFrames) === 0)
+      .sort((a, b) => b.priority - a.priority);
+
     for (const pass of GpuSimulationEngine.PASS_ORDER) {
       const passStart = this.startTimer();
-      this.dispatchPass(pass, uniforms);
+      for (const chunk of activeChunks) {
+        this.dispatchPass(pass, uniforms, chunk.id);
+      }
       passTimings[pass] = this.stopTimer(passStart);
     }
     this.telemetry.pass_timings_ms = passTimings;
@@ -175,8 +189,7 @@ export class GpuSimulationEngine {
     return this.telemetry;
   }
 
-  private inspectBudget(ir: GpuSimulationIR): GpuBudgetSnapshot {
-    const numParticles = ir.field?.points.length ?? 0;
+  private inspectBudget(numParticles: number): GpuBudgetSnapshot {
     const gridCols = Math.max(1, Math.ceil(Math.sqrt(Math.max(numParticles, 1))));
     const gridRows = Math.max(1, Math.ceil(numParticles / gridCols));
     const gridCells = gridCols * gridRows;
@@ -207,11 +220,12 @@ export class GpuSimulationEngine {
     return Math.max(0, Math.min(deltaTime, MAX_FRAME_DT_SECONDS));
   }
 
-  private dispatchPass(pass: GpuPassName, uniforms: GpuUniforms): void {
+  private dispatchPass(pass: GpuPassName, uniforms: GpuUniforms, chunkId?: number): void {
     // Placeholder wiring for staged WebGPU migration.
     // Real shader pipeline dispatch is attached per pass in a follow-up change.
     void uniforms;
     void pass;
+    void chunkId;
   }
 
   private createPassTimingBuffer(): Record<GpuPassName, number> {
