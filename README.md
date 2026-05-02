@@ -11,7 +11,7 @@ Aetherium Manifest is a **light-native cognition runtime**: intent is interprete
 
 - `docs/CODEBASE_ONBOARDING_TH.md`
 
-เอกสารนี้เน้นอธิบาย “ฐานข้อมูลเชิงโครงสร้างของโค้ด” และสถานะ data architecture ปัจจุบันอย่างเป็นระบบ โดยไม่มีการเปลี่ยนพฤติกรรม runtime
+เอกสารนี้เน้นอธิบาย “โครงสร้างของโค้ดเบส” และสถานะ data architecture ปัจจุบันอย่างเป็นระบบ โดยไม่มีการเปลี่ยนพฤติกรรม runtime
 
 ---
 ## First-view product boundary
