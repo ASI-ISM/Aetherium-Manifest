@@ -121,7 +121,7 @@ Aetherium Manifest คือ runtime สำหรับแปลง “intent/st
 
 ## ระยะที่ 2: เข้าใจความปลอดภัยและสัญญา (2-4 วัน)
 - อ่าน `docs/06_POLICIES.md`, RFC contract/governor
-- รัน `contract_checker.py` และ `contract_fuzz.py`
+- รัน PYTHONPATH=. python3 tools/contracts/contract_checker.py และ tools/contracts/contract_fuzz.py
 - วิเคราะห์ schema version จาก `docs/schemas/*`
 
 ## ระยะที่ 3: เข้าใจ runtime behavior และการวัดผล (2-4 วัน)
