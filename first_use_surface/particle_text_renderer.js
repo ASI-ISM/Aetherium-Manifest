@@ -69,8 +69,6 @@ export function createParticleTextRenderer(canvas, options = {}) {
   };
 
   const pointCloudFromMask = (message) => {
-    maskCanvas.width = canvas.width;
-    maskCanvas.height = canvas.height;
     maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
 
     const fontSize = clamp(Math.round(canvas.width * 0.058), 20, 72);
