@@ -141,7 +141,6 @@ export function createParticleTextRenderer(canvas, options = {}) {
 
   const animate = () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    syncParticles();
 
     for (let i = particles.length - 1; i >= 0; i -= 1) {
       const p = particles[i];
