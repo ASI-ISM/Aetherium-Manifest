@@ -247,13 +247,18 @@ export class GpuSimulationEngine {
     let populatedCells = 0;
     let highDensityCells = 0;
     const densityThreshold = Math.max(4, avgLoad * 1.75);
-
-    for (let cellId = 0; cellId < gridCells; cellId += 1) {
-      const syntheticLoad = Math.max(0, Math.round(avgLoad + Math.sin(cellId * 0.47) * avgLoad * 0.6));
-      if (syntheticLoad > 0) populatedCells += 1;
-      if (syntheticLoad >= densityThreshold) highDensityCells += 1;
-      const normalized = Math.min(OCCUPANCY_BINS - 1, Math.floor((syntheticLoad / maxCellLoad) * OCCUPANCY_BINS));
-      histogram[normalized] += 1;
+    // Heuristic placeholder to avoid O(N) loop over gridCells on the main thread.
+    populatedCells = Math.min(gridCells, particles);
+    highDensityCells = avgLoad > densityThreshold ? Math.floor(gridCells * 0.1) : 0;
+    histogram[0] = Math.floor(gridCells * 0.6);
+    const remainingCells = Math.max(0, gridCells - histogram[0]);
+    const perBin = Math.floor(remainingCells / (OCCUPANCY_BINS - 1));
+    for (let i = 1; i < OCCUPANCY_BINS; i += 1) {
+      histogram[i] = perBin;
+    }
+    const distributed = histogram.reduce((sum, count) => sum + count, 0);
+    if (distributed < gridCells) {
+      histogram[OCCUPANCY_BINS - 1] += (gridCells - distributed);
     }
 
     return {
