@@ -1,6 +1,8 @@
+const DEFAULT_COGNITIVE_API_BASE = '/api/v1/cognitive';
+
 function createParticleRuntime(canvas) {
   const ctx = canvas.getContext('2d');
-  if (!ctx) return { pulse: () => {}, destroy: () => {} };
+  if (!ctx) return { pulse: () => {}, renderText: () => {}, destroy: () => {} };
 
   const particles = [];
   let rafId = 0;
@@ -65,11 +67,90 @@ function createParticleRuntime(canvas) {
       spawn(energy);
       globalThis.setTimeout(() => spawn(Math.max(0.25, energy * 0.55)), 170);
     },
+    renderText(text = '') {
+      this.pulse(text);
+    },
     destroy() {
       globalThis.cancelAnimationFrame(rafId);
       globalThis.removeEventListener('resize', resize);
     },
   };
+}
+
+export function resolveCompatibilityEndpoints({ apiBase = DEFAULT_COGNITIVE_API_BASE, wsBase = '/ws/cognitive-stream' } = {}) {
+  const normalizedApiBase = String(apiBase).replace(/\/+$/, '');
+  return {
+    emitUrl: `${normalizedApiBase}/generate`,
+    validateUrl: `${normalizedApiBase}/validate`,
+    wsUrl: wsBase,
+  };
+}
+
+export function adaptIntentRequest(prompt, sessionId) {
+  return {
+    prompt: String(prompt ?? ''),
+    session_id: String(sessionId ?? ''),
+  };
+}
+
+export function adaptIntentResponse(payload = {}) {
+  const intent = payload.intent_vector ?? {};
+  const visual = payload.visual_manifestation ?? {};
+  const particlePhysics = visual.particle_physics ?? {};
+
+  return {
+    text: String(payload.text ?? ''),
+    state: String(intent.category ?? 'neutral'),
+    visual: {
+      energy: Number(intent.energy_level ?? 0.35),
+      valence: Number(intent.emotional_valence ?? 0),
+      color_palette: visual.color_palette ?? {},
+      flow: particlePhysics.flow_direction ? 1 : 0,
+    },
+  };
+}
+
+export function createDefaultHomeShellState(activePane = 'interaction', reducedMotion = false) {
+  return {
+    settingsOpen: false,
+    runtimeHydrated: false,
+    gatewayConnected: false,
+    voiceReady: false,
+    manifestationReady: false,
+    activePane,
+    reducedMotion,
+  };
+}
+
+function deterministicLocalResponder(text, runtimeState) {
+  const normalized = String(text).trim().replace(/\s+/g, ' ').toLowerCase();
+  let hash = 0;
+  for (let i = 0; i < normalized.length; i += 1) {
+    hash = (hash * 31 + normalized.charCodeAt(i)) % 1000003;
+  }
+  const flavor = ['steady', 'clear', 'aligned', 'focused'][hash % 4];
+  runtimeState.lastTransport = 'local-fallback';
+  return `Local ${flavor} response #${hash % 997}`;
+}
+
+async function requestCognitiveResponse(text, runtimeState, fetchImpl = globalThis.fetch) {
+  const endpoints = resolveCompatibilityEndpoints(runtimeState.endpoints);
+  const body = adaptIntentRequest(text, runtimeState.sessionId);
+
+  const response = await fetchImpl(endpoints.emitUrl, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    throw new Error(`cognitive emit failed (${response.status})`);
+  }
+
+  const payload = adaptIntentResponse(await response.json());
+  runtimeState.lastTransport = 'network';
+  runtimeState.lastSystemText = payload.text;
+  return payload.text;
 }
 
 function bootstrap(doc = globalThis.document) {
@@ -80,16 +161,34 @@ function bootstrap(doc = globalThis.document) {
   if (!canvas || !composer || !input) return;
 
   const runtime = createParticleRuntime(canvas);
+  const runtimeState = {
+    sessionId: `session-${Date.now().toString(36)}`,
+    endpoints: { apiBase: DEFAULT_COGNITIVE_API_BASE, wsBase: '/ws/cognitive-stream' },
+    lastTransport: 'idle',
+    lastSystemText: '',
+  };
 
-  composer.addEventListener('submit', (event) => {
+  composer.addEventListener('submit', async (event) => {
     event.preventDefault();
     const text = input.value;
     if (!text.trim()) return;
-    runtime.pulse(text);
+
     input.value = '';
+
+    let systemText = '';
+    try {
+      systemText = await requestCognitiveResponse(text, runtimeState);
+    } catch (_error) {
+      systemText = deterministicLocalResponder(text, runtimeState);
+      runtimeState.lastSystemText = systemText;
+    }
+
+    runtime.renderText(systemText);
   });
 
   globalThis.addEventListener('beforeunload', () => runtime.destroy(), { once: true });
 }
 
-bootstrap();
+if (typeof globalThis.document !== 'undefined') {
+  bootstrap();
+}
