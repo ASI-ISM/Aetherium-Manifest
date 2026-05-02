@@ -4,6 +4,16 @@ Aetherium Manifest is a **light-native cognition runtime**: intent is interprete
 
 ---
 
+
+## เอกสารแนะนำโครงสร้างระบบสำหรับผู้มาใหม่ (TH)
+
+เพื่อการ onboarding แบบละเอียด (ภาพรวม → โครงสร้างขั้นสูง → ช่องว่างเชิงสถาปัตยกรรม → roadmap การเรียนรู้ → ลำดับความสำคัญในการพัฒนา) ดูเอกสารใหม่:
+
+- [docs/CODEBASE_ONBOARDING_TH.md](docs/CODEBASE_ONBOARDING_TH.md)
+
+เอกสารนี้เน้นอธิบาย “โครงสร้างของโค้ดเบส” และสถานะ data architecture ปัจจุบันอย่างเป็นระบบ โดยไม่มีการเปลี่ยนพฤติกรรม runtime
+
+---
 ## First-view product boundary
 
 - Homepage is a strict clean-entry surface with a user chat input and send button as the primary control.
