@@ -154,7 +154,7 @@ Core contracts/schemas in this repo include:
 ### Intent-to-light flow (first-use surface)
 1. User enters the clean first-view surface and provides chat input.
 2. Interaction activation lazily starts runtime connectivity (`/ws/cognitive-stream`) and runtime settings.
-3. Browser posts chat payload through canonical cognitive routes (`/api/v1/cognitive/generate` primary, `/api/v1/cognitive/emit` compatibility, `/api/v1/cognitive/validate` for contract checks).
+3. Browser posts chat payload through canonical cognitive routes (/api/v1/cognitive/generate primary or /api/intent legacy); manifestation state is validated via /api/v1/cognitive/validate.
 4. Language layer resolves language deterministically:
    - explicit setting → browser locale → char heuristics → optional local detector → session memory
 5. Cognitive response orchestrator maps intent class (greeting/question/etc.) to deterministic response text + mood.
