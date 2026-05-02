@@ -8,7 +8,7 @@ Aetherium Manifest is a **light-native cognition runtime**: intent is interprete
 
 - Homepage is a strict clean-entry surface with a user chat input and send button as the primary control.
 - No runtime diagnostics, status banners, or system notification panels are rendered on first view.
-- Chat input is sent to canonical cognitive API routes (`/api/v1/cognitive/generate` and compatibility route `/api/v1/cognitive/emit`) and then streamed to runtime manifestation.
+- Chat input is sent to canonical cognitive API routes (/api/v1/cognitive/generate or legacy /api/intent) and then streamed to runtime manifestation.
 - Manifestation feedback is presented as **particle text** (glyph-shaped particle formations) rather than debug panels.
 
 ## Architecture
