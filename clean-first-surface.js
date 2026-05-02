@@ -105,7 +105,7 @@ export function adaptIntentResponse(payload = {}) {
       energy: Number(intent.energy_level ?? 0.35),
       valence: Number(intent.emotional_valence ?? 0),
       color_palette: visual.color_palette ?? {},
-      flow: particlePhysics.flow_direction ? 1 : 0,
+      flow: (particlePhysics.flow_direction && particlePhysics.flow_direction !== 'still') ? 1 : 0,
     },
   };
 }
