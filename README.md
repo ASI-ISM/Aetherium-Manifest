@@ -6,9 +6,10 @@ Aetherium Manifest is a **light-native cognition runtime**: intent is interprete
 
 ## First-view product boundary
 
-- Homepage is a strict clean-entry surface with only a user chat input and send button.
+- Homepage is a strict clean-entry surface with a user chat input and send button as the primary control.
 - No runtime diagnostics, status banners, or system notification panels are rendered on first view.
-- User interaction returns manifestation feedback through light particles only.
+- Chat input is sent to canonical cognitive API routes (/api/v1/cognitive/generate or legacy /api/intent) and then streamed to runtime manifestation.
+- Manifestation feedback is presented as **particle text** (glyph-shaped particle formations) rather than debug panels.
 
 ## Architecture
 
@@ -151,13 +152,13 @@ Core contracts/schemas in this repo include:
 ## Runtime flow
 
 ### Intent-to-light flow (first-use surface)
-1. User enters through a blank awakening surface and opens the Settings Workspace operational sanctum.
-2. Interaction pane activation lazily starts runtime connectivity (WS/voice/manifestation).
-3. User submits text (and optionally an attached image for multimodal analysis) from the Interaction composer; browser transport emits through canonical cognitive routes only (`/api/v1/cognitive/*` + `/ws/cognitive-stream`).
+1. User enters the clean first-view surface and provides chat input.
+2. Interaction activation lazily starts runtime connectivity (/ws/cognitive-stream via session ticket) and runtime settings.
+3. Browser posts chat payload through canonical cognitive routes (/api/v1/cognitive/generate primary or /api/intent legacy); manifestation state is validated via /api/v1/cognitive/validate.
 4. Language layer resolves language deterministically:
    - explicit setting → browser locale → char heuristics → optional local detector → session memory
-5. Response orchestrator maps intent class (greeting/question/etc.) to deterministic text+mood.
-6. Manifestation engine renders mood/text into the light scene.
+5. Cognitive response orchestrator maps intent class (greeting/question/etc.) to deterministic response text + mood.
+6. Particle text pipeline converts response text into glyph masks and then into particle formations rendered in the light scene.
 7. Session audit trail appends event metadata (optional export from Settings).
 
 Auth note: if canonical emit responds `401/403`, the surface marks Security/Connectivity state as **Session ticket required** and does not downgrade to legacy `/api/intent` browser fallback.
@@ -167,6 +168,20 @@ Auth note: if canonical emit responds `401/403`, the surface marks Security/Conn
 2. Governor applies transition/profile mapping and constraints.
 3. Capability + policy gates enforce deny-by-default behavior.
 4. Runtime output and telemetry are published to consumers.
+
+### Particle text pipeline (sub-architecture)
+`input → intent → response → glyph mask → particle formation`
+
+1. **Input**
+   - Chat text (and optional image attachment on generate route) is normalized and validated at cognitive endpoint ingress.
+2. **Intent**
+   - Governor-adjacent cognitive mapping classifies intent/state and chooses safe response posture.
+3. **Response**
+   - Deterministic response text is produced for manifestation payloads.
+4. **Glyph mask**
+   - Response text is transformed into glyph mask geometry/texture primitives for displayable letterforms.
+5. **Particle formation**
+   - Runtime maps glyph masks into particle positions/motion envelopes to render readable particle text in-scene.
 
 ### Runtime control stages
 `validate → transition → profile_map → clamp → fallback → policy_block → capability_gate → telemetry_log`
@@ -179,6 +194,11 @@ Auth note: if canonical emit responds `401/403`, the surface marks Security/Conn
 - `policy_block`: deny-by-default policy enforcement
 - `capability_gate`: runtime/environment capability checks
 - `telemetry_log`: deterministic observability trail
+
+### Known limits (current prototype)
+- **Latency:** end-to-end chat-to-particle latency depends on network RTT, endpoint processing, and browser render cadence; no hard real-time SLA is guaranteed in current prototype.
+- **Max character budget:** long responses may be truncated or visually compacted by glyph/particle layout constraints; keep manifestation-targeted responses concise for readability.
+- **Language fallback:** language resolution is deterministic but heuristic-backed; unsupported/ambiguous scripts can fall back to session/default language behavior.
 
 ---
 
