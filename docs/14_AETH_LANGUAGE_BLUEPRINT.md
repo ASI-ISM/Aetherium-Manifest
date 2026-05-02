@@ -82,3 +82,9 @@ examples/aeth/
 ## Non-claims
 - This document does not claim that AETH is currently running in production.
 - Multi-device shader portability and runtime capability negotiation remain future implementation steps.
+
+## GPU runtime adapter compatibility note
+- IR -> GPU runtime adapter maps semantic IR fields to runtime config directly: `particle_density -> numParticles`, `turbulence -> noiseAmplitude`, `flow_direction -> forceDirection`, `shape -> forceKernel`, `glow_intensity -> renderIntensity`.
+- Dynamic scaling uses `numParticles = MAX_PARTICLES * ir.visual.density` and then applies runtime FPS/memory-pressure throttling.
+- `ir.visual.density` is treated as an optional runtime hint; when absent, runtime falls back to existing morphology density.
+- Compatibility impact: no ABI break for current contracts when the field is absent. If `visual.density` is promoted to required schema surface later, that change MUST be versioned as ABI-affecting with migration notes.

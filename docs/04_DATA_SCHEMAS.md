@@ -100,3 +100,8 @@ Export ABI constraints:
 - Every request MUST include `session_id`, `lineage_id`, and `selected_variation_id` for deterministic replay lineage.
 - `artifact_type` supports: `PNG`, `SVG`, `MP4`, `layer_package`, `manifest_json`, `prompt_lineage_bundle`.
 - Response includes `audit_trail_id`, `replay_key`, and `review_status` so export history can be reviewed in enterprise governance flows.
+
+## GPU runtime config bridge (IR adapter)
+- Runtime bridge supports direct semantic mapping to GPU config (`particle_density`, `turbulence`, `flow_direction`, `shape`, `glow_intensity`).
+- High-density simulation behavior is runtime-side (dynamic particle scaling, chunked domain scheduling, frustum-aware visibility gating, far-field reduced update cadence) and does not require schema changes by itself.
+- Compatibility impact: introducing a new canonical field such as `visual.density` in governed contracts would be ABI-affecting only when required by schema; additive optional fields remain backward-compatible but still require schema review + `x-field-evolution` metadata.
