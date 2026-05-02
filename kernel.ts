@@ -303,7 +303,7 @@ export class AetheriumKernel {
   getTelemetrySnapshot(): RuntimeTelemetry {
     return {
       ...this.telemetry,
-      gpu: this.telemetry.gpu ? { ...this.telemetry.gpu } : null,
+      gpu: this.telemetry.gpu ? structuredClone(this.telemetry.gpu) : null,
     };
   }
 
