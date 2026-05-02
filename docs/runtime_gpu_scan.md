@@ -16,5 +16,13 @@ The implementation treats non-divisible `cellCount` as a first-class case by zer
 
 - `throughputCellsPerSecond`: cells processed / scan latency (PrefixSum pass).
 - `maxLatencyMs`: running max scan latency seen across frames.
+- `pass_timings_ms`: per-pass timings (`Reset/Count/PrefixSum/InitCursor/Scatter/Integrate/Render/Swap`) using CPU fallback timers while GPU timestamp-query wiring is unavailable.
+- `occupancy`: histogram + contention proxy (`high_density_cells_ratio`, `max_cell_load`, `populated_cells`) derived from `cellCounts`-equivalent grid occupancy sampling.
 
 Use `getTelemetry()` to inspect current scan metrics for runtime diagnostics.
+
+Frontend debug overlay now supports an on-demand panel (toggle key `O`) that shows:
+- FPS
+- Particle count
+- Occupancy histogram summary
+- Per-pass timings
