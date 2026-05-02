@@ -21,6 +21,7 @@ import {
 import type { PerceptualEvaluator } from './perceptual-feedback.ts';
 import { RendererWebGL } from './renderer-webgl.ts';
 import { GpuSimulationEngine } from './runtime/gpu-sim/engine.ts';
+import type { GpuTelemetryFrame } from './runtime/gpu-sim/engine.ts';
 import type { RendererFrameSnapshot, RendererPhotonSnapshot } from './renderer-webgl.ts';
 
 export interface KernelConfig {
@@ -74,6 +75,7 @@ export interface RuntimeTelemetry {
   average_velocity: number;
   last_ai_command: string | null;
   policy_block_count: number;
+  gpu: GpuTelemetryFrame | null;
 }
 
 interface FieldCompilationRequest {
@@ -205,6 +207,7 @@ export class AetheriumKernel {
     average_velocity: 0,
     last_ai_command: null,
     policy_block_count: 0,
+    gpu: null,
   };
 
   private formationBundlePromise: ReturnType<typeof loadFormationBundle>;
@@ -219,6 +222,8 @@ export class AetheriumKernel {
   private lastFeedbackTimestamp = 0;
   private fieldCompilationRevision = 0;
   private fieldCompilerWorker: Worker | null = null;
+  private debugOverlay: HTMLDivElement | null = null;
+  private debugOverlayVisible = false;
 
   private coherence = 0.1;
   private coherenceTarget = 0.1;
@@ -241,9 +246,10 @@ export class AetheriumKernel {
 
 
     this.gpuEngine = GpuSimulationEngine.isSupported() ? new GpuSimulationEngine() : null;
-        this.formationBundlePromise = loadFormationBundle(this.config.formationBaseUrl);
+    this.formationBundlePromise = loadFormationBundle(this.config.formationBaseUrl);
     this.initParticles();
     this.initRenderer();
+    this.initDebugOverlay();
   }
 
   async handleUserLightRequest(userText: string): Promise<void> {
@@ -295,7 +301,10 @@ export class AetheriumKernel {
   }
 
   getTelemetrySnapshot(): RuntimeTelemetry {
-    return { ...this.telemetry };
+    return {
+      ...this.telemetry,
+      gpu: this.telemetry.gpu ? { ...this.telemetry.gpu } : null,
+    };
   }
 
   start(): void {
@@ -575,6 +584,7 @@ export class AetheriumKernel {
       this.updatePhotons(deltaTime, tickPolicy);
     }
     this.renderer.render(this.buildRendererFrameSnapshot());
+    this.updateDebugOverlay();
 
     if (this.frameCounter % tickPolicy.feedbackCadenceFrames === 0 || (timestamp - this.lastFeedbackTimestamp) >= tickPolicy.feedbackCadenceMs) {
       this.lastFeedbackTimestamp = timestamp;
@@ -625,6 +635,40 @@ export class AetheriumKernel {
     if (deltaTime > FRAME_DROP_THRESHOLD_SECONDS) {
       this.telemetry.dropped_frames += 1;
     }
+    this.telemetry.gpu = this.gpuEngine?.getTelemetry() ?? null;
+  }
+
+  private initDebugOverlay(): void {
+    if (typeof document === 'undefined' || !document.body || typeof window === 'undefined') {
+      return;
+    }
+    const panel = document.createElement('div');
+    panel.id = 'gpu-debug-overlay';
+    panel.style.cssText = 'position:fixed;top:12px;right:12px;padding:10px 12px;background:rgba(4,8,14,0.76);color:#bde7ff;font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;border:1px solid rgba(123,214,255,0.35);border-radius:8px;white-space:pre-wrap;max-width:360px;display:none;z-index:9999;';
+    document.body.appendChild(panel);
+    this.debugOverlay = panel;
+    window.addEventListener('keydown', (event) => {
+      if (event.key.toLowerCase() !== 'o') return;
+      this.debugOverlayVisible = !this.debugOverlayVisible;
+      if (this.debugOverlay) {
+        this.debugOverlay.style.display = this.debugOverlayVisible ? 'block' : 'none';
+      }
+    });
+  }
+
+  private updateDebugOverlay(): void {
+    if (!this.debugOverlay || !this.debugOverlayVisible) return;
+    const gpu = this.telemetry.gpu;
+    const histogram = gpu ? gpu.occupancy.histogram.map((v, i) => `${i}:${v}`).join(' ') : 'n/a';
+    const timings = gpu ? Object.entries(gpu.pass_timings_ms).map(([k, v]) => `${k}=${v.toFixed(2)}ms`).join(', ') : 'n/a';
+    this.debugOverlay.textContent = [
+      'Debug Overlay (toggle: O)',
+      `FPS: ${this.telemetry.fps.toFixed(1)}`,
+      `Particles: ${this.telemetry.particle_count}`,
+      `Occupancy: max=${gpu?.occupancy.max_cell_load ?? 0}, highRatio=${(gpu?.occupancy.high_density_cells_ratio ?? 0).toFixed(3)}`,
+      `Histogram: ${histogram}`,
+      `Pass timings: ${timings}`,
+    ].join('\n');
   }
 
   private updateVelocityTelemetry(): void {
