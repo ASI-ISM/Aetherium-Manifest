@@ -1,4 +1,5 @@
 import { createParticleTextRenderer } from './first_use_surface/particle_text_renderer.js';
+import { createSettingsStore } from './first_use_surface/settings-store.js';
 
 const DEFAULT_COGNITIVE_API_BASE = '/api/v1/cognitive';
 
@@ -85,13 +86,105 @@ function bootstrap(doc = globalThis.document) {
 
   if (!canvas || !composer || !input) return;
 
+  const settingsButton = doc.getElementById('settings-icon-btn');
+  const settingsStore = createSettingsStore(globalThis.localStorage);
+  let settingsState = settingsStore.load();
+  let settingsPanel = null;
+
   const runtime = createParticleTextRenderer(canvas);
   const runtimeState = {
     sessionId: `session-${Date.now().toString(36)}`,
-    endpoints: { apiBase: DEFAULT_COGNITIVE_API_BASE, wsBase: '/ws/cognitive-stream' },
+    endpoints: { apiBase: settingsState.apiBase, wsBase: settingsState.wsBase },
     lastTransport: 'idle',
     lastSystemText: '',
   };
+
+  const updateSettings = (patch) => {
+    settingsState = settingsStore.merge(patch);
+    runtimeState.endpoints = {
+      apiBase: settingsState.apiBase,
+      wsBase: settingsState.wsBase,
+    };
+  };
+
+  const mountSettingsPanel = () => {
+    if (settingsPanel) return settingsPanel;
+
+    const panel = doc.createElement('section');
+    panel.id = 'settings-panel';
+    panel.className = 'settings-panel';
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-label', 'Settings');
+    panel.hidden = true;
+
+    panel.innerHTML = `
+      <h2>Settings</h2>
+      <div class="settings-grid">
+        <label>Language
+          <select id="settings-language">
+            <option value="auto">Auto</option>
+            <option value="th">ไทย</option>
+            <option value="en">English</option>
+            <option value="ja">日本語</option>
+            <option value="es">Español</option>
+          </select>
+        </label>
+        <label>Particle mode
+          <select id="settings-runtime-mode">
+            <option value="calm">Calm</option>
+            <option value="balanced">Balanced</option>
+            <option value="vivid">Vivid</option>
+          </select>
+        </label>
+        <label>Performance
+          <select id="settings-reduced-motion">
+            <option value="false">Normal</option>
+            <option value="true">Reduced motion</option>
+          </select>
+        </label>
+        <label>API base
+          <input id="settings-api-base" type="text" />
+        </label>
+        <label>WS path
+          <input id="settings-ws-base" type="text" />
+        </label>
+      </div>
+    `;
+
+    doc.body.append(panel);
+
+    const language = panel.querySelector('#settings-language');
+    const runtimeMode = panel.querySelector('#settings-runtime-mode');
+    const reducedMotion = panel.querySelector('#settings-reduced-motion');
+    const apiBase = panel.querySelector('#settings-api-base');
+    const wsBase = panel.querySelector('#settings-ws-base');
+
+    const syncPanelInputs = () => {
+      language.value = settingsState.language;
+      runtimeMode.value = settingsState.runtimeMode;
+      reducedMotion.value = String(settingsState.reducedMotion);
+      apiBase.value = settingsState.apiBase;
+      wsBase.value = settingsState.wsBase;
+    };
+
+    syncPanelInputs();
+
+    language.addEventListener('change', () => updateSettings({ language: language.value }));
+    runtimeMode.addEventListener('change', () => updateSettings({ runtimeMode: runtimeMode.value }));
+    reducedMotion.addEventListener('change', () => updateSettings({ reducedMotion: reducedMotion.value === 'true' }));
+    apiBase.addEventListener('change', () => updateSettings({ apiBase: apiBase.value || DEFAULT_COGNITIVE_API_BASE }));
+    wsBase.addEventListener('change', () => updateSettings({ wsBase: wsBase.value || '/ws/cognitive-stream' }));
+
+    settingsPanel = panel;
+    return settingsPanel;
+  };
+
+  settingsButton?.addEventListener('click', () => {
+    const panel = mountSettingsPanel();
+    const willOpen = panel.hidden;
+    panel.hidden = !willOpen;
+    settingsButton.setAttribute('aria-expanded', String(willOpen));
+  });
 
   composer.addEventListener('submit', async (event) => {
     event.preventDefault();
