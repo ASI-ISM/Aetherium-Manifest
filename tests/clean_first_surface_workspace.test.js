@@ -35,6 +35,7 @@ describe('compatibility adapter', () => {
     expect(adapted.visual.energy).toBe(0.8);
     expect(adapted.visual.color_palette.primary).toBe('#111111');
     expect(adapted.visual.flow).toBe(1);
+    expect(adapted.visual.flowDirection).toBe('outward');
   });
 });
 

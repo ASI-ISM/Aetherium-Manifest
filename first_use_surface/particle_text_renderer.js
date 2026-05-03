@@ -6,6 +6,7 @@ const DEFAULT_OPTIONS = {
   damping: 0.84,
   jitter: 0.35,
   alphaThreshold: 64,
+  flowDirection: 'outward',
 };
 
 function clamp(value, min, max) {
@@ -54,6 +55,8 @@ export function createParticleTextRenderer(canvas, options = {}) {
   let targets = [];
   let rafId = 0;
   let palette = { r: 127, g: 228, b: 255 };
+  let flowDirection = config.flowDirection;
+  const radialScale = config.ease * 0.18;
 
   const resize = () => {
     canvas.width = globalThis.innerWidth;
@@ -147,8 +150,18 @@ export function createParticleTextRenderer(canvas, options = {}) {
       if (active) {
         const dx = p.tx - p.x;
         const dy = p.ty - p.y;
+        const radialDx = p.x - canvas.width * 0.5;
+        const radialDy = p.y - canvas.height * 0.5;
+        const radialScale = config.ease * 0.18;
         p.vx += dx * config.ease;
         p.vy += dy * config.ease;
+        if (flowDirection === 'outward') {
+          p.vx += radialDx * radialScale;
+          p.vy += radialDy * radialScale;
+        } else if (flowDirection === 'inward') {
+          p.vx -= radialDx * radialScale;
+          p.vy -= radialDy * radialScale;
+        }
         p.alpha = Math.min(0.95, p.alpha + 0.05);
       } else {
         p.vy += 0.02;
@@ -182,6 +195,10 @@ export function createParticleTextRenderer(canvas, options = {}) {
     renderText(message = '', mood = 'neutral') {
       palette = moodPalette(mood);
       targets = pointCloudFromMask(message);
+    },
+    setFlowDirection(direction = 'outward') {
+      const normalized = String(direction).toLowerCase();
+      flowDirection = (normalized === 'inward' || normalized === 'still') ? normalized : 'outward';
     },
     destroy() {
       globalThis.cancelAnimationFrame(rafId);
