@@ -32,7 +32,7 @@ export function adaptIntentResponse(payload = {}) {
       valence: Number(intent.emotional_valence ?? 0),
       color_palette: visual.color_palette ?? {},
       flow: (particlePhysics.flow_direction && particlePhysics.flow_direction !== 'still') ? 1 : 0,
-      flowDirection: particlePhysics.flow_direction === 'inward' ? 'inward' : 'outward',
+      flowDirection: particlePhysics.flow_direction === 'inward' ? 'inward' : (particlePhysics.flow_direction === 'still' ? 'still' : 'outward'),
     },
   };
 }
