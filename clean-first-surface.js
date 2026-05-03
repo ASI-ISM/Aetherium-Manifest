@@ -32,6 +32,7 @@ export function adaptIntentResponse(payload = {}) {
       valence: Number(intent.emotional_valence ?? 0),
       color_palette: visual.color_palette ?? {},
       flow: (particlePhysics.flow_direction && particlePhysics.flow_direction !== 'still') ? 1 : 0,
+      flowDirection: particlePhysics.flow_direction === 'inward' ? 'inward' : 'outward',
     },
   };
 }
@@ -202,6 +203,7 @@ function bootstrap(doc = globalThis.document) {
       systemReply = { text: fallbackText, state: 'focused' };
     }
 
+    runtime.setFlowDirection(systemReply.visual?.flowDirection ?? 'outward');
     runtime.renderText(systemReply.text, systemReply.state);
   });
 
