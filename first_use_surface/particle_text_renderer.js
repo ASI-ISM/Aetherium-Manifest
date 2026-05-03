@@ -3,6 +3,7 @@ const DEFAULT_OPTIONS = {
   sampleStep: 4,
   maxParticles: 3200,
   ease: 0.09,
+  morphDuration: 1.35,
   damping: 0.84,
   jitter: 0.35,
   alphaThreshold: 64,
@@ -11,6 +12,12 @@ const DEFAULT_OPTIONS = {
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
+}
+
+
+function easeInOutCubic(t) {
+  if (t < 0.5) return 4 * t * t * t;
+  return 1 - ((-2 * t + 2) ** 3) / 2;
 }
 
 function wrapLines(ctx, message, maxWidth) {
@@ -53,6 +60,7 @@ export function createParticleTextRenderer(canvas, options = {}) {
 
   const particles = [];
   let targets = [];
+  let morphStartTime = globalThis.performance.now();
   let rafId = 0;
   let palette = { r: 127, g: 228, b: 255 };
   let flowDirection = config.flowDirection;
@@ -126,6 +134,8 @@ export function createParticleTextRenderer(canvas, options = {}) {
         vy: 0,
         tx: targets[idx].x,
         ty: targets[idx].y,
+        sx: canvas.width * 0.5 + (Math.random() - 0.5) * 120,
+        sy: canvas.height * 0.65 + (Math.random() - 0.5) * 120,
         alpha: 0,
         life: Math.random() * 120,
       });
@@ -140,16 +150,25 @@ export function createParticleTextRenderer(canvas, options = {}) {
     }
   };
 
+  let energyLevel = 0.35;
+  let mouse = { x: canvas.width * 0.5, y: canvas.height * 0.5, active: false };
+
   const animate = () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const now = globalThis.performance.now();
+    const morphT = clamp((now - morphStartTime) / (config.morphDuration * 1000), 0, 1);
+    const easedMorph = easeInOutCubic(morphT);
 
     for (let i = particles.length - 1; i >= 0; i -= 1) {
       const p = particles[i];
       const active = i < targets.length;
 
       if (active) {
-        const dx = p.tx - p.x;
-        const dy = p.ty - p.y;
+        const morphX = p.sx + (p.tx - p.sx) * easedMorph;
+        const morphY = p.sy + (p.ty - p.sy) * easedMorph;
+        const dx = morphX - p.x;
+        const dy = morphY - p.y;
         const radialDx = p.x - canvas.width * 0.5;
         const radialDy = p.y - canvas.height * 0.5;
         const radialScale = config.ease * 0.18;
@@ -178,14 +197,42 @@ export function createParticleTextRenderer(canvas, options = {}) {
         continue;
       }
 
+      let bloomStrength = 0;
+      if (mouse.active) {
+        const dist = Math.hypot(mouse.x - p.x, mouse.y - p.y);
+        const bloomRadius = 96 + energyLevel * 72;
+        const proximity = clamp(1 - dist / bloomRadius, 0, 1);
+        bloomStrength = proximity * (0.12 + energyLevel * 0.28);
+      }
+
+      const easedAlpha = clamp(p.alpha + easedMorph * 0.08, 0, 0.98);
       ctx.beginPath();
-      ctx.fillStyle = `rgba(${palette.r}, ${palette.g}, ${palette.b}, ${p.alpha})`;
-      ctx.arc(p.x, p.y, 1.25, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${palette.r}, ${palette.g}, ${palette.b}, ${easedAlpha})`;
+      ctx.arc(p.x, p.y, 1.25 + bloomStrength * 2.4, 0, Math.PI * 2);
       ctx.fill();
+
+      if (bloomStrength > 0.01) {
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(${palette.r}, ${palette.g}, ${palette.b}, ${bloomStrength * 0.35})`;
+        ctx.arc(p.x, p.y, 4 + bloomStrength * 10, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
     rafId = globalThis.requestAnimationFrame(animate);
   };
+
+
+  const onPointerMove = (event) => {
+    mouse = { x: event.clientX, y: event.clientY, active: true };
+  };
+  const onPointerLeave = () => {
+    mouse = { ...mouse, active: false };
+  };
+
+  canvas.addEventListener('pointermove', onPointerMove);
+  canvas.addEventListener('pointerdown', onPointerMove);
+  canvas.addEventListener('pointerleave', onPointerLeave);
 
   resize();
   animate();
@@ -195,6 +242,18 @@ export function createParticleTextRenderer(canvas, options = {}) {
     renderText(message = '', mood = 'neutral') {
       palette = moodPalette(mood);
       targets = pointCloudFromMask(message);
+      morphStartTime = globalThis.performance.now();
+      for (let i = 0; i < particles.length; i += 1) {
+        particles[i].sx = particles[i].x;
+        particles[i].sy = particles[i].y;
+      }
+      syncParticles();
+    },
+    setEnergy(energy = 0.35) {
+      energyLevel = clamp(Number(energy) || 0, 0, 1);
+    },
+    setMorphDuration(seconds = config.morphDuration) {
+      config.morphDuration = clamp(Number(seconds) || DEFAULT_OPTIONS.morphDuration, 0.2, 8);
     },
     setFlowDirection(direction = 'outward') {
       const normalized = String(direction).toLowerCase();
@@ -203,6 +262,9 @@ export function createParticleTextRenderer(canvas, options = {}) {
     destroy() {
       globalThis.cancelAnimationFrame(rafId);
       globalThis.removeEventListener('resize', resize);
+      canvas.removeEventListener('pointermove', onPointerMove);
+      canvas.removeEventListener('pointerdown', onPointerMove);
+      canvas.removeEventListener('pointerleave', onPointerLeave);
     },
   };
 }

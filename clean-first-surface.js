@@ -93,6 +93,7 @@ function bootstrap(doc = globalThis.document) {
   let settingsPanel = null;
 
   const runtime = createParticleTextRenderer(canvas);
+  runtime.setMorphDuration(settingsState.runtimeMode === 'vivid' ? 0.8 : (settingsState.runtimeMode === 'calm' ? 1.8 : 1.2));
   const runtimeState = {
     sessionId: `session-${Date.now().toString(36)}`,
     endpoints: { apiBase: settingsState.apiBase, wsBase: settingsState.wsBase },
@@ -171,7 +172,10 @@ function bootstrap(doc = globalThis.document) {
     syncPanelInputs();
 
     language.addEventListener('change', () => updateSettings({ language: language.value }));
-    runtimeMode.addEventListener('change', () => updateSettings({ runtimeMode: runtimeMode.value }));
+    runtimeMode.addEventListener('change', () => {
+      updateSettings({ runtimeMode: runtimeMode.value });
+      runtime.setMorphDuration(runtimeMode.value === 'vivid' ? 0.8 : (runtimeMode.value === 'calm' ? 1.8 : 1.2));
+    });
     reducedMotion.addEventListener('change', () => updateSettings({ reducedMotion: reducedMotion.value === 'true' }));
     apiBase.addEventListener('change', () => updateSettings({ apiBase: apiBase.value || DEFAULT_COGNITIVE_API_BASE }));
     wsBase.addEventListener('change', () => updateSettings({ wsBase: wsBase.value || '/ws/cognitive-stream' }));
@@ -203,6 +207,7 @@ function bootstrap(doc = globalThis.document) {
       systemReply = { text: fallbackText, state: 'focused' };
     }
 
+    runtime.setEnergy(systemReply.visual?.energy ?? 0.35);
     runtime.setFlowDirection(systemReply.visual?.flowDirection ?? 'outward');
     runtime.renderText(systemReply.text, systemReply.state);
   });
