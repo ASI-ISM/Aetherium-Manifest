@@ -198,7 +198,7 @@ export function createParticleTextRenderer(canvas, options = {}) {
     },
     setFlowDirection(direction = 'outward') {
       const normalized = String(direction).toLowerCase();
-      flowDirection = normalized === 'inward' ? 'inward' : 'outward';
+      flowDirection = (normalized === 'inward' || normalized === 'still') ? normalized : 'outward';
     },
     destroy() {
       globalThis.cancelAnimationFrame(rafId);
