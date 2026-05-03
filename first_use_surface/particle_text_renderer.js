@@ -56,6 +56,7 @@ export function createParticleTextRenderer(canvas, options = {}) {
   let rafId = 0;
   let palette = { r: 127, g: 228, b: 255 };
   let flowDirection = config.flowDirection;
+  const radialScale = config.ease * 0.18;
 
   const resize = () => {
     canvas.width = globalThis.innerWidth;
