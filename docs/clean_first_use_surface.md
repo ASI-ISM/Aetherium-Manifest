@@ -4,14 +4,12 @@ This document describes the refactored homepage runtime for Aetherium Manifest.
 
 ## First-view contract
 
-The homepage intentionally renders only:
+The awakening surface intentionally renders only:
 
-- Full-screen manifestation canvas (light field).
-- Minimal bottom composer.
+- A blank surface.
 - One Settings button.
-- Subtle human-readable status text and a lightweight readable fallback line.
 
-No dashboard, HUD, debug panel, scholar panel, lineage panel, or runtime console is shown on first view.
+No dashboard, HUD, debug panel, scholar panel, lineage panel, runtime console, composer, or voice controls are shown in the first view.
 
 ## Module split
 
@@ -34,8 +32,12 @@ No dashboard, HUD, debug panel, scholar panel, lineage panel, or runtime console
   - Browser-locale + character-range baseline detection.
   - Optional local rule-based detector layer (pluggable).
 - `clean-first-surface.js` intent transport
-  - `emitIntent(intent)` sends `{ intent, session_id }` to `${apiBase}/intent`.
-  - Frontend treats backend response as transport-only success/failure and waits for validated state via stream update.
+  - Runtime performs ticket bootstrap (`/api/v1/auth/session`) before WebSocket connect; it renews via `/api/v1/auth/session/refresh` when needed.
+  - WS connect attaches short-lived ticket as query (`?ticket=<signed_ephemeral_ticket>`) and negotiates `aetherium-ticket-v1` subprotocol.
+  - Security pane reflects live ticket state: `issued`, TTL countdown, or `renew required`.
+  - `emitIntent(intent)` sends to `${apiBase}/generate` where `apiBase` defaults to `/api/v1/cognitive`.
+  - Auth failures from canonical routes (401/403) are surfaced as `Session ticket required` in Security + Connectivity state instead of falling back to non-canonical endpoints.
+  - `adaptIntentResponse(payload)` normalizes backend response into the existing frontend stream shape.
 
 ## Language detection strategy
 
@@ -47,15 +49,25 @@ Resolution order:
 4. Deterministic language choice with confidence-based rules.
 5. Session language memory update.
 
-## Settings as a single advanced-control surface
+## Operational sanctum information architecture
 
-All advanced controls are kept inside Settings:
+All runtime controls are kept inside a seven-pane Settings Workspace (operational sanctum):
+
+- Interaction
+- Connectivity
+- Accessibility
+- Runtime
+- Output/Audit
+- Security
+- Developer
+
 
 - API/WS base paths.
 - Runtime mode and telemetry options.
 - Lineage/replay/scholar/governor/developer toggles.
 - Reduced-motion and language/voice/local-detector options.
 - Optional voice capture trigger and session-audit export.
+- Runtime initialization trigger (deferred startup gate).
 
 ## Fallback behavior
 

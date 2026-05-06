@@ -10,13 +10,16 @@ import re
 import socket
 import uuid
 import hashlib
-from datetime import datetime, timezone
+import hmac
+import base64
+import json
+import secrets
+from datetime import datetime, timezone, timedelta
 from statistics import mean
-from typing import Any, Literal
+from typing import Any, Dict, List, Literal, Optional, Union
 from urllib.parse import urlparse
 from collections import deque
 from contextlib import asynccontextmanager
-from typing import Dict, Optional, Union
 from enum import Enum
 
 from fastapi import FastAPI, HTTPException, Header, Query, WebSocket, WebSocketDisconnect
@@ -65,6 +68,23 @@ MODEL_PROVIDER_MAP = {
     "claude-3-opus": "anthropic",
 }
 
+AETHERIUM_API_KEY_ENV = "AETHERIUM_API_KEY"
+AETHERIUM_API_KEY_ALLOWLIST_ENV = "AETHERIUM_API_KEY_ALLOWLIST"
+EXPECTED_API_KEYS: Optional[frozenset[str]] = None
+
+
+def _parse_api_key_allowlist(raw: str) -> set[str]:
+    return {key.strip() for key in raw.split(",") if key.strip()}
+
+
+def _load_expected_api_keys() -> frozenset[str]:
+    primary_key = os.getenv(AETHERIUM_API_KEY_ENV, "").strip()
+    allowlist_raw = os.getenv(AETHERIUM_API_KEY_ALLOWLIST_ENV, "")
+    keys = _parse_api_key_allowlist(allowlist_raw)
+    if primary_key:
+        keys.add(primary_key)
+    return frozenset(keys)
+
 
 # --- Pydantic Models ---
 
@@ -97,6 +117,40 @@ class GenerateRequest(BaseModel):
     prompt: str
     model: str = Field(default="gemini-1.5-pro")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
+    image: Optional["ImageAttachment"] = None
+
+
+class ImageAttachment(BaseModel):
+    data_url: str = Field(..., min_length=16)
+    mime_type: str = Field(default="image/jpeg")
+    filename: Optional[str] = None
+
+class LegacyIntentRequest(BaseModel):
+    prompt: str
+    session_id: Optional[str] = None
+    model: str = Field(default="gpt-4o")
+    temperature: float = Field(default=0.4, ge=0.0, le=2.0)
+
+
+class SessionTicketIssueRequest(BaseModel):
+    session_id: str = Field(..., min_length=1)
+    role: Literal["viewer", "operator"] = "viewer"
+    scope: Literal["cognitive:stream", "cognitive:stream:privileged"] = "cognitive:stream"
+
+
+class SessionTicketRefreshRequest(BaseModel):
+    ticket: str = Field(..., min_length=1)
+
+
+class SessionTicketResponse(BaseModel):
+    ticket: str
+    ticket_id: str
+    session_id: str
+    role: str
+    scope: str
+    state: Literal["issued", "renew_required"]
+    expires_at: str
+    ttl_seconds: int
 
 class GenerateResponse(BaseModel):
     text: str
@@ -140,6 +194,11 @@ class ParticlePalette(BaseModel):
     accent: Optional[str] = None
 
 
+class Attractor(BaseModel):
+    x: float = Field(ge=0.0, le=1.0)
+    y: float = Field(ge=0.0, le=1.0)
+
+
 class IntentState(BaseModel):
     state: str
     shape: str
@@ -150,7 +209,7 @@ class IntentState(BaseModel):
     flow_direction: str
     glow_intensity: float
     flicker: float
-    attractor: str
+    attractor: Attractor
     palette: ParticlePalette
 
 
@@ -241,27 +300,20 @@ class ExportResponse(BaseModel):
     created_at: datetime
     options: Dict[str, Any] = Field(default_factory=dict)
 
-# --- Validation ---
-
-class FirmaValidator:
-    @staticmethod
-    def validate_dsl_response(payload: CognitiveEmitRequest) -> tuple[bool, list[str]]:
-        violations: list[str] = []
-        visual = payload.model_response.visual_manifestation
-        primary = (visual.color_palette.primary or "").lower()
-        if primary == "#dc143c" and not visual.emergency_override:
-            violations.append("policy_violation: crimson_requires_emergency_override")
-        return len(violations) == 0, violations
-
 # --- App Initialization ---
 
 logger = logging.getLogger("api-gateway")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global r, nc
-    if not os.getenv("AETHERIUM_API_KEY"):
-        logger.error("AETHERIUM_API_KEY is not configured; protected endpoints will fail closed")
+    global r, nc, EXPECTED_API_KEYS
+    EXPECTED_API_KEYS = _load_expected_api_keys()
+    if not EXPECTED_API_KEYS:
+        logger.error(
+            "No API key configured via %s or %s; protected endpoints will fail closed",
+            AETHERIUM_API_KEY_ENV,
+            AETHERIUM_API_KEY_ALLOWLIST_ENV,
+        )
     try:
         r = redis.from_url(REDIS_URL, decode_responses=True)
         nc = await nats.connect(NATS_URL)
@@ -306,7 +358,6 @@ nc: Optional[nats.NATS] = None
 NONCE_CACHE: Dict[str, bool] = {}
 RUNTIME_GOVERNOR = RuntimeGovernor()
 EXPORT_AUDIT_TRAIL: deque[Dict[str, Any]] = deque(maxlen=1000)
-TELEMETRY_TS_DB: deque[dict[str, Any]] = deque(maxlen=10000)
 SEV1_INCIDENT_PACKAGES: list[str] = [
     name for name, package in INCIDENT_REPLAY_PACKAGES.items() if package.get("severity") == "sev1"
 ]
@@ -321,11 +372,16 @@ REQUIRED_PIPELINE_ORDER = [
     "telemetry_log",
 ]
 
+TICKET_SECRET = os.getenv("SESSION_TICKET_SECRET", "aetherium-dev-ticket-secret").encode("utf-8")
+SESSION_TICKET_TTL_SECONDS = int(os.getenv("SESSION_TICKET_TTL_SECONDS", "60"))
+ALLOWED_WS_SCOPES = {"cognitive:stream", "cognitive:stream:privileged"}
+TICKET_AUDIT_TRAIL: deque[Dict[str, Any]] = deque(maxlen=2000)
+
 
 # --- In-memory State and Concurrency ---
 
 METRICS = Metrics()
-TELEMETRY_TS_DB: dict[str, list[dict[str, Any]]] = {}
+TELEMETRY_TS_DB: Dict[str, List[Dict[str, Any]]] = {}
 STATE_SYNC_ROOMS: dict[str, 'StateSyncRoom'] = {}
 
 METRICS_LOCK = asyncio.Lock()
@@ -395,17 +451,39 @@ def _is_blocked_proxy_target(hostname: str) -> bool:
 
 # --- Generative Model Invocation ---
 
-async def invoke_generative_model(prompt: str, model: str, temperature: float) -> str:
+def _extract_image_payload(image: ImageAttachment | None) -> tuple[bytes | None, str | None]:
+    if not image:
+        return None, None
+    if not image.data_url.startswith("data:"):
+        raise HTTPException(status_code=422, detail="image.data_url must be a valid data URL")
+    try:
+        header, encoded = image.data_url.split(",", 1)
+        if ";base64" not in header:
+            raise ValueError("missing base64 marker")
+        mime = header[5:].split(";", 1)[0] or image.mime_type
+        binary = base64.b64decode(encoded, validate=True)
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"invalid image attachment: {exc}") from exc
+    if len(binary) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="image attachment exceeds 5MB limit")
+    return binary, mime
+
+
+async def invoke_generative_model(prompt: str, model: str, temperature: float, image: ImageAttachment | None = None) -> str:
     provider = MODEL_PROVIDER_MAP.get(model)
     if not provider:
         raise HTTPException(status_code=400, detail=f"Unsupported model: {model}")
+    image_bytes, image_mime = _extract_image_payload(image)
 
     if provider == "google":
         api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
         if not api_key:
             raise HTTPException(status_code=500, detail="Google API key (GEMINI_API_KEY or GOOGLE_API_KEY) is not set")
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-        payload = {"contents": [{"parts": [{"text": prompt}]}]}
+        parts: list[dict[str, Any]] = [{"text": prompt or "Analyze this image and provide key observations."}]
+        if image_bytes and image_mime:
+            parts.append({"inline_data": {"mime_type": image_mime, "data": base64.b64encode(image_bytes).decode("utf-8")}})
+        payload = {"contents": [{"parts": parts}]}
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(url, json=payload)
             response.raise_for_status()
@@ -417,9 +495,13 @@ async def invoke_generative_model(prompt: str, model: str, temperature: float) -
             raise HTTPException(status_code=500, detail="OPENAI_API_KEY is not set")
         url = "https://api.openai.com/v1/chat/completions"
         headers = {"Authorization": f"Bearer {api_key}"}
+        content: list[dict[str, Any]] = [{"type": "text", "text": prompt or "Analyze this image and summarize it."}]
+        if image_bytes and image_mime:
+            image_data_url = f"data:{image_mime};base64,{base64.b64encode(image_bytes).decode('utf-8')}"
+            content.append({"type": "image_url", "image_url": {"url": image_data_url}})
         payload = {
             "model": model,
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": [{"role": "user", "content": content}],
             "temperature": temperature,
         }
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -432,14 +514,11 @@ async def invoke_generative_model(prompt: str, model: str, temperature: float) -
 # --- Helper Functions ---
 
 def _infer_intent_from_text(text: str) -> tuple[IntentVector, VisualManifestation]:
-    """วิเคราะห์ข้อความที่สร้างขึ้น เพื่อแปลงเป็น Intent Vector และ Visual Parameters"""
     length = len(text)
     
-    # 1. คำนวณ Energy Level (0.0 - 1.0) จากความยาวและเครื่องหมายอัศเจรีย์
     exclamations = len(re.findall(r'!', text))
     energy = min(1.0, 0.3 + (exclamations * 0.15) + (length / 1000.0))
     
-    # 2. คำนวณ Emotional Valence (-1.0 ถึง 1.0) โดยจำลองจากการตรวจจับคีย์เวิร์ด
     positive_words = ["ดี", "เยี่ยม", "ยินดี", "ความสุข", "สำเร็จ", "good", "great", "happy"]
     negative_words = ["แย่", "เสียใจ", "ผิดพลาด", "ปัญหา", "ขออภัย", "bad", "error", "sorry"]
     
@@ -452,26 +531,23 @@ def _infer_intent_from_text(text: str) -> tuple[IntentVector, VisualManifestatio
     elif neg_count > pos_count:
         valence = max(-1.0, (neg_count - pos_count) * -0.25)
         
-    # 3. กำหนด Category
     category = "narrative"
     if "?" in text:
         category = "inquiry"
     elif "!" in text:
         category = "exclamation"
 
-    # 4. แปลง Intent เป็นพารามิเตอร์ทางสายตา (Visual Manifestation)
-    primary_color = "#00FFFF"  # สีหลัก: Cyan (ปกติ/เป็นกลาง)
+    primary_color = "#00FFFF"
     if valence > 0.4:
-        primary_color = "#00FF00"  # สีเขียว (พลังงานบวก)
+        primary_color = "#00FF00"
     elif valence < -0.4:
-        primary_color = "#FF4500"  # สีส้มแดง (เชิงลบ/เตือนภัย)
+        primary_color = "#FF4500"
     
     if energy > 0.8:
-        primary_color = "#FFD700"  # สีทอง (พลังงานสูงมาก)
+        primary_color = "#FFD700"
         
-    # พลศาสตร์ของอนุภาคแสงอิงตามค่าพลังงาน
     turbulence = min(1.0, energy * 0.8)
-    particle_count = min(10000, int(2000 + (energy * 8000)))  # จำนวนจุดแสงตามพลังงาน
+    particle_count = min(10000, int(2000 + (energy * 8000)))
     
     intent = IntentVector(
         category=category,
@@ -480,7 +556,7 @@ def _infer_intent_from_text(text: str) -> tuple[IntentVector, VisualManifestatio
     )
     
     visual = VisualManifestation(
-        base_shape="fluid_typography", # บอก WebGL ว่าให้เรียงเป็นตัวอักษรแบบของไหล
+        base_shape="fluid_typography",
         transition_type="emerge",
         color_palette=ColorPalette(primary=primary_color, secondary="#FFFFFF"),
         particle_physics=ParticlePhysics(
@@ -490,17 +566,106 @@ def _infer_intent_from_text(text: str) -> tuple[IntentVector, VisualManifestatio
             particle_count=particle_count
         ),
         chromatic_mode="reactive",
-        device_tier=2 # ตั้งค่าเริ่มต้นให้รันบน Device ระดับกลาง
+        device_tier=2
     )
     
     return intent, visual
 
 def _ensure_api_key(x_api_key: str | None) -> None:
+    configured_keys = EXPECTED_API_KEYS if EXPECTED_API_KEYS is not None else _load_expected_api_keys()
+
+    if not configured_keys:
+        logger.error(
+            "Rejecting request: no configured API keys in %s/%s",
+            AETHERIUM_API_KEY_ENV,
+            AETHERIUM_API_KEY_ALLOWLIST_ENV,
+        )
+        raise HTTPException(status_code=503, detail="API key validation is not configured")
+
     if not x_api_key:
         raise HTTPException(status_code=401, detail="missing X-API-Key")
 
+    if x_api_key not in configured_keys:
+        raise HTTPException(status_code=403, detail="invalid X-API-Key")
+
 def _extract_ws_api_key(websocket: WebSocket) -> str | None:
     return websocket.headers.get("x-api-key") or websocket.query_params.get("api_key")
+
+
+def _b64url_encode(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).decode("utf-8").rstrip("=")
+
+
+def _b64url_decode(raw: str) -> bytes:
+    padding = "=" * (-len(raw) % 4)
+    return base64.urlsafe_b64decode(raw + padding)
+
+
+def _audit_ticket_event(event: str, metadata: Dict[str, Any]) -> None:
+    TICKET_AUDIT_TRAIL.append({
+        "event": event,
+        "ts": datetime.now(timezone.utc).isoformat(),
+        **metadata,
+    })
+
+
+def _sign_ticket(payload: Dict[str, Any]) -> str:
+    serialized = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    signature = hmac.new(TICKET_SECRET, serialized, hashlib.sha256).digest()
+    return f"{_b64url_encode(serialized)}.{_b64url_encode(signature)}"
+
+
+def _verify_ticket(ticket: str) -> Dict[str, Any]:
+    try:
+        encoded_payload, encoded_sig = ticket.split(".", maxsplit=1)
+        payload_raw = _b64url_decode(encoded_payload)
+        signature = _b64url_decode(encoded_sig)
+    except Exception as exc:
+        raise HTTPException(status_code=401, detail="Malformed session ticket") from exc
+
+    expected = hmac.new(TICKET_SECRET, payload_raw, hashlib.sha256).digest()
+    if not hmac.compare_digest(signature, expected):
+        raise HTTPException(status_code=401, detail="Invalid session ticket signature")
+
+    try:
+        payload = json.loads(payload_raw.decode("utf-8"))
+        expires_at = datetime.fromtimestamp(float(payload.get("exp", 0)), tz=timezone.utc)
+    except Exception as exc:
+        raise HTTPException(status_code=401, detail="Malformed session ticket payload") from exc
+
+    if expires_at <= datetime.now(timezone.utc):
+        raise HTTPException(status_code=401, detail="Session ticket expired")
+
+    scope = payload.get("scope")
+    if scope not in ALLOWED_WS_SCOPES:
+        raise HTTPException(status_code=403, detail="Session ticket scope is not allowed")
+    return payload
+
+
+def _issue_ticket(session_id: str, role: str, scope: str) -> SessionTicketResponse:
+    now = datetime.now(timezone.utc)
+    expires = now + timedelta(seconds=SESSION_TICKET_TTL_SECONDS)
+    ticket_id = secrets.token_hex(8)
+    payload = {
+        "tid": ticket_id,
+        "sid": session_id,
+        "role": role,
+        "scope": scope,
+        "iat": now.timestamp(),
+        "exp": expires.timestamp(),
+    }
+    ticket = _sign_ticket(payload)
+    _audit_ticket_event("ticket_issued", {"ticket_id": ticket_id, "session_id": session_id, "role": role, "scope": scope})
+    return SessionTicketResponse(
+        ticket=ticket,
+        ticket_id=ticket_id,
+        session_id=session_id,
+        role=role,
+        scope=scope,
+        state="issued",
+        expires_at=expires.isoformat(),
+        ttl_seconds=SESSION_TICKET_TTL_SECONDS,
+    )
 
 async def _metrics_snapshot() -> dict[str, Any]:
     async with METRICS_LOCK:
@@ -516,16 +681,6 @@ async def _metrics_snapshot() -> dict[str, Any]:
 async def _room(room_id: str) -> StateSyncRoom:
     async with ROOMS_LOCK:
         return STATE_SYNC_ROOMS.setdefault(room_id, StateSyncRoom())
-
-def _is_blocked_proxy_target(hostname: str) -> bool:
-    try:
-        for _, _, _, _, sockaddr in socket.getaddrinfo(hostname, None, proto=socket.IPPROTO_TCP):
-            address = ipaddress.ip_address(sockaddr[0])
-            if address.is_private or address.is_loopback or address.is_link_local:
-                return True
-    except socket.gaierror:
-        return True
-    return False
 
 def _semantic_from_intent(intent: IntentVector) -> SemanticField:
     category_hash = int(hashlib.sha1(intent.category.encode("utf-8")).hexdigest()[:6], 16) / 0xFFFFFF
@@ -618,6 +773,22 @@ def _run_light_cognition_pipeline(
 
 # --- API Endpoints ---
 
+@app.post("/api/intent")
+async def compatibility_intent_endpoint(request: LegacyIntentRequest) -> GenerateResponse:
+    prompt = request.prompt.strip()
+    if not prompt:
+        raise HTTPException(status_code=422, detail="prompt must be non-empty")
+
+    intent_vec, visual_manifest = _infer_intent_from_text(prompt)
+    return GenerateResponse(
+        text=prompt,
+        model=request.model,
+        trace_id=str(uuid.uuid4()),
+        provider="compatibility-adapter",
+        intent_vector=intent_vec,
+        visual_manifestation=visual_manifest,
+    )
+
 @app.post("/api/v1/cognitive/generate")
 async def generate_text(
     request: GenerateRequest,
@@ -627,24 +798,22 @@ async def generate_text(
     async with METRICS_LOCK:
         METRICS.generative_requests += 1
     try:
-        # 1. เรียกใช้งาน LLM ตามปกติเพื่อสร้างข้อความ
         generated_text = await invoke_generative_model(
             prompt=request.prompt,
             model=request.model,
-            temperature=request.temperature
+            temperature=request.temperature,
+            image=request.image,
         )
         
-        # 2. ประมวลผล "สมการแห่งเจตจำนง" จากข้อความที่ได้
         intent_vec, visual_manifest = _infer_intent_from_text(generated_text)
         
-        # 3. ส่งข้อมูลทั้งหมดกลับให้หน้าบ้านนำไปร้อยเรียงแสง
         return GenerateResponse(
             text=generated_text,
             model=request.model,
             trace_id=str(uuid.uuid4()),
             provider=MODEL_PROVIDER_MAP.get(request.model, "unknown"),
-            intent_vector=intent_vec,               # <--- ส่งเวกเตอร์เจตจำนง
-            visual_manifestation=visual_manifest    # <--- ส่งสเปคของแสง
+            intent_vector=intent_vec,
+            visual_manifestation=visual_manifest
         )
     except httpx.HTTPStatusError as e:
         raise HTTPException(status_code=e.response.status_code, detail=f"Model provider error: {e.response.text}")
@@ -657,12 +826,17 @@ async def emit_cognitive_dsl(
     x_api_key: str | None = Header(None, alias="X-API-Key")
 ) -> dict[str, Any]:
     _ensure_api_key(x_api_key)
-    provider = request.model_metadata.model_name
-
+    
     async with METRICS_LOCK:
         METRICS.total_dsl_submissions += 1
-    passed, violations = FirmaValidator.validate_dsl_response(request)
-    if not passed:
+
+    violations: list[str] = []
+    visual = request.model_response.visual_manifestation
+    primary = (visual.color_palette.primary or "").lower()
+    if primary == "#dc143c" and not visual.emergency_override:
+        violations.append("policy_violation: crimson_requires_emergency_override")
+
+    if violations:
         async with METRICS_LOCK:
             METRICS.validation_failures += 1
         raise HTTPException(422, detail=ValidationResult(status="failed", violations=violations).model_dump())
@@ -677,8 +851,13 @@ async def validate_cognitive_dsl(
     x_api_key: str | None = Header(None, alias="X-API-Key"),
 ) -> ValidationResult:
     _ensure_api_key(x_api_key)
-    passed, violations = FirmaValidator.validate_dsl_response(request)
-    return ValidationResult(status="success" if passed else "failed", violations=violations)
+    violations: list[str] = []
+    visual = request.model_response.visual_manifestation
+    primary = (visual.color_palette.primary or "").lower()
+    if primary == "#dc143c" and not visual.emergency_override:
+        violations.append("policy_violation: crimson_requires_emergency_override")
+    
+    return ValidationResult(status="success" if not violations else "failed", violations=violations)
 
 @app.get("/health")
 def health_check() -> dict[str, Any]:
@@ -743,20 +922,6 @@ async def query_telemetry(
         "p95": p95,
         "latest": rows[-1] if rows else None,
     }
-    EXPORT_AUDIT_TRAIL.insert(0, audit_record)
-    return ExportResponse(
-        export_id=export_id,
-        session_id=request.session_id,
-        lineage_id=request.lineage_id,
-        selected_variation_id=request.selected_variation_id,
-        artifact_type=request.artifact_type,
-        status="accepted",
-        audit_trail_id=audit_trail_id,
-        replay_key=replay_key,
-        review_status="ready_for_enterprise_review",
-        created_at=created_at,
-        options=request.options,
-    )
 
 @app.get("/api/v1/export/history")
 async def export_history(
@@ -766,7 +931,7 @@ async def export_history(
     x_api_key: str | None = Header(default=None, alias="X-API-Key"),
 ) -> Dict[str, Any]:
     _ensure_api_key(x_api_key)
-    records = EXPORT_AUDIT_TRAIL
+    records = list(EXPORT_AUDIT_TRAIL)
     if session_id:
         records = [record for record in records if record["session_id"] == session_id]
     if lineage_id:
@@ -774,6 +939,7 @@ async def export_history(
     if selected_variation_id:
         records = [record for record in records if record["selected_variation_id"] == selected_variation_id]
     return {"status": "success", "count": len(records), "history": records}
+
 
 def _resolve_voice_model(language: str, region: str) -> str:
     lang_key = language.split("-", maxsplit=1)[0].lower()
@@ -786,21 +952,75 @@ def resolve_voice_model(language: str = "en-US", region: str = "us") -> dict[str
     model = _resolve_voice_model(language, region)
     return {"language": language, "region": region, "model": model}
 
+@app.post("/api/v1/auth/session", response_model=SessionTicketResponse)
+async def issue_session_ticket(
+    request: SessionTicketIssueRequest,
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+) -> SessionTicketResponse:
+    _ensure_api_key(x_api_key)
+    return _issue_ticket(request.session_id, request.role, request.scope)
+
+
+@app.post("/api/v1/auth/session/refresh", response_model=SessionTicketResponse)
+async def refresh_session_ticket(
+    request: SessionTicketRefreshRequest,
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+) -> SessionTicketResponse:
+    _ensure_api_key(x_api_key)
+    payload = _verify_ticket(request.ticket)
+    return _issue_ticket(payload["sid"], payload["role"], payload["scope"])
+
+
+@app.get("/api/v1/auth/session/audit")
+async def session_ticket_audit_log(
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+) -> dict[str, Any]:
+    _ensure_api_key(x_api_key)
+    return {"count": len(TICKET_AUDIT_TRAIL), "events": list(TICKET_AUDIT_TRAIL)}
+
+
 # --- WebSocket Endpoints ---
 
 @app.websocket("/ws/cognitive-stream")
 async def cognitive_stream(websocket: WebSocket) -> None:
-    api_key = _extract_ws_api_key(websocket)
-    if not api_key:
-        await websocket.close(code=1008, reason="Missing API Key")
+    ticket = websocket.query_params.get("ticket")
+    if not ticket:
+        await websocket.close(code=1008, reason="Missing session ticket")
         return
-    await websocket.accept()
+
+    try:
+        ticket_payload = _verify_ticket(ticket)
+    except HTTPException as exc:
+        await websocket.close(code=1008, reason=str(exc.detail))
+        return
+
+    await websocket.accept(subprotocol="aetherium-ticket-v1")
     try:
         while True:
             payload = await websocket.receive_json()
-            if payload.get("type") != "dsl_submission":
-                await websocket.send_json({"status": "error", "detail": "Invalid message type"})
+            if not isinstance(payload, dict) or payload.get("type") != "dsl_submission":
+                await websocket.send_json({"status": "error", "detail": "Invalid message format or type"})
                 continue
+
+            requires_operator = bool(payload.get("requires_operator"))
+            role = ticket_payload.get("role", "viewer")
+            scope = ticket_payload.get("scope", "")
+            if requires_operator and (role != "operator" or scope != "cognitive:stream:privileged"):
+                _audit_ticket_event("privileged_ws_action_rejected", {
+                    "ticket_id": ticket_payload.get("tid"),
+                    "session_id": ticket_payload.get("sid"),
+                    "required_role": "operator",
+                    "actual_role": role,
+                })
+                await websocket.send_json({"status": "error", "detail": "Insufficient role for privileged action"})
+                continue
+
+            if requires_operator:
+                _audit_ticket_event("privileged_ws_action_accepted", {
+                    "ticket_id": ticket_payload.get("tid"),
+                    "session_id": ticket_payload.get("sid"),
+                    "action": payload.get("action", "unspecified"),
+                })
             await websocket.send_json({"status": "accepted", "echo": payload})
     except WebSocketDisconnect:
         pass

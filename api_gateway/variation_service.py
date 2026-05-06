@@ -37,10 +37,8 @@ GOAL_PRESETS: dict[str, list[dict[str, Any]]] = {
     ],
 }
 
-
 def _stable_suffix(value: str) -> str:
     return hashlib.sha1(value.encode("utf-8")).hexdigest()[:8]
-
 
 def generate_variation_set(request: dict[str, Any]) -> dict[str, Any]:
     goal_type = str(request.get("goal_type") or "pure_light")
@@ -60,7 +58,8 @@ def generate_variation_set(request: dict[str, Any]) -> dict[str, Any]:
 
     variations: list[dict[str, Any]] = []
     for idx, preset in enumerate(selected_presets, start=1):
-        variation_id = f"var_{_stable_suffix(f'{set_id}:{parent_id}:{preset['name']}:{idx}')}_{idx}"
+        value_to_hash = f"{set_id}:{parent_id}:{preset['name']}:{idx}"
+        variation_id = f"var_{_stable_suffix(value_to_hash)}_{idx}"
         constraints_delta = dict(preset.get("constraints_delta") or {})
         if palette_lock:
             constraints_delta["palette_lock"] = True

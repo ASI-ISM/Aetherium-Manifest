@@ -14,7 +14,7 @@
 Canonical contract file: `docs/schemas/ai_particle_control_contract_v1.json`
 
 บล็อกหลักถูกแยกชัดเจนเป็น:
-- `intent_state` — semantic controls ที่ AI/agent ควร author เช่น `state`, `shape`, `particle_density`, `velocity`, `turbulence`, `cohesion`, `flow_direction`, `glow_intensity`, `flicker`, `attractor`, `palette`
+- `intent_state` — semantic controls ที่ AI/agent ควร author เช่น `state`, `shape`, `particle_density`, `velocity`, `turbulence`, `cohesion`, `flow_direction`, `glow_intensity`, `flicker`, `attractor` (object พิกัด normalized `{x, y}` ช่วง 0..1), `palette`
 - `renderer_controls` — renderer/runtime specific fields เช่น `base_shape`, `chromatic_mode`, `particle_count`, `flow_field`, `shader_uniforms`, `runtime_profile`
 
 เหตุผล: ทำให้ authoring surface ซื่อสัตย์ต่อสถานะการคิดจริง ขณะเดียวกันก็ลด drift จากการ normalize คนละแบบระหว่าง backend/frontend ผ่าน adapter กลาง
@@ -100,3 +100,8 @@ Export ABI constraints:
 - Every request MUST include `session_id`, `lineage_id`, and `selected_variation_id` for deterministic replay lineage.
 - `artifact_type` supports: `PNG`, `SVG`, `MP4`, `layer_package`, `manifest_json`, `prompt_lineage_bundle`.
 - Response includes `audit_trail_id`, `replay_key`, and `review_status` so export history can be reviewed in enterprise governance flows.
+
+## GPU runtime config bridge (IR adapter)
+- Runtime bridge supports direct semantic mapping to GPU config (`particle_density`, `turbulence`, `flow_direction`, `shape`, `glow_intensity`).
+- High-density simulation behavior is runtime-side (dynamic particle scaling, chunked domain scheduling, frustum-aware visibility gating, far-field reduced update cadence) and does not require schema changes by itself.
+- Compatibility impact: introducing a new canonical field such as `visual.density` in governed contracts would be ABI-affecting only when required by schema; additive optional fields remain backward-compatible but still require schema review + `x-field-evolution` metadata.

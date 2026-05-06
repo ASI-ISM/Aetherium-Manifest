@@ -4,112 +4,30 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#04050a" />
-    <link rel="manifest" href="app.webmanifest" />
     <title>Aetherium Manifest</title>
     <link rel="stylesheet" href="./clean-first-surface.css" />
   </head>
   <body>
     <canvas id="manifestation-canvas" aria-hidden="true"></canvas>
 
-    <main class="first-surface" aria-label="Aetherium light-native surface">
-      <button
-        id="settings-toggle"
-        class="icon-btn"
-        type="button"
-        aria-label="เปิดการตั้งค่า"
-        aria-controls="settings-panel"
-        aria-expanded="false"
-      >
-        ⚙
-      </button>
+    <button
+      id="settings-icon-btn"
+      class="settings-icon-btn"
+      type="button"
+      aria-label="Open settings"
+      aria-controls="settings-panel"
+      aria-expanded="false"
+    >
+      ⚙
+    </button>
+
+    <main class="first-surface" aria-label="Aetherium chat surface">
+      <form id="composer" class="composer" aria-label="Chat composer">
+        <label class="sr-only" for="intent-input">Message</label>
+        <input id="intent-input" name="intent" autocomplete="off" placeholder="พิมพ์ข้อความ" enterkeyhint="send" required />
+        <button id="send-btn" type="submit" class="send-btn">Send</button>
+      </form>
     </main>
-
-    <aside id="settings-panel" class="settings" aria-label="Settings" hidden>
-      <header class="settings-header">
-        <h2>Settings</h2>
-        <button id="close-settings" class="icon-btn" type="button" aria-label="ปิดการตั้งค่า">✕</button>
-      </header>
-
-      <section>
-        <h3>Interaction</h3>
-        <p id="ambient-status" class="ambient-status" aria-live="polite">พร้อมฟัง</p>
-        <p id="readable-fallback" class="readable-fallback" aria-live="polite"></p>
-        <form id="composer" class="composer" aria-label="Composer">
-          <label class="sr-only" for="intent-input">พิมพ์ข้อความ</label>
-          <input
-            id="intent-input"
-            name="intent"
-            autocomplete="off"
-            placeholder="พิมพ์ข้อความของคุณ…"
-            enterkeyhint="send"
-          />
-          <button
-            id="voice-btn"
-            class="icon-btn"
-            type="button"
-            aria-label="เปิดหรือปิดการป้อนข้อความด้วยเสียง"
-            aria-pressed="false"
-          >
-            🎙
-          </button>
-          <button id="send-btn" type="submit" class="send-btn">ส่ง</button>
-        </form>
-      </section>
-
-      <section>
-        <h3>Connection</h3>
-        <label>API Base <input id="api-base" type="text" value="/api" /></label>
-        <label>WS Base <input id="ws-base" type="text" value="/ws/cognitive-stream" /></label>
-        <label>WS URL <input id="cfg-ws" type="text" value="/ws/cognitive-stream" /></label>
-        <button id="btn-connect" type="button" class="settings-inline-btn">Reconnect WS</button>
-        <p id="connection-status" class="ambient-status" aria-live="polite">DISCONNECTED</p>
-      </section>
-
-      <section>
-        <h3>Runtime</h3>
-        <label>Mode
-          <select id="runtime-mode">
-            <option value="calm">Calm</option>
-            <option value="adaptive">Adaptive</option>
-            <option value="deterministic">Deterministic</option>
-          </select>
-        </label>
-        <label><input id="telemetry-toggle" type="checkbox" checked /> Telemetry</label>
-        <label><input id="lineage-toggle" type="checkbox" /> Lineage / Replay tools</label>
-        <label><input id="scholar-toggle" type="checkbox" /> Scholar / Search layer</label>
-        <label><input id="governor-toggle" type="checkbox" /> Governor / Debug info</label>
-        <label><input id="devtools-toggle" type="checkbox" /> Developer tools</label>
-      </section>
-
-      <section>
-        <h3>Language &amp; Voice</h3>
-        <label>Preferred Language
-          <select id="language-preference">
-            <option value="auto">Auto</option>
-            <option value="th">ไทย</option>
-            <option value="en">English</option>
-          </select>
-        </label>
-        <label><input id="local-detector-toggle" type="checkbox" checked /> Use local language detector</label>
-        <label>Local model profile
-          <select id="local-model-profile">
-            <option value="none">None (heuristics only)</option>
-            <option value="tiny-rules" selected>Tiny rules (short text)</option>
-          </select>
-        </label>
-        <label><input id="reduced-motion-toggle" type="checkbox" /> Reduced motion</label>
-        <label><input id="voice-enabled-toggle" type="checkbox" checked /> Enable voice input</label>
-        <button id="voice-capture" type="button" class="settings-inline-btn" aria-label="Start voice capture">
-          Start voice capture
-        </button>
-      </section>
-
-      <section>
-        <h3>Export &amp; Tools</h3>
-        <button id="export-session" type="button">Export session audit (JSON)</button>
-        <p id="settings-note">Advanced controls live here only by design.</p>
-      </section>
-    </aside>
 
     <script type="module" src="./clean-first-surface.js"></script>
   </body>

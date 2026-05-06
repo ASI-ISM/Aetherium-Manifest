@@ -12,10 +12,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 4. คัดลอกโค้ดทั้งหมดของ api_gateway ไปยัง Working Directory
 COPY . .
 
-# 5. เปิด Port 8080 ของ Container
-EXPOSE 8080
+# 5. เปิด Port 8000 ของ Container
+EXPOSE 8000
 
 # 6. กำหนดคำสั่งสำหรับรันแอปพลิเคชันเมื่อ Container เริ่มทำงาน
 # - ใช้ main:app เพราะ Working Directory ของเราคือ /app ซึ่งมีไฟล์ main.py อยู่
 # - ใช้ --workers 4 เพื่อรองรับการประมวลผลแบบขนาน (Concurrency) ตามที่ระบุในไฟล์ .sh
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "4"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]

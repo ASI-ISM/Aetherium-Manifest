@@ -37,3 +37,17 @@
 
 **Non-Negotiable**
 - ห้าม visual spam และห้ามแสงขัดกับ state จริง
+
+## Runtime GPU Simulation Module (`runtime/gpu-sim/`)
+**Responsibility**
+- แยก simulation execution backend ออกจาก `AetheriumKernel`
+- รับ IR/LCL เดิมผ่าน adapter แล้ว map เป็น GPU uniforms
+- dispatch pass chain แบบ deterministic: `Reset → Count → PrefixSum → InitCursor → Scatter → Integrate → Render → Swap`
+
+**Fallback Policy**
+- ถ้า `navigator.gpu` พร้อมใช้งาน: kernel ใช้ `GpuSimulationEngine`
+- ถ้าไม่พร้อมใช้งาน: kernel ใช้ path เดิม CPU/WebGL ทันที (ไม่มี ABI change ต่อ LCL/IR)
+
+**Non-Negotiable**
+- contract ของ LCL/IR เดิมต้องคงรูป
+- adapter layer เท่านั้นที่แปลงค่าไปยัง GPU uniforms

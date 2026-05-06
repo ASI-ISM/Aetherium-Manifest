@@ -6,9 +6,12 @@
 
 - `POST /api/v1/cognitive/emit`
 - `POST /api/v1/cognitive/validate`
+- `POST /api/v1/auth/session` (issue short-lived signed WS ticket)
+- `POST /api/v1/auth/session/refresh` (refresh short-lived signed WS ticket)
+- `GET /api/v1/auth/session/audit` (ticket issuance + privileged WS action audit)
 - `POST /api/v1/cognitive/variations/generate` (generate 4–8 variation branches with lineage metadata)
 - `GET /health`
-- `WS /ws/cognitive-stream` *(served by `ws_gateway`, not by this FastAPI process)*
+- `WS /ws/cognitive-stream` (requires valid `ticket` query parameter)
 
 ### Required Headers
 - `X-API-Key`
@@ -18,11 +21,12 @@ For a quick development server, you can use `uvicorn` directly. This mode is con
 
 ```bash
 # An API key is required for protected endpoints
+export AETHERIUM_API_KEY=demo-key
 export OPENAI_API_KEY=demo-key
 # Optional for Google model calls:
 export GEMINI_API_KEY=demo-key
 
-uvicorn api_gateway.main:app --host 0.0.0.0 --port 8080 --reload
+uvicorn api_gateway.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ### Run (Production-like)
@@ -32,9 +36,18 @@ For an environment that more closely resembles production, use the provided shel
 ./api_gateway/start_cognitive_api.sh
 ```
 
+### API Key Configuration
+
+Protected HTTP endpoints validate `X-API-Key` against runtime configuration:
+
+- `AETHERIUM_API_KEY`: single expected key.
+- `AETHERIUM_API_KEY_ALLOWLIST`: optional comma-separated allowlist for multi-key rollout.
+
+If both are set, keys are merged. If neither is set, the gateway fails closed and rejects protected endpoint requests.
+
 ### Validate Example
 ```bash
-curl -X POST http://localhost:8080/api/v1/cognitive/validate \
+curl -X POST http://localhost:8000/api/v1/cognitive/validate \
   -H "Content-Type: application/json" \
   -H "X-API-Key: demo-key" \
   -d @api_gateway/sample_emit_payload.json
@@ -49,11 +62,12 @@ curl -X POST http://localhost:8080/api/v1/cognitive/validate \
 
 ```bash
 # ต้องมี API key สำหรับเรียกใช้งาน endpoint ที่ป้องกันสิทธิ์
+export AETHERIUM_API_KEY=demo-key
 export OPENAI_API_KEY=demo-key
 # หากต้องเรียก Google model ให้ตั้งเพิ่ม
 export GEMINI_API_KEY=demo-key
 
-uvicorn api_gateway.main:app --host 0.0.0.0 --port 8080 --reload
+uvicorn api_gateway.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ### การรัน (สำหรับ Production)
@@ -65,7 +79,7 @@ uvicorn api_gateway.main:app --host 0.0.0.0 --port 8080 --reload
 
 ### ทดสอบ validate
 ```bash
-curl -X POST http://localhost:8080/api/v1/cognitive/validate \
+curl -X POST http://localhost:8000/api/v1/cognitive/validate \
   -H "Content-Type: application/json" \
   -H "X-API-Key: demo-key" \
   -d @api_gateway/sample_emit_payload.json
