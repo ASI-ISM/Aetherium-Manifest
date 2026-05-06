@@ -15,17 +15,13 @@ No dashboard, HUD, debug panel, scholar panel, lineage panel, runtime console, c
 
 - `clean-first-surface.js`
   - App bootstrap and orchestration.
-  - Settings Workspace wiring, persistence, and session audit export.
-  - Browser-side transport mapping uses canonical routes only (`/api/v1/cognitive/generate`, `/api/v1/cognitive/validate`, `/api/v1/auth/session`, `/api/v1/auth/session/refresh`, `/ws/cognitive-stream`).
-  - Legacy `/api/intent` remains backend-adapter scope only and is not exposed for browser direct-call fallback.
-  - Deferred runtime bootstrap; WebSocket, voice, and manifestation rendering remain inactive until Settings opens the Interaction pane (or user action).
-  - Settings workspace orchestration and audit export wiring.
-- `first_use_surface/settings-store.js`
-  - Session-safe persistence for workspace preferences and active pane migration.
-  - Whitelisted persistence only (no raw token/key fields).
-- `first_use_surface/settings-workspace.js`
-  - Dialog open/close lifecycle, focus trap, Escape support, and pane navigation.
-  - Responsive layout mode (`sheet` on desktop, `fullscreen` on mobile).
+  - Settings wiring, persistence, and session audit export.
+  - Voice progressive-enhancement integration.
+  - Settings drawer keyboard/mouse dismissal behavior.
+  - Stream visual pipeline:
+    - `setSystemState(mode)` now updates only state label/UI text.
+    - `applyVisualParameters(visual)` is the single target-update path for energy/entropy/palette (plus future-ready `turbulence`/`flow`/`shape`).
+    - `animate()` continuously lerps current visual values toward targets for smoothing.
 - `first_use_surface/light-manifestation.js`
   - Luminous text renderer with glyph-sampling particle halo.
   - Calm ambient particle field.

@@ -1,15 +1,179 @@
-import { createParticleTextRenderer } from './first_use_surface/particle_text_renderer.js';
-import { createSettingsStore } from './first_use_surface/settings-store.js';
+import { createLanguageLayer } from './first_use_surface/language-layer.js';
+import { createLightManifestation } from './first_use_surface/light-manifestation.js';
+import {
+  markCompositionEnd,
+  markCompositionStart,
+  markInputCommitted,
+  shouldSubmitOnEnter,
+} from './first_use_surface/input-event-policy.js';
+
+const STORAGE_KEY = 'aetherium:first-surface-settings:v1';
+const DEFAULT_INTENT_TIMEOUT_MS = 10000;
+
+function createSessionId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `session_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
+const elements = {
+  canvas: document.getElementById('manifestation-canvas'),
+  form: document.getElementById('composer'),
+  input: document.getElementById('intent-input'),
+  sendButton: document.getElementById('send-btn'),
+  voiceButton: document.getElementById('voice-btn'),
+  statusText: document.getElementById('ambient-status'),
+  fallbackText: document.getElementById('readable-fallback'),
+  settingsPanel: document.getElementById('settings-panel'),
+  settingsToggle: document.getElementById('settings-toggle'),
+  closeSettings: document.getElementById('close-settings'),
+  voiceCaptureButton: document.getElementById('voice-capture'),
+  connectionStatus: document.getElementById('connection-status'),
+  systemStateLabel: document.getElementById('system-state-label'),
+  energyBar: document.getElementById('energy-bar'),
+  entropyBar: document.getElementById('entropy-bar'),
+};
+
+const defaultSettings = {
+  languagePreference: 'auto',
+  useLocalDetector: true,
+  localModelProfile: 'tiny-rules',
+  reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  voiceEnabled: true,
+  apiBase: '/api',
+  wsBase: '/ws/cognitive-stream',
+  runtimeMode: 'calm',
+  telemetry: true,
+  lineage: false,
+  scholar: false,
+  governorDebug: false,
+  developerTools: false,
+  sessionLanguageMemory: (navigator.language || 'en').toLowerCase().startsWith('th') ? 'th' : 'en',
+};
+
+const uiText = {
+  th: {
+    ready: 'พร้อมฟัง',
+    listening: 'กำลังฟัง',
+    interpreting: 'กำลังตีความ',
+    voiceUnavailable: 'ไม่รองรับระบบเสียงในเบราว์เซอร์นี้',
+  },
+  en: {
+    ready: 'Ready',
+    listening: 'Listening',
+    interpreting: 'Interpreting',
+    voiceUnavailable: 'Voice is not available in this browser',
+  },
+};
+
+const inputRuntime = {
+  isComposing: false,
+  lastCompositionEndAt: -Infinity,
+};
+
+const voiceRuntime = {
+  isSupported: false,
+  isListening: false,
+  recognition: null,
+};
+
+const connectionRuntime = {
+  socket: null,
+  reconnectTimer: null,
+  reconnectAttempts: 0,
+  shouldReconnect: true,
+  url: '',
+};
+
+const sysState = {
+  state: '',
+  visual: {
+    energy: 0,
+    entropy: 0,
+    energyLevel: 0,
+    entropyLevel: 0,
+    turbulence: 0,
+    flow: 0,
+    shape: 0,
+    color: null,
+    color_palette: {
+      primary: '#7FE4FF',
+      secondary: '#EBF9FF',
+    },
+  },
+  targetVisual: {
+    energyLevel: 0,
+    entropyLevel: 0,
+    turbulence: 0,
+    flow: 0,
+    shape: 0,
+    color_palette: {
+      primary: '#7FE4FF',
+      secondary: '#EBF9FF',
+    },
+  },
+};
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { ...defaultSettings };
+    return { ...defaultSettings, ...JSON.parse(raw) };
+  } catch {
+    return { ...defaultSettings };
+  }
+}
+
+function persistSettings() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+}
+
+const settings = loadSettings();
+const sessionId = createSessionId();
+const sessionAudit = [];
+const languageLayer = createLanguageLayer(settings);
+const manifestationEngine = createLightManifestation(elements.canvas, settings.reducedMotion);
+
+function activeLanguage() {
+  return settings.sessionLanguageMemory === 'en' ? 'en' : 'th';
+}
 
 const DEFAULT_COGNITIVE_API_BASE = '/api/v1/cognitive';
 
-export function resolveCompatibilityEndpoints({ apiBase = DEFAULT_COGNITIVE_API_BASE, wsBase = '/ws/cognitive-stream' } = {}) {
-  const normalizedApiBase = String(apiBase).replace(/\/+$/, '');
-  return {
-    emitUrl: `${normalizedApiBase}/generate`,
-    validateUrl: `${normalizedApiBase}/validate`,
-    wsUrl: wsBase,
-  };
+function pushSessionEvent(payload) {
+  sessionAudit.push({
+    ...payload,
+    at: new Date().toISOString(),
+  });
+}
+
+function resolveWsUrl(inputUrl = '') {
+  const source = inputUrl.trim() || settings.wsBase;
+  if (!source) return '';
+
+  if (/^wss?:\/\//i.test(source)) return source;
+  if (/^https?:\/\//i.test(source)) {
+    return source.replace(/^http/i, 'ws');
+  }
+
+  const base = new URL(window.location.href);
+  const wsProtocol = base.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${wsProtocol}//${base.host}${source.startsWith('/') ? source : `/${source}`}`;
+}
+
+function nextReconnectDelayMs(attempt) {
+  return Math.min(8000, 2000 * (2 ** Math.max(0, attempt - 1)));
+}
+
+function clearReconnectTimer() {
+  if (connectionRuntime.reconnectTimer === null) return;
+  window.clearTimeout(connectionRuntime.reconnectTimer);
+  connectionRuntime.reconnectTimer = null;
+}
+
+function clamp(value, min, max) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return min;
+  return Math.max(min, Math.min(max, numeric));
 }
 
 export function adaptIntentRequest(prompt, sessionId) {
@@ -25,35 +189,99 @@ export function adaptIntentResponse(payload = {}) {
   const particlePhysics = visual.particle_physics ?? {};
 
   return {
-    text: String(payload.text ?? ''),
-    state: String(intent.category ?? 'neutral'),
-    visual: {
-      energy: Number(intent.energy_level ?? 0.35),
-      valence: Number(intent.emotional_valence ?? 0),
-      color_palette: visual.color_palette ?? {},
-      flow: (particlePhysics.flow_direction && particlePhysics.flow_direction !== 'still') ? 1 : 0,
-      flowDirection: particlePhysics.flow_direction === 'inward' ? 'inward' : (particlePhysics.flow_direction === 'still' ? 'still' : 'outward'),
+    ok: true,
+    value: {
+      state: state.trim(),
+      visual: {
+        energy: clamp(visual.energy, 0, 1.5),
+        entropy: clamp(visual.entropy, 0, 1.5),
+        turbulence: visual.turbulence != null ? clamp(visual.turbulence, 0, 1.5) : undefined,
+        flow: visual.flow != null ? clamp(visual.flow, 0, 1.5) : undefined,
+        shape: visual.shape != null ? clamp(visual.shape, 0, 1.5) : undefined,
+        color_palette: {
+          primary: sanitizePaletteValue(visual.color_palette.primary, '#7FE4FF'),
+          secondary: sanitizePaletteValue(visual.color_palette.secondary, '#EBF9FF'),
+        },
+      },
     },
   };
 }
 
-export function createDefaultHomeShellState(activePane = 'interaction', reducedMotion = false) {
-  return {
-    settingsOpen: false,
-    runtimeHydrated: false,
-    gatewayConnected: false,
-    voiceReady: false,
-    manifestationReady: false,
-    activePane,
-    reducedMotion,
-  };
+function setSystemState(mode) {
+  const normalized = typeof mode === 'string' ? mode.trim() : '';
+  if (!normalized) return;
+  sysState.state = normalized;
+  if (elements.systemStateLabel) {
+    elements.systemStateLabel.textContent = normalized;
+  }
 }
 
-function deterministicLocalResponder(text, runtimeState) {
-  const normalized = String(text).trim().replace(/\s+/g, ' ').toLowerCase();
-  let hash = 0;
-  for (let i = 0; i < normalized.length; i += 1) {
-    hash = (hash * 31 + normalized.charCodeAt(i)) % 1000003;
+function updateVisualUI() {
+  const energyPercent = clamp(sysState.visual.energyLevel / 1.5, 0, 1) * 100;
+  const entropyPercent = clamp(sysState.visual.entropyLevel / 1.5, 0, 1) * 100;
+
+  if (elements.energyBar) {
+    elements.energyBar.style.width = `${energyPercent}%`;
+  }
+
+  if (elements.entropyBar) {
+    elements.entropyBar.style.width = `${entropyPercent}%`;
+  }
+
+  document.documentElement.style.setProperty('--runtime-primary-color', sysState.visual.color_palette.primary);
+  document.documentElement.style.setProperty('--runtime-secondary-color', sysState.visual.color_palette.secondary);
+}
+
+function animate() {
+  const lerpFactor = settings.reducedMotion ? 0.25 : 0.08;
+
+  sysState.visual.energyLevel += (sysState.targetVisual.energyLevel - sysState.visual.energyLevel) * lerpFactor;
+  sysState.visual.entropyLevel += (sysState.targetVisual.entropyLevel - sysState.visual.entropyLevel) * lerpFactor;
+  sysState.visual.turbulence += (sysState.targetVisual.turbulence - sysState.visual.turbulence) * lerpFactor;
+  sysState.visual.flow += (sysState.targetVisual.flow - sysState.visual.flow) * lerpFactor;
+  sysState.visual.shape += (sysState.targetVisual.shape - sysState.visual.shape) * lerpFactor;
+
+  sysState.visual.energy = sysState.visual.energyLevel;
+  sysState.visual.entropy = sysState.visual.entropyLevel;
+
+  updateVisualUI();
+  requestAnimationFrame(animate);
+}
+
+function applyVisualParameters(visual) {
+  const palette = {
+    primary: sanitizePaletteValue(visual.color_palette?.primary, '#7FE4FF'),
+    secondary: sanitizePaletteValue(visual.color_palette?.secondary, '#EBF9FF'),
+  };
+
+  sysState.targetVisual.energyLevel = clamp(visual.energy, 0, 1.5);
+  sysState.targetVisual.entropyLevel = clamp(visual.entropy, 0, 1.5);
+  sysState.targetVisual.turbulence = clamp(visual.turbulence ?? sysState.targetVisual.turbulence, 0, 1.5);
+  sysState.targetVisual.flow = clamp(visual.flow ?? sysState.targetVisual.flow, 0, 1.5);
+  sysState.targetVisual.shape = clamp(visual.shape ?? sysState.targetVisual.shape, 0, 1.5);
+  sysState.targetVisual.color_palette = palette;
+
+  sysState.visual.color_palette = palette;
+
+  if (globalThis.THREE?.Color) {
+    // เตรียมสีที่ sanitize แล้วสำหรับ stage geometry/material ที่ใช้ THREE.
+    sysState.visual.color = {
+      primary: new globalThis.THREE.Color(palette.primary),
+      secondary: new globalThis.THREE.Color(palette.secondary),
+    };
+  }
+}
+
+function handleIncomingState(payload) {
+  const validation = validateIncomingStateSchema(payload);
+  if (validation.ok) {
+    setSystemState(validation.value.state);
+    applyVisualParameters(validation.value.visual);
+  } else {
+    console.warn('Non-fatal stream validation failure', {
+      reason: validation.reason,
+      payload,
+    });
   }
   const flavor = ['steady', 'clear', 'aligned', 'focused'][hash % 4];
   runtimeState.lastTransport = 'local-fallback';
@@ -215,6 +443,22 @@ function bootstrap(doc = globalThis.document) {
   globalThis.addEventListener('beforeunload', () => runtime.destroy(), { once: true });
 }
 
-if (typeof globalThis.document !== 'undefined') {
-  bootstrap();
+function bootstrap() {
+  bindInputEvents();
+  bindSettings();
+  bindSettingsPanel();
+  initVoice();
+
+  window.addEventListener('resize', manifestationEngine.resize);
+
+  manifestationEngine.resize();
+  const bootLanguage = languageLayer.resolveLanguage('');
+  settings.sessionLanguageMemory = bootLanguage;
+  setStatus(localizedUI('ready'));
+  setConnectionStatus('DISCONNECTED');
+  manifestationEngine.manifestText(bootLanguage === 'th' ? 'สวัสดี' : 'Hello', 'greeting');
+  setReadableFallback(bootLanguage === 'th' ? 'สวัสดี' : 'Hello');
+  requestAnimationFrame(manifestationEngine.render);
+  requestAnimationFrame(animate);
+  connectWS(settings.wsBase);
 }
