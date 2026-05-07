@@ -672,6 +672,8 @@ async def _verify_ticket(ticket: str) -> Dict[str, Any]:
                 is_unique = await redis_state.check_and_set_nonce(tid, ttl)
                 if not is_unique:
                     raise HTTPException(status_code=401, detail="Replay attack detected (ticket already used)")
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=401, detail="Malformed session ticket payload") from exc
 
