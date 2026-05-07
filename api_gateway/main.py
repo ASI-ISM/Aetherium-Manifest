@@ -964,8 +964,7 @@ async def proxy_fetch_url(url: str, x_api_key: str | None = Header(None, alias="
 async def ingest_telemetry(req: TelemetryIngestRequest, x_api_key: str | None = Header(None, alias="X-API-Key")) -> dict[str, int]:
     _ensure_api_key(x_api_key)
     if redis_state:
-        for point in req.points:
-            await redis_state.ingest_telemetry(point.metric, point.model_dump(mode="json"))
+        await asyncio.gather(*(redis_state.ingest_telemetry(point.metric, point.model_dump(mode="json")) for point in req.points))
         return {"ingested": len(req.points), "shared_backend": True}
 
     async with TELEMETRY_LOCK:
