@@ -259,7 +259,7 @@ def test_cognitive_generate_supports_image_attachment(client: TestClient, monkey
     assert captured["image"].mime_type == "image/png"
 
 
-def test_ws_ticket_issue_refresh_and_stream_flow(client: TestClient) -> None:
+def test_ws_ticket_issue_refresh_and_stream_flow(client: TestClient, api_key_header: dict[str, str]) -> None:
     issue_response = client.post(
         "/api/v1/auth/session",
         json={"session_id": "compat-session-2", "role": "viewer", "scope": "cognitive:stream"},

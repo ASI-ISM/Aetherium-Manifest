@@ -31,6 +31,7 @@ import redis.asyncio as redis
 import nats
 from governor.runtime_governor import RuntimeGovernor, GovernorContext
 from .deterministic_replay import INCIDENT_REPLAY_PACKAGES
+from .redis_state import RedisState
 
 app = FastAPI(title="AGNS Cognitive DSL Gateway", version="1.3.0")
 
@@ -306,7 +307,7 @@ logger = logging.getLogger("api-gateway")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global r, nc, EXPECTED_API_KEYS
+    global r, nc, EXPECTED_API_KEYS, redis_state
     EXPECTED_API_KEYS = _load_expected_api_keys()
     if not EXPECTED_API_KEYS:
         logger.error(
@@ -318,6 +319,8 @@ async def lifespan(app: FastAPI):
         r = redis.from_url(REDIS_URL, decode_responses=True)
         nc = await nats.connect(NATS_URL)
         logger.info("Connected to Redis and NATS")
+        global redis_state
+        redis_state = RedisState(r)
     except Exception as e:
         logger.error(f"Startup failed: {e}")
 
@@ -354,8 +357,10 @@ REQUIRE_NATS_FOR_READINESS = os.getenv("REQUIRE_NATS_FOR_READINESS", "0") == "1"
 
 # External Clients
 r: Optional[redis.Redis] = None
+redis_state: Optional[RedisState] = None
 nc: Optional[nats.NATS] = None
-NONCE_CACHE: Dict[str, bool] = {}
+# NONCE_CACHE is now handled by RedisState
+# NONCE_CACHE: Dict[str, bool] = {}
 RUNTIME_GOVERNOR = RuntimeGovernor()
 EXPORT_AUDIT_TRAIL: deque[Dict[str, Any]] = deque(maxlen=1000)
 SEV1_INCIDENT_PACKAGES: list[str] = [
@@ -372,7 +377,11 @@ REQUIRED_PIPELINE_ORDER = [
     "telemetry_log",
 ]
 
-TICKET_SECRET = os.getenv("SESSION_TICKET_SECRET", "aetherium-dev-ticket-secret").encode("utf-8")
+TICKET_SECRETS = [
+    s.strip().encode("utf-8")
+    for s in os.getenv("SESSION_TICKET_SECRET", "aetherium-dev-ticket-secret").split(",")
+    if s.strip()
+]
 SESSION_TICKET_TTL_SECONDS = int(os.getenv("SESSION_TICKET_TTL_SECONDS", "60"))
 ALLOWED_WS_SCOPES = {"cognitive:stream", "cognitive:stream:privileged"}
 TICKET_AUDIT_TRAIL: deque[Dict[str, Any]] = deque(maxlen=2000)
@@ -384,20 +393,34 @@ METRICS = Metrics()
 TELEMETRY_TS_DB: Dict[str, List[Dict[str, Any]]] = {}
 STATE_SYNC_ROOMS: dict[str, 'StateSyncRoom'] = {}
 
-METRICS_LOCK = asyncio.Lock()
-TELEMETRY_LOCK = asyncio.Lock()
+METRICS_LOCK = asyncio.Lock() # Deprecated, using Redis atomic ops
+TELEMETRY_LOCK = asyncio.Lock() # Deprecated, using Redis atomic ops
 ROOMS_LOCK = asyncio.Lock()
 
 # --- State Synchronization Room ---
 
 class StateSyncRoom:
-    def __init__(self) -> None:
+    def __init__(self, room_id: str) -> None:
+        self.room_id = room_id
         self.shared_state: dict[str, Any] = {}
         self.user_state: dict[str, Any] = {}
         self.clients: list[Any] = []
         self.lock = asyncio.Lock()
 
-    def apply_delta(
+    async def load(self) -> None:
+        if redis_state:
+            data = await redis_state.get_room_state(self.room_id)
+            self.shared_state = data.get("shared_state", {})
+            self.user_state = data.get("user_state", {})
+
+    async def save(self) -> None:
+        if redis_state:
+            await redis_state.save_room_state(self.room_id, {
+                "shared_state": self.shared_state,
+                "user_state": self.user_state
+            })
+
+    async def apply_delta(
         self,
         delta: dict[str, Any],
         user_id: str,
@@ -406,6 +429,7 @@ class StateSyncRoom:
         self.shared_state.update(delta)
         if user_delta:
             self.user_state.update(user_delta)
+        await self.save()
         return {
             "shared_state": dict(self.shared_state),
             "user_state": dict(self.user_state),
@@ -602,20 +626,23 @@ def _b64url_decode(raw: str) -> bytes:
 
 
 def _audit_ticket_event(event: str, metadata: Dict[str, Any]) -> None:
-    TICKET_AUDIT_TRAIL.append({
+    record = {
         "event": event,
         "ts": datetime.now(timezone.utc).isoformat(),
         **metadata,
-    })
+    }
+    if redis_state:
+        asyncio.create_task(redis_state.add_audit_ticket(record))
+    TICKET_AUDIT_TRAIL.append(record)
 
 
 def _sign_ticket(payload: Dict[str, Any]) -> str:
     serialized = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
-    signature = hmac.new(TICKET_SECRET, serialized, hashlib.sha256).digest()
+    signature = hmac.new(TICKET_SECRETS[0], serialized, hashlib.sha256).digest()
     return f"{_b64url_encode(serialized)}.{_b64url_encode(signature)}"
 
 
-def _verify_ticket(ticket: str) -> Dict[str, Any]:
+async def _verify_ticket(ticket: str) -> Dict[str, Any]:
     try:
         encoded_payload, encoded_sig = ticket.split(".", maxsplit=1)
         payload_raw = _b64url_decode(encoded_payload)
@@ -623,13 +650,28 @@ def _verify_ticket(ticket: str) -> Dict[str, Any]:
     except Exception as exc:
         raise HTTPException(status_code=401, detail="Malformed session ticket") from exc
 
-    expected = hmac.new(TICKET_SECRET, payload_raw, hashlib.sha256).digest()
-    if not hmac.compare_digest(signature, expected):
+    valid_signature = False
+    for secret in TICKET_SECRETS:
+        expected = hmac.new(secret, payload_raw, hashlib.sha256).digest()
+        if hmac.compare_digest(signature, expected):
+            valid_signature = True
+            break
+
+    if not valid_signature:
         raise HTTPException(status_code=401, detail="Invalid session ticket signature")
 
     try:
         payload = json.loads(payload_raw.decode("utf-8"))
         expires_at = datetime.fromtimestamp(float(payload.get("exp", 0)), tz=timezone.utc)
+
+        # Replay Defense
+        tid = payload.get("tid")
+        if tid and redis_state:
+            ttl = int(expires_at.timestamp() - datetime.now(timezone.utc).timestamp())
+            if ttl > 0:
+                is_unique = await redis_state.check_and_set_nonce(tid, ttl)
+                if not is_unique:
+                    raise HTTPException(status_code=401, detail="Replay attack detected (ticket already used)")
     except Exception as exc:
         raise HTTPException(status_code=401, detail="Malformed session ticket payload") from exc
 
@@ -668,8 +710,14 @@ def _issue_ticket(session_id: str, role: str, scope: str) -> SessionTicketRespon
     )
 
 async def _metrics_snapshot() -> dict[str, Any]:
-    async with METRICS_LOCK:
-        metrics_dict = METRICS.model_dump()
+    if redis_state:
+        metrics_dict = await redis_state.get_metrics()
+        # Fill missing fields with 0 if using redis
+        for field in ["total_dsl_submissions", "successful_renders", "validation_failures", "generative_requests"]:
+            metrics_dict.setdefault(field, 0)
+    else:
+        async with METRICS_LOCK:
+            metrics_dict = METRICS.model_dump()
     total_submissions = metrics_dict["total_dsl_submissions"]
     failures = metrics_dict["validation_failures"]
     compliance = 100.0 if total_submissions == 0 else round((1 - (failures / total_submissions)) * 100, 2)
@@ -680,7 +728,11 @@ async def _metrics_snapshot() -> dict[str, Any]:
 
 async def _room(room_id: str) -> StateSyncRoom:
     async with ROOMS_LOCK:
-        return STATE_SYNC_ROOMS.setdefault(room_id, StateSyncRoom())
+        if room_id not in STATE_SYNC_ROOMS:
+            room = StateSyncRoom(room_id)
+            await room.load()
+            STATE_SYNC_ROOMS[room_id] = room
+        return STATE_SYNC_ROOMS[room_id]
 
 def _semantic_from_intent(intent: IntentVector) -> SemanticField:
     category_hash = int(hashlib.sha1(intent.category.encode("utf-8")).hexdigest()[:6], 16) / 0xFFFFFF
@@ -795,8 +847,11 @@ async def generate_text(
     x_api_key: str | None = Header(default=None, alias="X-API-Key"),
 ) -> GenerateResponse:
     _ensure_api_key(x_api_key)
-    async with METRICS_LOCK:
-        METRICS.generative_requests += 1
+    if redis_state:
+        await redis_state.incr_metric("generative_requests")
+    else:
+        async with METRICS_LOCK:
+            METRICS.generative_requests += 1
     try:
         generated_text = await invoke_generative_model(
             prompt=request.prompt,
@@ -827,8 +882,11 @@ async def emit_cognitive_dsl(
 ) -> dict[str, Any]:
     _ensure_api_key(x_api_key)
     
-    async with METRICS_LOCK:
-        METRICS.total_dsl_submissions += 1
+    if redis_state:
+        await redis_state.incr_metric("total_dsl_submissions")
+    else:
+        async with METRICS_LOCK:
+            METRICS.total_dsl_submissions += 1
 
     violations: list[str] = []
     visual = request.model_response.visual_manifestation
@@ -837,12 +895,18 @@ async def emit_cognitive_dsl(
         violations.append("policy_violation: crimson_requires_emergency_override")
 
     if violations:
-        async with METRICS_LOCK:
-            METRICS.validation_failures += 1
+        if redis_state:
+            await redis_state.incr_metric("validation_failures")
+        else:
+            async with METRICS_LOCK:
+                METRICS.validation_failures += 1
         raise HTTPException(422, detail=ValidationResult(status="failed", violations=violations).model_dump())
 
-    async with METRICS_LOCK:
-        METRICS.successful_renders += 1
+    if redis_state:
+        await redis_state.incr_metric("successful_renders")
+    else:
+        async with METRICS_LOCK:
+            METRICS.successful_renders += 1
     return {"status": "success", "trace_id": request.model_response.trace_id}
 
 @app.post("/api/v1/cognitive/validate")
@@ -897,6 +961,11 @@ async def proxy_fetch_url(url: str, x_api_key: str | None = Header(None, alias="
 @app.post("/api/v1/telemetry/ingest")
 async def ingest_telemetry(req: TelemetryIngestRequest, x_api_key: str | None = Header(None, alias="X-API-Key")) -> dict[str, int]:
     _ensure_api_key(x_api_key)
+    if redis_state:
+        for point in req.points:
+            await redis_state.ingest_telemetry(point.metric, point.model_dump(mode="json"))
+        return {"ingested": len(req.points), "shared_backend": True}
+
     async with TELEMETRY_LOCK:
         for point in req.points:
             series = TELEMETRY_TS_DB.setdefault(point.metric, [])
@@ -912,8 +981,11 @@ async def query_telemetry(
 ) -> dict[str, Any]:
     _ensure_api_key(x_api_key)
     now_ts = datetime.now(timezone.utc).timestamp()
-    async with TELEMETRY_LOCK:
-        rows = [p for p in TELEMETRY_TS_DB.get(metric, []) if now_ts - datetime.fromisoformat(p["ts"]).timestamp() <= window_seconds]
+    if redis_state:
+        rows = await redis_state.query_telemetry(metric, window_seconds)
+    else:
+        async with TELEMETRY_LOCK:
+            rows = [p for p in TELEMETRY_TS_DB.get(metric, []) if now_ts - datetime.fromisoformat(p["ts"]).timestamp() <= window_seconds]
     values = [p["value"] for p in rows]
     p95 = sorted(values)[int(len(values) * 0.95)] if values else None
     return {
@@ -931,7 +1003,10 @@ async def export_history(
     x_api_key: str | None = Header(default=None, alias="X-API-Key"),
 ) -> Dict[str, Any]:
     _ensure_api_key(x_api_key)
-    records = list(EXPORT_AUDIT_TRAIL)
+    if redis_state:
+        records = await redis_state.get_audit_export()
+    else:
+        records = list(EXPORT_AUDIT_TRAIL)
     if session_id:
         records = [record for record in records if record["session_id"] == session_id]
     if lineage_id:
@@ -967,7 +1042,7 @@ async def refresh_session_ticket(
     x_api_key: str | None = Header(default=None, alias="X-API-Key"),
 ) -> SessionTicketResponse:
     _ensure_api_key(x_api_key)
-    payload = _verify_ticket(request.ticket)
+    payload = await _verify_ticket(request.ticket)
     return _issue_ticket(payload["sid"], payload["role"], payload["scope"])
 
 
@@ -976,6 +1051,9 @@ async def session_ticket_audit_log(
     x_api_key: str | None = Header(default=None, alias="X-API-Key"),
 ) -> dict[str, Any]:
     _ensure_api_key(x_api_key)
+    if redis_state:
+        events = await redis_state.get_audit_ticket()
+        return {"count": len(events), "events": events}
     return {"count": len(TICKET_AUDIT_TRAIL), "events": list(TICKET_AUDIT_TRAIL)}
 
 
@@ -989,7 +1067,7 @@ async def cognitive_stream(websocket: WebSocket) -> None:
         return
 
     try:
-        ticket_payload = _verify_ticket(ticket)
+        ticket_payload = await _verify_ticket(ticket)
     except HTTPException as exc:
         await websocket.close(code=1008, reason=str(exc.detail))
         return
@@ -1038,7 +1116,7 @@ async def state_sync(websocket: WebSocket, room_id: str, user_id: str | None = Q
             if payload.get("type") != "patch_state":
                 continue
             async with room.lock:
-                snapshot = room.apply_delta(payload.get("delta", {}), user_id, payload.get("user_delta", {}))
+                snapshot = await room.apply_delta(payload.get("delta", {}), user_id, payload.get("user_delta", {}))
                 message = {"type": "state_updated", **snapshot}
                 await asyncio.gather(*[client.send_json(message) for client in room.clients])
     except WebSocketDisconnect:
