@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aetherium Particle Chat - แชทแสงอนุภาค</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: radial-gradient(ellipse at center, #0a0e27 0%, #000000 100%);
+            color: #00ffff;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* Canvas for particle rendering */
+        canvas#particleCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* HUD Container */
+        .hud-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            font-size: 12px;
+            z-index: 100;
+            text-shadow: 0 0 10px #00ffff;
+        }
+
+        .status-indicator {
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid #00ffff;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+            backdrop-filter: blur(10px);
+        }
+
+        .status-text {
+            color: #00ffff;
+            font-size: 11px;
+            margin: 3px 0;
+        }
+
+        /* Chat Panel - Bottom Docked */
+        .chat-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 200px;
+            background: rgba(10, 14, 39, 0.95);
+            border-top: 2px solid #00ffff;
+            backdrop-filter: blur(20px);
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 -10px 40px rgba(0, 255, 255, 0.2);
+        }
+
+        .chat-history {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+        }
+
+        .message {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 5px;
+            font-size: 12px;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            background: rgba(0, 255, 255, 0.1);
+            color: #00ffff;
+            margin-left: 20px;
+            border-left: 3px solid #00ffff;
+        }
+
+        .message.ai {
+            background: rgba(0, 200, 255, 0.08);
+            color: #00ddff;
+            margin-right: 20px;
+            border-right: 3px solid #00ddff;
+        }
+
+        .message.system {
+            background: rgba(200, 100, 255, 0.05);
+            color: #bb86fc;
+            text-align: center;
+            font-size: 10px;
+        }
+
+        .chat-input-container {
+            display: flex;
+            padding: 10px;
+            gap: 10px;
+            background: rgba(0, 255, 255, 0.05);
+        }
+
+        .chat-input {
+            flex: 1;
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid #00ffff;
+            color: #00ffff;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+            transition: all 0.3s ease;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            background: rgba(0, 255, 255, 0.2);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+        }
+
+        .chat-input::placeholder {
+            color: rgba(0, 255, 255, 0.4);
+        }
+
+        .send-btn {
+            background: linear-gradient(135deg, #00ffff, #00ddff);
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 12px;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+        }
+
+        .send-btn:hover {
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.6);
+            transform: scale(1.05);
+        }
+
+        .send-btn:active {
+            transform: scale(0.98);
+        }
+
+        /* Scrollbar styling */
+        .chat-history::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-history::-webkit-scrollbar-track {
+            background: rgba(0, 255, 255, 0.05);
+        }
+
+        .chat-history::-webkit-scrollbar-thumb {
+            background: rgba(0, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+
+        .chat-history::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 255, 255, 0.5);
+        }
+
+        /* Response indicator */
+        .thinking-indicator {
+            color: #00ddff;
+            font-style: italic;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 0.5;
+            }
+            50% {
+                opacity: 1;
+            }
+        }
+
+        /* Particle text container */
+        .particle-text-display {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            font-weight: bold;
+            color: rgba(0, 255, 255, 0.1);
+            text-align: center;
+            max-width: 80%;
+            z-index: 50;
+            text-shadow: 0 0 30px rgba(0, 255, 255, 0.2);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Canvas for particles -->
+        <canvas id="particleCanvas"></canvas>
+
+        <!-- HUD Status Panel -->
+        <div class="hud-container">
+            <div class="status-indicator">
+                <div class="status-text">⚡ STATE: <span id="stateDisplay">LISTENING</span></div>
+                <div class="status-text">🔮 INTENT: <span id="intentDisplay">Awaiting input</span></div>
+                <div class="status-text">✨ PARTICLES: <span id="particleCount">0</span></div>
+                <div class="status-text">🌈 ENERGY: <span id="energyLevel">0.00</span></div>
+            </div>
+        </div>
+
+        <!-- Particle Text Display -->
+        <div class="particle-text-display" id="particleTextDisplay"></div>
+
+        <!-- Chat Panel (Fixed at bottom) -->
+        <div class="chat-panel">
+            <div class="chat-history" id="chatHistory"></div>
+            <div class="chat-input-container">
+                <input 
+                    type="text" 
+                    class="chat-input" 
+                    id="userInput" 
+                    placeholder="พูดถึง Aetherium... (Say something to Aetherium...)"
+                    autocomplete="off"
+                >
+                <button class="send-btn" id="sendBtn">SEND</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===============================
+        // Particle System & Renderer
+        // ===============================
+        class ParticleSystem {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.particles = [];
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+            }
+
+            resize() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+            }
+
+            createTextParticles(text, x, y, color = '#00ffff') {
+                // Create particles that form text shape
+                this.ctx.font = 'bold 80px Arial';
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+
+                // Get text metrics
+                const metrics = this.ctx.measureText(text);
+                const width = metrics.width;
+
+                // Create temporary canvas for text
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = width + 100;
+                tempCanvas.height = 200;
+                const tempCtx = tempCanvas.getContext('2d');
+
+                tempCtx.font = 'bold 80px Arial';
+                tempCtx.textAlign = 'center';
+                tempCtx.textBaseline = 'middle';
+                tempCtx.fillStyle = '#ffffff';
+                tempCtx.fillText(text, tempCanvas.width / 2, tempCanvas.height / 2);
+
+                // Extract pixels and create particles
+                const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+                const data = imageData.data;
+
+                for (let i = 0; i < data.length; i += 4) {
+                    if (data[i + 3] > 128) { // Alpha > 128
+                        const pixelIndex = i / 4;
+                        const px = (pixelIndex % tempCanvas.width) + (x - tempCanvas.width / 2);
+                        const py = Math.floor(pixelIndex / tempCanvas.width) + (y - 100);
+
+                        this.particles.push({
+                            x: px,
+                            y: py,
+                            targetX: px,
+                            targetY: py,
+                            vx: 0,
+                            vy: 0,
+                            life: 1,
+                            decay: 0.995,
+                            color: color,
+                            size: 2,
+                            wobble: Math.random() * 0.5
+                        });
+                    }
+                }
+            }
+
+            addParticleExplosion(x, y, count = 50, color = '#00ffff') {
+                for (let i = 0; i < count; i++) {
+                    const angle = (Math.PI * 2 * i) / count;
+                    const speed = 2 + Math.random() * 3;
+
+                    this.particles.push({
+                        x: x,
+                        y: y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        targetX: x,
+                        targetY: y,
+                        life: 1,
+                        decay: 0.96,
+                        color: color,
+                        size: 3,
+                        wobble: Math.random()
+                    });
+                }
+            }
+
+            update() {
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    const p = this.particles[i];
+
+                    // Physics
+                    p.vx *= 0.98;
+                    p.vy *= 0.98;
+                    p.vy += 0.1; // Gravity
+
+                    p.x += p.vx;
+                    p.y += p.vy;
+
+                    // Wobble effect
+                    p.x += Math.sin(p.wobble) * 0.5;
+                    p.wobble += 0.05;
+
+                    // Life decay
+                    p.life *= p.decay;
+
+                    if (p.life < 0.01) {
+                        this.particles.splice(i, 1);
+                    }
+                }
+            }
+
+            render() {
+                // Clear with slight trail effect
+                this.ctx.fillStyle = 'rgba(10, 14, 39, 0.1)';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // Draw particles
+                for (let p of this.particles) {
+                    const alpha = p.life * 0.8;
+                    this.ctx.globalAlpha = alpha;
+                    this.ctx.fillStyle = p.color;
+
+                    // Glow effect
+                    const glow = this.ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 3);
+                    glow.addColorStop(0, `rgba(0, 255, 255, ${alpha})`);
+                    glow.addColorStop(1, `rgba(0, 255, 255, 0)`);
+                    this.ctx.fillStyle = glow;
+
+                    this.ctx.beginPath();
+                    this.ctx.arc(p.x, p.y, p.size * 2, 0, Math.PI * 2);
+                    this.ctx.fill();
+
+                    // Core particle
+                    this.ctx.globalAlpha = alpha * 0.8;
+                    this.ctx.fillStyle = p.color;
+                    this.ctx.beginPath();
+                    this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    this.ctx.fill();
+                }
+
+                this.ctx.globalAlpha = 1;
+            }
+
+            animate() {
+                this.update();
+                this.render();
+                requestAnimationFrame(() => this.animate());
+            }
+        }
+
+        // ===============================
+        // Chat Interface & State Manager
+        // ===============================
+        class AetheriumChatInterface {
+            constructor() {
+                this.canvas = document.getElementById('particleCanvas');
+                this.particles = new ParticleSystem(this.canvas);
+                this.particles.animate();
+
+                this.state = 'LISTENING';
+                this.chatHistory = [];
+                this.setupEventListeners();
+                this.addSystemMessage('Aetherium initialized. Awaiting your intent...');
+                this.updateHUD();
+            }
+
+            setupEventListeners() {
+                const userInput = document.getElementById('userInput');
+                const sendBtn = document.getElementById('sendBtn');
+
+                sendBtn.addEventListener('click', () => this.sendMessage());
+                userInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.sendMessage();
+                });
+            }
+
+            addSystemMessage(text) {
+                this.chatHistory.push({ type: 'system', text });
+                this.renderChatHistory();
+            }
+
+            addUserMessage(text) {
+                this.chatHistory.push({ type: 'user', text });
+                this.renderChatHistory();
+            }
+
+            addAIMessage(text) {
+                this.chatHistory.push({ type: 'ai', text });
+                this.renderChatHistory();
+            }
+
+            renderChatHistory() {
+                const chatDiv = document.getElementById('chatHistory');
+                chatDiv.innerHTML = '';
+
+                for (let msg of this.chatHistory) {
+                    const msgEl = document.createElement('div');
+                    msgEl.className = `message ${msg.type}`;
+                    msgEl.textContent = msg.text;
+                    chatDiv.appendChild(msgEl);
+                }
+
+                chatDiv.scrollTop = chatDiv.scrollHeight;
+            }
+
+            updateHUD() {
+                document.getElementById('stateDisplay').textContent = this.state;
+                document.getElementById('particleCount').textContent = this.particles.particles.length;
+                document.getElementById('energyLevel').textContent = (
+                    Math.sin(Date.now() / 1000) * 0.5 + 0.5
+                ).toFixed(2);
+            }
+
+            async sendMessage() {
+                const userInput = document.getElementById('userInput');
+                const text = userInput.value.trim();
+
+                if (!text) return;
+
+                userInput.value = '';
+
+                // User message
+                this.addUserMessage(text);
+                this.state = 'INTERPRETING';
+                this.updateHUD();
+
+                // Create particle explosion at center
+                this.particles.addParticleExplosion(
+                    this.canvas.width / 2,
+                    this.canvas.height / 2,
+                    30,
+                    '#00ffff'
+                );
+
+                // Simulate AI thinking
+                this.addSystemMessage('⏳ Processing intent through 8D Manifold...');
+                await new Promise(r => setTimeout(r, 1500));
+
+                this.state = 'MANIFESTING';
+                this.updateHUD();
+
+                // Simulated AI response
+                const response = this.generateAIResponse(text);
+                this.addAIMessage(response);
+
+                // Create particle text display
+                this.displayParticleResponse(response);
+
+                // Add more particles
+                this.particles.addParticleExplosion(
+                    this.canvas.width / 2,
+                    this.canvas.height / 2,
+                    50,
+                    '#00ddff'
+                );
+
+                await new Promise(r => setTimeout(r, 2000));
+
+                this.state = 'LISTENING';
+                this.updateHUD();
+                this.addSystemMessage('✨ Ready for next intent');
+            }
+
+            generateAIResponse(userInput) {
+                const responses = [
+                    `สกายริม: Light flows through ${userInput}...`,
+                    `Manifesting luminescence from intent: "${userInput}"...`,
+                    `8D alignment detected in your words. Rendering...`,
+                    `Intent vector: [${userInput.length}, ∞, ◯]. Processing...`,
+                    `The surface responds to: "${userInput}"`,
+                ];
+                return responses[Math.floor(Math.random() * responses.length)];
+            }
+
+            displayParticleResponse(text) {
+                const display = document.getElementById('particleTextDisplay');
+                display.textContent = text;
+
+                // Create particles forming text
+                const x = this.canvas.width / 2;
+                const y = this.canvas.height / 2 - 100;
+
+                this.particles.createTextParticles(text.substring(0, 10), x, y, '#00ffff');
+            }
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', () => {
+            new AetheriumChatInterface();
+        });
+    </script>
+</body>
+</html>
