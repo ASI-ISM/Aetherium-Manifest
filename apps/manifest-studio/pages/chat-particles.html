@@ -470,14 +470,22 @@
                     }
                 });
 
+                let touchTimeout;
                 const spawnTouchResponse = (x, y) => {
                     this.particles.addParticleExplosion(x, y, 42, '#9efcff');
-                    this.state = 'TOUCH_REACTIVE';
-                    this.updateHUD();
-                    window.setTimeout(() => {
-                        this.state = 'LISTENING';
+                    
+                    if (this.state === 'LISTENING' || this.state === 'TOUCH_REACTIVE') {
+                        this.state = 'TOUCH_REACTIVE';
                         this.updateHUD();
-                    }, 300);
+                        
+                        if (touchTimeout) window.clearTimeout(touchTimeout);
+                        touchTimeout = window.setTimeout(() => {
+                            if (this.state === 'TOUCH_REACTIVE') {
+                                this.state = 'LISTENING';
+                                this.updateHUD();
+                            }
+                        }, 300);
+                    }
                 };
 
                 this.canvas.addEventListener('pointerdown', (event) => {
