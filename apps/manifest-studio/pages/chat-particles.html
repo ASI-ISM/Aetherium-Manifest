@@ -491,12 +491,6 @@
                 this.canvas.addEventListener('pointerdown', (event) => {
                     spawnTouchResponse(event.clientX, event.clientY);
                 });
-
-                this.canvas.addEventListener('touchstart', (event) => {
-                    for (const touch of event.changedTouches) {
-                        spawnTouchResponse(touch.clientX, touch.clientY);
-                    }
-                }, { passive: true });
             }
 
             addSystemMessage(text) {
