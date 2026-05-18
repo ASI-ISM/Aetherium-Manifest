@@ -48,6 +48,25 @@
             text-shadow: 0 0 10px #00ffff;
         }
 
+        .nav-controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 120;
+            display: flex;
+            gap: 10px;
+        }
+
+        .nav-btn {
+            border: 1px solid rgba(0, 255, 255, 0.35);
+            background: rgba(10, 14, 39, 0.82);
+            color: #00ffff;
+            padding: 8px 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
         .status-indicator {
             background: rgba(0, 255, 255, 0.1);
             border: 1px solid #00ffff;
@@ -230,6 +249,9 @@
 </head>
 <body>
     <div class="container">
+        <div class="nav-controls">
+            <button class="nav-btn" id="backToLastBtn" type="button">← กลับหน้าล่าสุด</button>
+        </div>
         <!-- Canvas for particles -->
         <canvas id="particleCanvas"></canvas>
 
@@ -433,10 +455,41 @@
             setupEventListeners() {
                 const userInput = document.getElementById('userInput');
                 const sendBtn = document.getElementById('sendBtn');
+                const backBtn = document.getElementById('backToLastBtn');
 
                 sendBtn.addEventListener('click', () => this.sendMessage());
                 userInput.addEventListener('keypress', (e) => {
                     if (e.key === 'Enter') this.sendMessage();
+                });
+
+                backBtn.addEventListener('click', () => {
+                    if (window.history.length > 1) {
+                        window.history.back();
+                    } else {
+                        window.location.href = '/';
+                    }
+                });
+
+                let touchTimeout;
+                const spawnTouchResponse = (x, y) => {
+                    this.particles.addParticleExplosion(x, y, 42, '#9efcff');
+                    
+                    if (this.state === 'LISTENING' || this.state === 'TOUCH_REACTIVE') {
+                        this.state = 'TOUCH_REACTIVE';
+                        this.updateHUD();
+                        
+                        if (touchTimeout) window.clearTimeout(touchTimeout);
+                        touchTimeout = window.setTimeout(() => {
+                            if (this.state === 'TOUCH_REACTIVE') {
+                                this.state = 'LISTENING';
+                                this.updateHUD();
+                            }
+                        }, 300);
+                    }
+                };
+
+                this.canvas.addEventListener('pointerdown', (event) => {
+                    spawnTouchResponse(event.clientX, event.clientY);
                 });
             }
 
@@ -529,11 +582,11 @@
 
             generateAIResponse(userInput) {
                 const responses = [
-                    `สกายริม: Light flows through ${userInput}...`,
-                    `Manifesting luminescence from intent: "${userInput}"...`,
-                    `8D alignment detected in your words. Rendering...`,
-                    `Intent vector: [${userInput.length}, ∞, ◯]. Processing...`,
-                    `The surface responds to: "${userInput}"`,
+                    `Intentรับรู้แล้ว: "${userInput}" → กำลังก่อรูปคำตอบด้วยอนุภาคแสง`,
+                    `Semantic field stable. เรนเดอร์ photonic text สำหรับ: "${userInput}"`,
+                    `ตรวจจับเจตนาแล้ว (${userInput.length} tokens โดยประมาณ) กำลังประกอบเป็นตัวอักษรแสง`,
+                    `Cognitive manifold synchronized. กำลังตอบกลับผ่านชั้นอนุภาคแสง`,
+                    `Aetherium เข้าใจข้อความของคุณแล้ว: "${userInput}"`,
                 ];
                 return responses[Math.floor(Math.random() * responses.length)];
             }
