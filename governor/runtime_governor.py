@@ -1,12 +1,19 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
+import math
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, MutableMapping, Optional, Tuple
+
+try:
+    from blake3 import blake3
+except Exception:  # pragma: no cover
+    blake3 = None
 
 try:
     import jsonschema  # type: ignore
@@ -423,6 +430,35 @@ class GovernorDecision:
     policy_violations: List[str]
 
 
+def _canonicalize_numeric(value: Any) -> float:
+    if isinstance(value, bool):
+        raise ValueError("boolean is not a numeric control value")
+    if not isinstance(value, (int, float)):
+        raise ValueError("numeric control value must be int/float")
+    if not math.isfinite(float(value)):
+        raise ValueError("numeric control value must be finite")
+    return round(min(1.0, max(0.0, float(value))), 4)
+
+
+def _canonicalize_tree(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {k: _canonicalize_tree(value[k]) for k in sorted(value.keys())}
+    if isinstance(value, list):
+        return [_canonicalize_tree(item) for item in value]
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return _canonicalize_numeric(value)
+    if value is None or isinstance(value, (str, bool)):
+        return value
+    return str(value)
+
+
+def _blake3_hex(payload: str) -> str:
+    if blake3 is not None:
+        return blake3(payload.encode("utf-8")).hexdigest()
+    return hashlib.blake2s(payload.encode("utf-8")).hexdigest()
+
+
+
 class RuntimeGovernor:
     """
     Canonical middleware between AI-issued contract payloads and the renderer.
@@ -637,6 +673,8 @@ class RuntimeGovernor:
         for section, key in SCALAR_PATHS:
             container = payload[section]
             original = container.get(key)
+            if isinstance(original, float) and not math.isfinite(original):
+                raise ValueError(f"non-finite control value at {section}.{key}")
             clamped = _clamp(original, 0.0, 1.0, container.get(key, 0.0) or 0.0)
             if section == "intent_state" and key in caps:
                 clamped = min(clamped, caps[key])
@@ -646,19 +684,19 @@ class RuntimeGovernor:
                 clamped = min(clamped, 0.20)
             if container.get(key) != clamped:
                 notes.append(f"{section}.{key}: {original!r} -> {clamped}")
-            container[key] = clamped
+            container[key] = round(float(clamped), 4)
 
         if ctx.max_particle_density is not None:
             original = payload["intent_state"]["particle_density"]
             clamped = min(payload["intent_state"]["particle_density"], _clamp(ctx.max_particle_density))
             if original != clamped:
                 notes.append(f"intent_state.particle_density capped by context: {original} -> {clamped}")
-            payload["intent_state"]["particle_density"] = clamped
+            payload["intent_state"]["particle_density"] = round(float(clamped), 4)
 
         attractor = payload["renderer_controls"].setdefault("attractor", {"x": 0.5, "y": 0.5})
         for axis in ("x", "y"):
             original = attractor.get(axis)
-            attractor[axis] = _clamp(attractor.get(axis), 0.0, 1.0, 0.5)
+            attractor[axis] = round(_clamp(attractor.get(axis), 0.0, 1.0, 0.5), 4)
             if original != attractor[axis]:
                 notes.append(f"renderer_controls.attractor.{axis}: {original!r} -> {attractor[axis]}")
 
@@ -666,7 +704,7 @@ class RuntimeGovernor:
         clamped_ev = _clamp(ev, -1.0, 1.0, 0.0)
         if ev != clamped_ev:
             notes.append(f"intent_state.emotional_valence: {ev!r} -> {clamped_ev}")
-        payload["intent_state"]["emotional_valence"] = clamped_ev
+        payload["intent_state"]["emotional_valence"] = round(float(clamped_ev), 4)
 
         return notes
 
@@ -1038,6 +1076,13 @@ class RuntimeGovernor:
         mutations: List[str],
         policy_violations: List[str],
     ) -> GovernorDecision:
+        canonical_state = _canonicalize_tree({"intent_state": effective_contract.get("intent_state", {}), "renderer_controls": effective_contract.get("renderer_controls", {})})
+        canonical_serialized = json.dumps(canonical_state, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        digest = _blake3_hex(canonical_serialized)
+        effective_contract["canonical_state"] = canonical_state
+        effective_contract["canonical_state_serialized"] = canonical_serialized
+        effective_contract["canonical_state_digest"] = digest
+        effective_contract["canonical_metadata"] = {"tick": int(effective_contract.get("tick", 0) or 0), "timestamp": _utc_now_iso()}
         renderer_snapshot = self._renderer_snapshot(effective_contract)
         return GovernorDecision(
             accepted=accepted,

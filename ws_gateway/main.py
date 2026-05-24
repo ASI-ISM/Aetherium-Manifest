@@ -1,4 +1,11 @@
+import hashlib
 import json
+import math
+
+try:
+    from blake3 import blake3
+except Exception:  # pragma: no cover
+    blake3 = None
 import logging
 import os
 from datetime import datetime, timezone
@@ -184,10 +191,33 @@ def _build_room_event(room_id: str, payload: dict[str, Any]) -> tuple[dict[str, 
     return event, None
 
 
+
+
+def _canonicalize_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {k: _canonicalize_value(value[k]) for k in sorted(value.keys())}
+    if isinstance(value, list):
+        return [_canonicalize_value(v) for v in value]
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        if not math.isfinite(float(value)):
+            raise ValueError("non-finite numeric value")
+        return round(min(1.0, max(0.0, float(value))), 4)
+    return value
+
+
+def _canonical_payload_digest(payload: dict[str, Any]) -> str:
+    canonical = _canonicalize_value(payload)
+    serialized = json.dumps(canonical, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    if blake3 is not None:
+        return blake3(serialized.encode("utf-8")).hexdigest()
+    return hashlib.blake2s(serialized.encode("utf-8")).hexdigest()
 def _validate_frame_envelope(frame: dict[str, Any]) -> dict[str, Any] | None:
     frame_type = frame.get("type")
     tick = frame.get("tick")
     payload = frame.get("payload")
+    provided_hash = frame.get("state_hash")
 
     if not isinstance(frame_type, str) or frame_type not in ALLOWED_FRAME_TYPES:
         return {"type": "error", "error": "invalid_frame_type", "detail": "unknown or missing frame type"}
@@ -195,6 +225,21 @@ def _validate_frame_envelope(frame: dict[str, Any]) -> dict[str, Any] | None:
         return {"type": "error", "error": "invalid_tick", "detail": "tick is required and must be >= 0"}
     if not isinstance(payload, dict):
         return {"type": "error", "error": "invalid_payload", "detail": "payload is required and must be an object"}
+    if provided_hash is not None:
+        if not isinstance(provided_hash, str) or not provided_hash:
+            return {"type": "error", "error": "invalid_state_hash", "detail": "state_hash must be a non-empty string"}
+        try:
+            actual_hash = _canonical_payload_digest(payload)
+        except ValueError as exc:
+            return {"type": "error", "error": "canonicalization_error", "detail": str(exc)}
+        if actual_hash != provided_hash:
+            return {
+                "type": "error",
+                "error": "state_hash_mismatch",
+                "detail": "provided state_hash does not match canonical payload hash",
+                "provided_hash": provided_hash,
+                "computed_hash": actual_hash,
+            }
 
     required_by_type: dict[str, set[str]] = {
         "FULL_STATE": {"state"},

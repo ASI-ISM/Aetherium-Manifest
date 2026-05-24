@@ -116,5 +116,24 @@ class PsychoSafetyGateTests(unittest.TestCase):
         self.assertLessEqual(last_decision.effective_contract["renderer_controls"]["velocity"], 0.18)
         self.assertLessEqual(last_decision.effective_contract["intent_state"]["glow_intensity"], 0.35)
 
+
+    def test_canonical_digest_stable_for_semantically_identical_states(self) -> None:
+        governor = RuntimeGovernor()
+        p1 = make_payload(flicker=0.0500001, glow_intensity=0.5000001, velocity=0.2000001)
+        p2 = make_payload(flicker=0.05, glow_intensity=0.5, velocity=0.2)
+
+        d1 = governor.process(p1, GovernorContext())
+        d2 = governor.process(p2, GovernorContext())
+
+        self.assertEqual(d1.effective_contract["canonical_state_digest"], d2.effective_contract["canonical_state_digest"])
+        self.assertEqual(d1.effective_contract["intent_state"]["flicker"], 0.05)
+        self.assertEqual(d1.effective_contract["canonical_metadata"]["tick"], 0)
+
+    def test_rejects_non_finite_numeric_values(self) -> None:
+        governor = RuntimeGovernor()
+        payload = make_payload(flicker=float("nan"), glow_intensity=0.5, velocity=0.2)
+        with self.assertRaises(ValueError):
+            governor.process(payload, GovernorContext())
+
 if __name__ == "__main__":
     unittest.main()
