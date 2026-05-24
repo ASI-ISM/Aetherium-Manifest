@@ -118,3 +118,9 @@ Latency/SLO rules:
 - Stage handoff P95 overhead budget: `<= 3 ms` compared to direct mapping mode.
 - Fallback mode parity target: visual contract compatibility pass rate `= 100%`.
 - Containment activation target remains `<= 75 ms P95` and is attributed to Runtime Governor telemetry.
+
+
+## Presence ingress contract (Presence8D V1)
+- Canonical file: `docs/schemas/presence8d_v1.json` (mirrored source under `contracts/presence8d_v1.schema.json`).
+- Governor ingress now supports explicit normalized presence envelope `ir_version = presence8d/v1` with strict required keys and `additionalProperties: false` at every object boundary.
+- Determinism boundary requires `normalization.precision_dp = 4` and banker's rounding policy (`half_even`) so runtime clamp/profile stages receive pre-quantized state signals.
