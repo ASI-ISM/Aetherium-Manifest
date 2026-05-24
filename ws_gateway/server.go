@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"hash/fnv"
 	"log"
@@ -24,6 +25,22 @@ type Message struct {
 	Data []byte
 }
 
+type FrameEnvelope struct {
+	Type    string          `json:"type"`
+	Tick    int64           `json:"tick"`
+	Payload json.RawMessage `json:"payload"`
+}
+
+var allowedFrameTypes = map[string]struct{}{
+	"FULL_STATE":       {},
+	"DELTA_UPDATE":     {},
+	"HEARTBEAT":        {},
+	"SYNC_REQUEST":     {},
+	"SYNC_RESPONSE":    {},
+	"PREDICTIVE_STATE": {},
+	"ROLLBACK":         {},
+}
+
 type Client struct {
 	id   string
 	room string
@@ -31,6 +48,14 @@ type Client struct {
 	send chan []byte
 
 	lastSeen atomic.Int64
+}
+
+func (c *Client) close() {
+	defer func() {
+		_ = recover()
+	}()
+	close(c.send)
+	_ = c.conn.Close()
 }
 
 type BusPublisher interface {
@@ -143,8 +168,32 @@ func (s *Server) readPump(c *Client) {
 		}
 
 		c.lastSeen.Store(time.Now().Unix())
+		if err := validateFrameEnvelope(message); err != nil {
+			log.Printf("rejecting malformed frame for room=%s client=%s: %v", c.room, c.id, err)
+			continue
+		}
 		s.broadcast <- Message{Room: c.room, Data: message}
 	}
+}
+
+func validateFrameEnvelope(message []byte) error {
+	var frame FrameEnvelope
+	if err := json.Unmarshal(message, &frame); err != nil {
+		return errors.New("invalid json frame envelope")
+	}
+	if _, ok := allowedFrameTypes[frame.Type]; !ok {
+		return errors.New("unknown frame type")
+	}
+	if frame.Tick < 0 {
+		return errors.New("tick must be >= 0")
+	}
+	if len(frame.Payload) == 0 || string(frame.Payload) == "null" {
+		return errors.New("payload is required")
+	}
+	if !json.Valid(frame.Payload) {
+		return errors.New("payload must be valid json")
+	}
+	return nil
 }
 
 func (s *Server) writePump(c *Client) {

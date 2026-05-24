@@ -68,9 +68,25 @@ def test_websocket_stream_missing_key(client: TestClient) -> None:
 
 def test_websocket_stream_with_query_key(client: TestClient) -> None:
     with client.websocket_connect('/ws/cognitive-stream?api_key=test-key') as websocket:
-        websocket.send_json({'type': 'dsl_submission', 'payload': '...'})
+        websocket.send_json({'type': 'HEARTBEAT', 'tick': 1, 'payload': {'source': 'client'}})
         response = websocket.receive_json()
         assert response['status'] == 'accepted'
+
+
+def test_websocket_stream_rejects_unknown_frame_type(client: TestClient) -> None:
+    with client.websocket_connect('/ws/cognitive-stream?api_key=test-key') as websocket:
+        websocket.send_json({'type': 'UNKNOWN', 'tick': 1, 'payload': {}})
+        response = websocket.receive_json()
+        assert response['status'] == 'rejected'
+        assert response['error']['error'] == 'invalid_frame_type'
+
+
+def test_websocket_stream_rejects_malformed_required_fields(client: TestClient) -> None:
+    with client.websocket_connect('/ws/cognitive-stream?api_key=test-key') as websocket:
+        websocket.send_json({'type': 'SYNC_REQUEST', 'tick': 5, 'payload': {}})
+        response = websocket.receive_json()
+        assert response['status'] == 'rejected'
+        assert response['error']['error'] == 'missing_payload_fields'
 
 
 def test_state_sync_websocket_requires_api_key(client: TestClient) -> None:
