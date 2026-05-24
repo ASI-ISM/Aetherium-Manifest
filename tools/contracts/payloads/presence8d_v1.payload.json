@@ -1,0 +1,39 @@
+{
+  "ir_version": "presence8d/v1",
+  "tick": 2048,
+  "timestamp_ns": 1767225600000000000,
+  "intent": {
+    "state": "processing",
+    "phase": 0.625,
+    "confidence": 0.9375
+  },
+  "presence8d": {
+    "spatial_coherence": 0.75,
+    "temporal_stability": 0.8125,
+    "intent_confidence": 0.9375,
+    "energy_budget": 0.625,
+    "interaction_readiness": 0.6875,
+    "novelty_pressure": 0.4375,
+    "safety_margin": 0.875,
+    "counterfactual_depth": 0.5625
+  },
+  "governor": {
+    "pipeline": [
+      "validate",
+      "transition",
+      "profile_map",
+      "clamp",
+      "fallback",
+      "policy_block",
+      "capability_gate",
+      "telemetry_log"
+    ],
+    "deny_by_default": true,
+    "policy_version": "2026-05-24"
+  },
+  "normalization": {
+    "precision_dp": 4,
+    "rounding_policy": "half_even",
+    "quantized_at_source": true
+  }
+}

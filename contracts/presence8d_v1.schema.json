@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aetherium.dev/schemas/presence8d_v1.json",
+  "title": "Presence8D Contract V1",
+  "description": "Canonical governor ingress envelope for normalized 8D presence signals.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "ir_version",
+    "tick",
+    "timestamp_ns",
+    "intent",
+    "presence8d",
+    "governor",
+    "normalization"
+  ],
+  "properties": {
+    "ir_version": {
+      "type": "string",
+      "const": "presence8d/v1"
+    },
+    "tick": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "timestamp_ns": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "intent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "phase", "confidence"],
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": ["nirodha", "awakened", "processing"]
+        },
+        "phase": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "multipleOf": 0.0001
+        },
+        "confidence": {
+          "$ref": "#/$defs/unitIntervalDp4"
+        }
+      }
+    },
+    "presence8d": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "spatial_coherence",
+        "temporal_stability",
+        "intent_confidence",
+        "energy_budget",
+        "interaction_readiness",
+        "novelty_pressure",
+        "safety_margin",
+        "counterfactual_depth"
+      ],
+      "properties": {
+        "spatial_coherence": { "$ref": "#/$defs/unitIntervalDp4" },
+        "temporal_stability": { "$ref": "#/$defs/unitIntervalDp4" },
+        "intent_confidence": { "$ref": "#/$defs/unitIntervalDp4" },
+        "energy_budget": { "$ref": "#/$defs/unitIntervalDp4" },
+        "interaction_readiness": { "$ref": "#/$defs/unitIntervalDp4" },
+        "novelty_pressure": { "$ref": "#/$defs/unitIntervalDp4" },
+        "safety_margin": { "$ref": "#/$defs/unitIntervalDp4" },
+        "counterfactual_depth": { "$ref": "#/$defs/unitIntervalDp4" }
+      }
+    },
+    "governor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pipeline", "deny_by_default", "policy_version"],
+      "properties": {
+        "pipeline": {
+          "type": "array",
+          "const": [
+            "validate",
+            "transition",
+            "profile_map",
+            "clamp",
+            "fallback",
+            "policy_block",
+            "capability_gate",
+            "telemetry_log"
+          ]
+        },
+        "deny_by_default": { "type": "boolean", "const": true },
+        "policy_version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "normalization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["precision_dp", "rounding_policy", "quantized_at_source"],
+      "properties": {
+        "precision_dp": { "type": "integer", "const": 4 },
+        "rounding_policy": { "type": "string", "enum": ["half_even"] },
+        "quantized_at_source": { "type": "boolean", "const": true }
+      }
+    }
+  },
+  "$defs": {
+    "unitIntervalDp4": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "multipleOf": 0.0001
+    }
+  },
+  "x-field-evolution": {
+    "introduced_in": "presence8d/v1",
+    "supersedes": [],
+    "compatibility_adapter": "none",
+    "required_evolution_sections": [
+      "intent",
+      "presence8d",
+      "governor",
+      "normalization"
+    ]
+  }
+}

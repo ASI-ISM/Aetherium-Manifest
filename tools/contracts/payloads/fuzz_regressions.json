@@ -13,10 +13,21 @@
         "ambiguity": 0.18
       },
       "morphogenesis_plan": {
-        "topology_seeds": ["ring", "breathe"],
-        "attractors": ["coherence"],
-        "constraints": ["turbulence<=0.2", "chroma=adaptive"],
-        "temporal_operators": ["phase_lock", "cadence_stabilize"]
+        "topology_seeds": [
+          "ring",
+          "breathe"
+        ],
+        "attractors": [
+          "coherence"
+        ],
+        "constraints": [
+          "turbulence<=0.2",
+          "chroma=adaptive"
+        ],
+        "temporal_operators": [
+          "phase_lock",
+          "cadence_stabilize"
+        ]
       },
       "light_program": {
         "shader_uniforms": {
@@ -27,7 +38,10 @@
           "count": 7800,
           "mass": 0.62
         },
-        "force_field_descriptors": ["turbulence<=0.2", "chroma=adaptive"]
+        "force_field_descriptors": [
+          "turbulence<=0.2",
+          "chroma=adaptive"
+        ]
       },
       "runtime_tick_policy": {
         "tick_rate_hz": 24,
@@ -60,5 +74,49 @@
       }
     },
     "expected_error_fragment": "is not of type 'number'"
+  },
+  {
+    "contract": "presence8d_v1",
+    "description": "rejects over-precision presence metric",
+    "payload": {
+      "ir_version": "presence8d/v1",
+      "tick": 1,
+      "timestamp_ns": 1767225600000000000,
+      "intent": {
+        "state": "awakened",
+        "phase": 0.5,
+        "confidence": 0.9
+      },
+      "presence8d": {
+        "spatial_coherence": 0.12345,
+        "temporal_stability": 0.8,
+        "intent_confidence": 0.9,
+        "energy_budget": 0.7,
+        "interaction_readiness": 0.6,
+        "novelty_pressure": 0.4,
+        "safety_margin": 0.95,
+        "counterfactual_depth": 0.5
+      },
+      "governor": {
+        "pipeline": [
+          "validate",
+          "transition",
+          "profile_map",
+          "clamp",
+          "fallback",
+          "policy_block",
+          "capability_gate",
+          "telemetry_log"
+        ],
+        "deny_by_default": true,
+        "policy_version": "2026-05-24"
+      },
+      "normalization": {
+        "precision_dp": 4,
+        "rounding_policy": "half_even",
+        "quantized_at_source": true
+      }
+    },
+    "expected_error_fragment": "is not a multiple of 0.0001"
   }
 ]

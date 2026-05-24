@@ -105,3 +105,16 @@ Export ABI constraints:
 - Runtime bridge supports direct semantic mapping to GPU config (`particle_density`, `turbulence`, `flow_direction`, `shape`, `glow_intensity`).
 - High-density simulation behavior is runtime-side (dynamic particle scaling, chunked domain scheduling, frustum-aware visibility gating, far-field reduced update cadence) and does not require schema changes by itself.
 - Compatibility impact: introducing a new canonical field such as `visual.density` in governed contracts would be ABI-affecting only when required by schema; additive optional fields remain backward-compatible but still require schema review + `x-field-evolution` metadata.
+
+
+## Presence8D Contract V1
+Canonical contract files:
+- `contracts/presence8d_v1.schema.json`
+- `docs/schemas/presence8d_v1.json`
+
+Compatibility and precision policy:
+- Required envelope keys: `ir_version`, `tick`, `timestamp_ns`, `intent`, `presence8d`, `governor`, `normalization`.
+- Scalar fields in intent/presence are bounded to unit interval `[0.0, 1.0]` and quantized with `multipleOf: 0.0001`.
+- Intent state is closed enum (`nirodha`, `awakened`, `processing`) and `intent.phase` is range-limited to `[0.0, 1.0]`.
+- Validation boundary carries determinism metadata via `normalization.precision_dp = 4` and `rounding_policy = half_even`.
+- `additionalProperties: false` is enforced across all nested objects for deny-by-default parsing.

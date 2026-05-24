@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Literal
 
@@ -48,6 +49,10 @@ CHECKS = {
     "light_cognition_pipeline_v1": {
         "schema": SCHEMA_DIR / "light_cognition_pipeline_v1.json",
         "payload": PAYLOAD_DIR / "light_cognition_pipeline_v1.payload.json",
+    },
+    "presence8d_v1": {
+        "schema": SCHEMA_DIR / "presence8d_v1.json",
+        "payload": PAYLOAD_DIR / "presence8d_v1.payload.json",
     },
 }
 
@@ -210,11 +215,48 @@ def _check_ipw_probability_policy(payload: dict[str, Any], audits: list[str]) ->
     return errors
 
 
+
+
+def _has_max_dp(value: Any, max_dp: int) -> bool:
+    try:
+        decimal_value = Decimal(str(value))
+    except (InvalidOperation, ValueError):
+        return False
+
+    exponent = decimal_value.as_tuple().exponent
+    decimal_places = abs(exponent) if exponent < 0 else 0
+    return decimal_places <= max_dp
+
+
+def _check_presence8d_precision_policy(payload: dict[str, Any], audits: list[str]) -> list[str]:
+    errors: list[str] = []
+    policy = payload.get("normalization", {})
+    precision_dp = policy.get("precision_dp")
+    if precision_dp != 4:
+        errors.append("<root>.normalization.precision_dp: must equal 4")
+        return errors
+
+    phase = payload.get("intent", {}).get("phase")
+    if phase is not None and not _has_max_dp(phase, 4):
+        errors.append("<root>.intent.phase: exceeds 4 decimal places")
+
+    presence = payload.get("presence8d", {})
+    for key, value in presence.items():
+        if not _has_max_dp(value, 4):
+            errors.append(f"<root>.presence8d.{key}: exceeds 4 decimal places")
+
+    if not errors:
+        audits.append("presence8d_v1: precision boundary policy enforced at dp=4")
+
+    return errors
+
 def _apply_contract_policy(contract_name: str, payload: dict[str, Any], audits: list[str], mode: Mode) -> list[str]:
     if contract_name == "embodiment_v1" and mode == "legacy":
         _legacy_embodiment_audits(payload, audits)
     if contract_name == "ipw_v1":
         return _check_ipw_probability_policy(payload, audits)
+    if contract_name == "presence8d_v1":
+        return _check_presence8d_precision_policy(payload, audits)
     return []
 
 
