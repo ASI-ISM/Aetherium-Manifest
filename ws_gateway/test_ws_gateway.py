@@ -192,3 +192,11 @@ def test_replay_consistency_and_conflict_resolution_for_concurrent_edits(client:
     redis_stream = main.r.streams['state-sync:room-c']  # type: ignore[union-attr]
     persisted_types = [json.loads(entry[1]['payload'])['type'] for entry in redis_stream]
     assert persisted_types == ['action', 'conflict_resolution', 'action']
+
+
+def test_websocket_stream_rejects_state_hash_mismatch(client: TestClient) -> None:
+    with client.websocket_connect('/ws/cognitive-stream?api_key=test-key') as websocket:
+        websocket.send_json({'type': 'HEARTBEAT', 'tick': 1, 'payload': {'source': 'client'}, 'state_hash': 'deadbeef'})
+        response = websocket.receive_json()
+        assert response['status'] == 'rejected'
+        assert response['error']['error'] == 'state_hash_mismatch'
