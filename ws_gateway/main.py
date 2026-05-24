@@ -34,6 +34,15 @@ ROLE_ACTION_SCOPES: dict[str, set[str]] = {
 PRESENCE_ACTIONS = {"join", "leave", "active_role", "cursor_or_focus"}
 APPROVAL_ACTIONS = {"request", "approve", "reject"}
 ROOM_LAST_STREAM_ID: dict[str, str] = {}
+ALLOWED_FRAME_TYPES = {
+    "FULL_STATE",
+    "DELTA_UPDATE",
+    "HEARTBEAT",
+    "SYNC_REQUEST",
+    "SYNC_RESPONSE",
+    "PREDICTIVE_STATE",
+    "ROLLBACK",
+}
 
 
 @app.on_event("startup")
@@ -175,6 +184,37 @@ def _build_room_event(room_id: str, payload: dict[str, Any]) -> tuple[dict[str, 
     return event, None
 
 
+def _validate_frame_envelope(frame: dict[str, Any]) -> dict[str, Any] | None:
+    frame_type = frame.get("type")
+    tick = frame.get("tick")
+    payload = frame.get("payload")
+
+    if not isinstance(frame_type, str) or frame_type not in ALLOWED_FRAME_TYPES:
+        return {"type": "error", "error": "invalid_frame_type", "detail": "unknown or missing frame type"}
+    if not isinstance(tick, int) or tick < 0:
+        return {"type": "error", "error": "invalid_tick", "detail": "tick is required and must be >= 0"}
+    if not isinstance(payload, dict):
+        return {"type": "error", "error": "invalid_payload", "detail": "payload is required and must be an object"}
+
+    required_by_type: dict[str, set[str]] = {
+        "FULL_STATE": {"state"},
+        "DELTA_UPDATE": {"delta"},
+        "HEARTBEAT": {"source"},
+        "SYNC_REQUEST": {"request_id"},
+        "SYNC_RESPONSE": {"request_id", "state"},
+        "PREDICTIVE_STATE": {"prediction"},
+        "ROLLBACK": {"target_tick"},
+    }
+    missing = [field for field in required_by_type[frame_type] if field not in payload]
+    if missing:
+        return {
+            "type": "error",
+            "error": "missing_payload_fields",
+            "detail": f"missing required payload field(s): {', '.join(sorted(missing))}",
+        }
+    return None
+
+
 async def _append_room_event(room_id: str, event: dict[str, Any]) -> str | None:
     if not r:
         return None
@@ -238,6 +278,10 @@ async def cognitive_stream(
     try:
         while True:
             event = await websocket.receive_json()
+            validation_error = _validate_frame_envelope(event)
+            if validation_error:
+                await websocket.send_json({"status": "rejected", "error": validation_error})
+                continue
             envelope = {"received_at": _now_iso(), "event": event}
             stream_id = await _append_room_event("cognitive", envelope)
             await websocket.send_json({"status": "accepted", "stream_id": stream_id})
