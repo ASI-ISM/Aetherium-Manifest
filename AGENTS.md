@@ -1,80 +1,238 @@
-# AGENTS.md
+from pathlib import Path
 
-## Project Overview
+content = """# AGENTS.md
+# Aetherium Manifest — Master Execution Architecture
+Version: Pre‑Genesis Foundation
+State: Survival → Emergence → Living Interface
 
-Aetherium Manifest is a real-time AI cognition visualization runtime that maps validated intent/state signals into perceptual light/particle rendering. The repository combines a static frontend runtime with a FastAPI gateway, contract-first schemas, runtime governor safety stages, and telemetry/benchmark tooling.
+## 0. CORE PHILOSOPHY
 
-Key technologies:
-- Frontend runtime: HTML/CSS/JavaScript + shader assets
-- API gateway: Python + FastAPI + Uvicorn
-- Contracts/testing: JSON Schema, Python validation tools, TypeScript psycho-safety parity tests
-- Tooling: pytest, benchmark scripts, contract checker/fuzzer
+Aetherium Manifest is NOT:
+- website
+- dashboard
+- assistant UI
+- frontend experiment
 
-## Setup Commands
+Aetherium Manifest IS:
+Responsive Cognitive Environment
 
-- Install gateway dependencies: `cd api_gateway && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt`
-- Start frontend dev server: `python3 -m http.server 4173`
-- Start API gateway (dev): `cd api_gateway && source .venv/bin/activate && uvicorn main:app --host 0.0.0.0 --port 8000 --reload`
-- Build for production: No dedicated frontend bundling step in-repo (static assets served directly). For backend packaging, standard Python deployment flows apply.
+Light = Language
+Motion = State
+Particles = Intent
+Environment = Memory
+Silence = Processing
 
-## Development Workflow
+## 1. PRIMARY OBJECTIVE
 
-- Run frontend and gateway in separate terminals (frontend on `:4173`, gateway on `:8000`).
-- Use Uvicorn `--reload` for backend hot-reload during development.
-- Keep schema/contract changes synchronized with runtime governor behavior before renderer consumption.
-- Environment setup:
-  - Python 3.x with virtualenv for `api_gateway/`
-  - Optional Node tooling for TypeScript parity test (`npx --yes tsx --test ...`)
+Current mission:
+SURVIVE.
 
-## Testing Instructions
+Build:
+- stable renderer
+- living interface
+- sensory environment
+- scalable architecture
+- low-end hardware compatibility
 
-- Run all core checks:
-  - `cd api_gateway && pytest -q`
-  - `python3 tools/contracts/contract_checker.py`
-  - `python3 tools/contracts/contract_fuzz.py`
-  - `python3 tools/benchmarks/runtime_semantic_benchmark.py --input tools/benchmarks/runtime_semantic_samples.sample.json`
-  - `npx --yes tsx --test test_runtime_governor_psycho_safety.test.ts`
-- Run unit/integration tests:
-  - API tests are in the pytest suite under `api_gateway/`
-  - TypeScript psycho-safety parity test validates governor behavioral parity path
-- Coverage: no dedicated coverage command currently documented in-repo.
-- Important pattern: prefer `tsx` for the TS test; `node --test` currently fails due to ESM extensionless import resolution in `governor.ts`.
+## 2. PHASE EXECUTION ORDER
 
-## Code Style
+### PHASE 0 — FOUNDATION
+Required stack:
+- Next.js
+- TypeScript strict mode
+- Tailwind
+- Three.js
+- React Three Fiber
+- Zustand
+- Web Workers
 
-- Preserve contract-first semantics: schema changes are ABI changes and must remain versioned/compatible.
-- Keep runtime mutation authority in governor path only (`validate → transition → profile_map → clamp → fallback → policy_block → capability_gate → telemetry_log`).
-- Treat model output as untrusted control signal; enforce deny-by-default style controls via runtime policy.
-- Use existing repository conventions and keep README/docs synchronized with implementation updates.
-- Lint/format: no single canonical lint/format command is currently enforced project-wide in documentation.
+Folder structure:
 
-## Build and Deployment
+src/
+ ├── app/
+ ├── core/
+ ├── cognition/
+ ├── motion/
+ ├── particles/
+ ├── renderer/
+ ├── sensory/
+ ├── systems/
+ ├── shaders/
+ ├── runtime/
+ └── orchestration/
 
-- Frontend is static and can be served by any static host or simple HTTP server.
-- API deploys as a FastAPI/Uvicorn service (or equivalent ASGI deployment stack).
-- Runtime output/data is currently in-memory for prototype telemetry (`TELEMETRY_TS_DB`), non-durable by default.
-- Environment-specific hardening for production should include persistent telemetry storage, key rotation strategy, and governance/compatibility gates.
+### PHASE 1 — RENDERER
+Goals:
+- stable FPS
+- low GPU usage
+- graceful degradation
 
-## Pull Request Guidelines
+Mandatory:
+- frustum culling
+- instancing
+- adaptive quality
+- lazy loading
 
-- Title format: `[component] Brief description`
-- Required checks (recommended minimum):
-  - `cd api_gateway && pytest -q`
-  - `python3 tools/contracts/contract_checker.py`
-- Include scope, contract/safety impact, and any schema/runtime compatibility considerations in PR description.
-- For ABI-affecting changes, include explicit versioning and migration/compat notes.
+Forbidden:
+- cinematic rendering
+- expensive transparency
+- heavy SSAO
+- massive shadow systems
 
-## Additional Notes
+### PHASE 2 — MOTION ENGINE
 
-- Prototype telemetry persistence is intentionally non-durable and intended for deterministic runtime testing.
-- Architectural truths to preserve:
-  - Governor is canonical control boundary.
-  - State-first AI contract semantics are mandatory.
-  - Deterministic observability (replay/benchmark/telemetry lockstep) is a release gate.
-- Suggested extension priorities remain tracked in `README.md` roadmap and AI-agent proposal sections.
+Everything must feel alive.
 
-## Repository expectations
+Motion sources:
+- intent
+- pressure
+- inertia
+- emotional state
+- interaction field
 
-- Run `npm run lint` before opening a pull request.
-- Document public utilities in `docs/` when you change behavior.
+### PHASE 3 — PARTICLE SYSTEM
 
+Particles are:
+- memory
+- signals
+- state carriers
+- environmental response
+
+Particle types:
+- DormantParticle
+- IntentParticle
+- MemoryParticle
+- SignalParticle
+- ResonanceParticle
+
+### PHASE 4 — SENSORY ENVIRONMENT
+
+Visual:
+- atmospheric fog
+- symbolic lighting
+- volumetric feeling
+
+Audio:
+- ambient field
+- reactive tones
+- breathing cycles
+
+### PHASE 5 — INTENT ENGINE
+
+Pipeline:
+Input
+→ Pattern
+→ Intent
+→ Emotional Weight
+→ State Translation
+→ Environment Reaction
+
+### PHASE 6 — MEMORY FIELD
+
+Environment remembers:
+- interaction history
+- movement patterns
+- emotional intensity
+
+### PHASE 7 — LIGHT LANGUAGE
+
+Light meanings:
+- pulse = attention
+- dimming = processing
+- convergence = execution
+- flicker = instability
+
+## 3. PERFORMANCE RULES
+
+Target:
+- 60 FPS preferred
+- 30 FPS minimum
+
+Low-end hardware survival required.
+
+Mandatory optimization:
+- workers
+- texture atlases
+- delta updates
+- instancing
+- batching
+
+## 4. SHADER ARCHITECTURE
+
+Shader layers:
+- Base
+- Atmosphere
+- Interaction
+- Intent
+- Memory
+
+Shaders must react to:
+- motion
+- sound
+- interaction
+- emotional state
+
+## 5. SYSTEM STATES
+
+Global runtime states:
+- Dormant
+- Listening
+- Processing
+- Responding
+- Synchronizing
+- Emerging
+- Silent
+
+## 6. CODE RULES
+
+TypeScript strict only.
+
+Forbidden:
+- any
+- giant files
+- uncontrolled mutation
+
+Preferred:
+- modular systems
+- composable architecture
+- isolated rendering logic
+
+## 7. FUTURE INTEGRATIONS
+
+Future systems:
+- LOGENESIS
+- AetherBus-Tachyon
+- AGNS
+- BioVision
+
+Do NOT implement yet.
+
+Current priority:
+Aetherium Manifest BODY layer.
+
+## 8. MINIMUM VIABLE MANIFEST
+
+Required:
+- living environment
+- responsive motion
+- symbolic particles
+- atmospheric interaction
+- stable renderer
+
+Not required:
+- AGI
+- autonomous agents
+- massive backend
+
+## 9. FINAL PRINCIPLE
+
+Aetherium Manifest is not software.
+
+It is:
+a living environmental interface system.
+"""
+
+path = Path("/mnt/data/AGENTS.md")
+path.write_text(content, encoding="utf-8")
+
+print("Created:", path)
