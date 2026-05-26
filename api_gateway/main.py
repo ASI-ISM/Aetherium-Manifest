@@ -939,7 +939,7 @@ async def emit_cognitive_dsl(
         async with METRICS_LOCK:
             METRICS.successful_renders += 1
 
-    canonical_timestamp = (request.envelope.canonical_timestamp if request.envelope else None) or datetime.now(timezone.utc).isoformat()
+    canonical_timestamp = (request.envelope.canonical_timestamp.isoformat() if request.envelope and request.envelope.canonical_timestamp else None) or datetime.now(timezone.utc).isoformat()
     canonical_tick = request.envelope.canonical_tick if request.envelope else 0
 
     return {
