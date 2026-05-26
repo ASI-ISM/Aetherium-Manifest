@@ -5,6 +5,14 @@ Aetherium Manifest is a **light-native cognition runtime**: intent is interprete
 ---
 
 
+## รายงานวิเคราะห์โครงสร้าง Production Core (TH)
+
+อัปเดตรายงานวิเคราะห์เชิงสถาปัตยกรรมเทียบ AGENTS.md + Production Core Specification พร้อมข้อเสนอเชิงปรับปรุง/ลบ/แก้ไข และประเด็นที่ต้องขออนุมัติจากผู้มีอำนาจตัดสินใจ:
+
+- [docs/reports/production-core-structure-audit-th-2026-05-26.md](docs/reports/production-core-structure-audit-th-2026-05-26.md)
+
+---
+
 ## เอกสารแนะนำโครงสร้างระบบสำหรับผู้มาใหม่ (TH)
 
 เพื่อการ onboarding แบบละเอียด (ภาพรวม → โครงสร้างขั้นสูง → ช่องว่างเชิงสถาปัตยกรรม → roadmap การเรียนรู้ → ลำดับความสำคัญในการพัฒนา) ดูเอกสารใหม่:
