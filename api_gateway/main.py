@@ -29,7 +29,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import redis.asyncio as redis
 import nats
-from governor.runtime_governor import RuntimeGovernor, GovernorContext
+from governor.runtime_governor import RuntimeGovernor, GovernorContext, _canonicalize_tree, _blake3_hex
 from .deterministic_replay import INCIDENT_REPLAY_PACKAGES
 from .redis_state import RedisState
 
@@ -172,10 +172,23 @@ class ModelMetadata(BaseModel):
     temperature: float = Field(ge=0.0, le=2.0)
     max_tokens: int = Field(gt=0)
 
+class EnvelopeCanonicalMetadata(BaseModel):
+    tick: int = Field(default=0, ge=0)
+    timestamp: str
+
+
+class CognitiveEnvelope(BaseModel):
+    canonical_state: Optional[Dict[str, Any]] = None
+    canonical_state_digest: Optional[str] = None
+    canonical_tick: int = Field(default=0, ge=0)
+    canonical_timestamp: Optional[str] = None
+
+
 class CognitiveEmitRequest(BaseModel):
     session_id: str
     model_response: ModelResponse
     model_metadata: ModelMetadata
+    envelope: Optional[CognitiveEnvelope] = None
 
 class ValidationResult(BaseModel):
     status: Literal["success", "failed"]
@@ -904,12 +917,40 @@ async def emit_cognitive_dsl(
                 METRICS.validation_failures += 1
         raise HTTPException(422, detail=ValidationResult(status="failed", violations=violations).model_dump())
 
+    canonical_state = None
+    canonical_digest = None
+    if request.envelope and request.envelope.canonical_state is not None:
+        canonical_state = _canonicalize_tree(request.envelope.canonical_state)
+        canonical_serialized = json.dumps(canonical_state, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        canonical_digest = _blake3_hex(canonical_serialized)
+        provided = request.envelope.canonical_state_digest
+        if provided and provided != canonical_digest:
+            raise HTTPException(422, detail={
+                "error": "canonical_state_digest_mismatch",
+                "provided_digest": provided,
+                "computed_digest": canonical_digest,
+                "session_id": request.session_id,
+                "trace_id": request.model_response.trace_id,
+            })
+
     if redis_state:
         await redis_state.incr_metric("successful_renders")
     else:
         async with METRICS_LOCK:
             METRICS.successful_renders += 1
-    return {"status": "success", "trace_id": request.model_response.trace_id}
+
+    canonical_timestamp = (request.envelope.canonical_timestamp if request.envelope else None) or datetime.now(timezone.utc).isoformat()
+    canonical_tick = request.envelope.canonical_tick if request.envelope else 0
+
+    return {
+        "status": "success",
+        "trace_id": request.model_response.trace_id,
+        "envelope": {
+            "canonical_state_digest": canonical_digest,
+            "canonical_tick": canonical_tick,
+            "canonical_timestamp": canonical_timestamp,
+        },
+    }
 
 @app.post("/api/v1/cognitive/validate")
 async def validate_cognitive_dsl(
