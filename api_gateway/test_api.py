@@ -191,6 +191,40 @@ def test_websocket_stream_privileged_action_requires_operator_role(client: TestC
         assert response["status"] == "accepted"
 
 
+
+def test_emit_rejects_mismatched_canonical_digest(client: TestClient, api_key_header: dict[str, str], valid_emit_payload: dict) -> None:
+    payload = dict(valid_emit_payload)
+    payload["envelope"] = {
+        "canonical_state": {"renderer_controls": {"velocity": 0.2}, "intent_state": {"flicker": 0.05}},
+        "canonical_state_digest": "bad-digest",
+        "canonical_tick": 3,
+        "canonical_timestamp": "2026-05-24T00:00:00+00:00",
+    }
+    response = client.post("/api/v1/cognitive/emit", json=payload, headers=api_key_header)
+    assert response.status_code == 422
+    assert response.json()["detail"]["error"] == "canonical_state_digest_mismatch"
+
+
+def test_emit_accepts_semantically_identical_canonical_state_hash(client: TestClient, api_key_header: dict[str, str], valid_emit_payload: dict) -> None:
+    canonical_a = {"intent_state": {"flicker": 0.05000001}, "renderer_controls": {"velocity": 0.20000001}}
+    canonical_b = {"renderer_controls": {"velocity": 0.2}, "intent_state": {"flicker": 0.05}}
+
+    digest = main._blake3_hex(json.dumps(main._canonicalize_tree(canonical_a), sort_keys=True, separators=(",", ":"), ensure_ascii=False))
+
+    payload = dict(valid_emit_payload)
+    payload["envelope"] = {
+        "canonical_state": canonical_b,
+        "canonical_state_digest": digest,
+        "canonical_tick": 7,
+        "canonical_timestamp": "2026-05-24T01:02:03+00:00",
+    }
+
+    response = client.post("/api/v1/cognitive/emit", json=payload, headers=api_key_header)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["envelope"]["canonical_state_digest"] == digest
+    assert body["envelope"]["canonical_tick"] == 7
+
 def test_compatibility_intent_adapter(client: TestClient) -> None:
     response = client.post(
         "/api/intent",
