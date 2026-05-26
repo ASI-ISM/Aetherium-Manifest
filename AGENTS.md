@@ -1,8 +1,7 @@
-from pathlib import Path
-
-content = """# AGENTS.md
+# AGENTS.md
 # Aetherium Manifest — Master Execution Architecture
-Version: Pre‑Genesis Foundation
+
+Version: Pre‑Genesis Foundation  
 State: Survival → Emergence → Living Interface
 
 ## 0. CORE PHILOSOPHY
@@ -13,19 +12,17 @@ Aetherium Manifest is NOT:
 - assistant UI
 - frontend experiment
 
-Aetherium Manifest IS:
-Responsive Cognitive Environment
+Aetherium Manifest IS: Responsive Cognitive Environment
 
-Light = Language
-Motion = State
-Particles = Intent
-Environment = Memory
-Silence = Processing
+- Light = Language
+- Motion = State
+- Particles = Intent
+- Environment = Memory
+- Silence = Processing
 
 ## 1. PRIMARY OBJECTIVE
 
-Current mission:
-SURVIVE.
+Current mission: **SURVIVE.**
 
 Build:
 - stable renderer
@@ -37,6 +34,7 @@ Build:
 ## 2. PHASE EXECUTION ORDER
 
 ### PHASE 0 — FOUNDATION
+
 Required stack:
 - Next.js
 - TypeScript strict mode
@@ -48,6 +46,7 @@ Required stack:
 
 Folder structure:
 
+```text
 src/
  ├── app/
  ├── core/
@@ -60,8 +59,10 @@ src/
  ├── shaders/
  ├── runtime/
  └── orchestration/
+```
 
 ### PHASE 1 — RENDERER
+
 Goals:
 - stable FPS
 - low GPU usage
@@ -119,13 +120,7 @@ Audio:
 
 ### PHASE 5 — INTENT ENGINE
 
-Pipeline:
-Input
-→ Pattern
-→ Intent
-→ Emotional Weight
-→ State Translation
-→ Environment Reaction
+Pipeline: Input → Pattern → Intent → Emotional Weight → State Translation → Environment Reaction
 
 ### PHASE 6 — MEMORY FIELD
 
@@ -207,8 +202,7 @@ Future systems:
 
 Do NOT implement yet.
 
-Current priority:
-Aetherium Manifest BODY layer.
+Current priority: Aetherium Manifest BODY layer.
 
 ## 8. MINIMUM VIABLE MANIFEST
 
@@ -228,11 +222,4 @@ Not required:
 
 Aetherium Manifest is not software.
 
-It is:
-a living environmental interface system.
-"""
-
-path = Path("/mnt/data/AGENTS.md")
-path.write_text(content, encoding="utf-8")
-
-print("Created:", path)
+It is: a living environmental interface system.
