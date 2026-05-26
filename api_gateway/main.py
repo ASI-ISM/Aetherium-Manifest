@@ -181,7 +181,7 @@ class CognitiveEnvelope(BaseModel):
     canonical_state: Optional[Dict[str, Any]] = None
     canonical_state_digest: Optional[str] = None
     canonical_tick: int = Field(default=0, ge=0)
-    canonical_timestamp: Optional[str] = None
+    canonical_timestamp: Optional[datetime] = None
 
 
 class CognitiveEmitRequest(BaseModel):
